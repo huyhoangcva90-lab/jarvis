@@ -1,13 +1,715 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#020617" />
-    <title>J-Core Console</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#020617">
+  <title>Jarvis - J-Core Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --void: #020617;
+      --panel: rgba(15, 23, 42, 0.72);
+      --panel-2: rgba(8, 47, 73, 0.32);
+      --cyan: #22d3ee;
+      --green: #4ade80;
+      --amber: #facc15;
+      --danger: #fb7185;
+      --text: #ecfeff;
+      --muted: rgba(207, 250, 254, 0.68);
+      --glow: 1;
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100dvh;
+      background: var(--void);
+      color: var(--text);
+      font-family: Inter, system-ui, sans-serif;
+      overflow-x: hidden;
+    }
+    body.theme-low { --glow: 0.55; }
+    body.theme-high { --glow: 1.55; }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(34, 211, 238, 0.13), transparent 28%),
+        radial-gradient(circle at 86% 20%, rgba(74, 222, 128, 0.11), transparent 26%),
+        linear-gradient(rgba(34, 211, 238, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(34, 211, 238, 0.035) 1px, transparent 1px);
+      background-size: auto, auto, 48px 48px, 48px 48px;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: -20vh;
+      height: 24vh;
+      pointer-events: none;
+      background: linear-gradient(to bottom, transparent, rgba(34, 211, 238, 0.11), transparent);
+      animation: scan 4s linear infinite;
+    }
+
+    @keyframes scan {
+      from { transform: translateY(-20vh); opacity: 0; }
+      15% { opacity: 0.45; }
+      to { transform: translateY(120vh); opacity: 0; }
+    }
+
+    @keyframes bootIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes sweep {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulseCore {
+      50% { transform: scale(1.04); opacity: 1; }
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .boot {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      background: var(--void);
+    }
+
+    .boot-card {
+      width: min(560px, 90vw);
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      border-radius: 10px;
+      background: rgba(2, 6, 23, 0.84);
+      padding: 32px;
+      box-shadow: 0 0 40px rgba(34, 211, 238, 0.16);
+      animation: bootIn 1.2s ease-out both;
+    }
+
+    .boot-head { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .boot-orb {
+      width: 48px;
+      height: 48px;
+      border-radius: 999px;
+      border: 1px solid rgba(74, 222, 128, 0.72);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 28px rgba(74, 222, 128, 0.18);
+    }
+    .boot-orb span {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      background: rgba(74, 222, 128, 0.72);
+      box-shadow: 0 0 22px rgba(74, 222, 128, 0.8);
+      animation: pulseCore 2.4s ease-in-out infinite;
+    }
+
+    .boot h1, .top h1, h2, .mono { font-family: "Share Tech Mono", ui-monospace, monospace; }
+    .boot h1 { margin: 0; text-transform: uppercase; font-size: 30px; }
+    .kicker { margin: 0 0 4px; color: var(--green); font-family: "Share Tech Mono", ui-monospace, monospace; font-size: 12px; text-transform: uppercase; }
+    .boot-line { color: var(--muted); font-family: "Share Tech Mono", ui-monospace, monospace; line-height: 1.8; }
+    .bar { height: 4px; margin-top: 24px; border-radius: 999px; overflow: hidden; background: #083344; }
+    .bar span { display: block; width: 100%; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green)); animation: bootIn 1.9s ease-out both; }
+
+    .top {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      border-bottom: 1px solid rgba(34, 211, 238, 0.2);
+      background: rgba(2, 6, 23, 0.9);
+      backdrop-filter: blur(18px);
+      padding: 14px 24px;
+    }
+    .top-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .top h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; font-family: "Share Tech Mono", ui-monospace, monospace; font-size: 12px; text-transform: uppercase; }
+    .chip { border: 1px solid rgba(34, 211, 238, 0.22); border-radius: 6px; padding: 8px 12px; color: #cffafe; }
+    .chip.online { color: var(--green); background: rgba(74, 222, 128, 0.1); border-color: rgba(74, 222, 128, 0.3); }
+
+    .layout { position: relative; z-index: 1; display: grid; grid-template-columns: 256px 1fr; min-height: calc(100dvh - 74px); }
+    .sidebar { border-right: 1px solid rgba(34, 211, 238, 0.2); background: rgba(2, 6, 23, 0.54); padding: 12px; }
+    .nav { display: grid; gap: 8px; }
+    .nav button {
+      min-height: 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid rgba(34, 211, 238, 0.12);
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.48);
+      color: rgba(207, 250, 254, 0.72);
+      padding: 12px;
+      font-family: "Share Tech Mono", ui-monospace, monospace;
+      text-transform: uppercase;
+      transition: 180ms ease;
+    }
+    .nav button.active, .nav button:hover, .nav button:focus-visible {
+      border-color: rgba(34, 211, 238, 0.7);
+      background: rgba(34, 211, 238, 0.1);
+      color: #f0fdff;
+      box-shadow: 0 0 calc(22px * var(--glow)) rgba(34, 211, 238, 0.13);
+      outline: none;
+    }
+    .nav small { color: rgba(74, 222, 128, 0.7); }
+
+    main { min-width: 0; padding: 24px; }
+    .main-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid rgba(34, 211, 238, 0.1); padding-bottom: 16px; margin-bottom: 16px; }
+    .main-head h2 { margin: 0; font-size: 28px; text-transform: uppercase; }
+
+    .grid { display: grid; gap: 16px; }
+    .cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .hero-grid { grid-template-columns: 1.25fr 0.85fr; }
+    .panel {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(34, 211, 238, 0.2);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.68);
+      padding: 18px;
+      box-shadow: 0 0 calc(30px * var(--glow)) rgba(34, 211, 238, 0.08), inset 0 0 calc(18px * var(--glow)) rgba(34, 211, 238, 0.03);
+    }
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.7), transparent);
+    }
+    .panel-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; margin-bottom: 14px; }
+    .panel h3 { margin: 0; font-family: "Share Tech Mono", ui-monospace, monospace; text-transform: uppercase; color: #cffafe; }
+    .muted { color: var(--muted); }
+    .big-title { margin: 8px 0 14px; font-family: "Share Tech Mono", ui-monospace, monospace; font-size: clamp(40px, 6vw, 72px); line-height: 0.95; text-transform: uppercase; }
+
+    .metric, .row, .log, .status-block {
+      border: 1px solid rgba(34, 211, 238, 0.12);
+      border-radius: 8px;
+      background: rgba(2, 6, 23, 0.48);
+      padding: 14px;
+    }
+    .metric strong, .status-block strong { display: block; margin-top: 8px; font-family: "Share Tech Mono", ui-monospace, monospace; font-size: 20px; text-transform: uppercase; }
+    .green { color: var(--green); }
+    .amber { color: var(--amber); }
+    .danger { color: var(--danger); }
+    .cyan { color: var(--cyan); }
+
+    .radar {
+      position: relative;
+      width: min(330px, 100%);
+      aspect-ratio: 1;
+      border-radius: 999px;
+      border: 1px solid rgba(34, 211, 238, 0.3);
+      background:
+        radial-gradient(circle, rgba(74, 222, 128, 0.18) 0 2px, transparent 3px),
+        radial-gradient(circle, rgba(34, 211, 238, 0.16), transparent 60%),
+        conic-gradient(from 110deg, rgba(34, 211, 238, 0.18), transparent 18%, rgba(74, 222, 128, 0.12), transparent 34%);
+      box-shadow: 0 0 calc(36px * var(--glow)) rgba(34, 211, 238, 0.22), inset 0 0 calc(42px * var(--glow)) rgba(34, 211, 238, 0.12);
+    }
+    .radar span { position: absolute; inset: var(--inset); border-radius: 999px; border: 1px solid rgba(34, 211, 238, 0.22); }
+    .radar::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 2px;
+      height: 46%;
+      transform-origin: bottom center;
+      background: linear-gradient(to top, var(--green), transparent);
+      animation: sweep 3.2s linear infinite;
+    }
+    .radar::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 10px;
+      height: 10px;
+      transform: translate(-50%, -50%);
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 28px rgba(74, 222, 128, 0.9);
+    }
+
+    .btn, .tile {
+      min-height: 44px;
+      border: 1px solid rgba(34, 211, 238, 0.28);
+      border-radius: 8px;
+      background: rgba(8, 47, 73, 0.34);
+      color: rgba(224, 242, 254, 0.95);
+      padding: 12px 16px;
+      font-family: "Share Tech Mono", ui-monospace, monospace;
+      text-transform: uppercase;
+      transition: 180ms ease;
+    }
+    .btn:hover, .btn:focus-visible, .tile:hover, .tile:focus-visible {
+      border-color: rgba(34, 211, 238, 0.72);
+      background: rgba(34, 211, 238, 0.12);
+      box-shadow: 0 0 calc(20px * var(--glow)) rgba(34, 211, 238, 0.16);
+      outline: none;
+    }
+    .primary { border-color: rgba(74, 222, 128, 0.55); background: linear-gradient(135deg, rgba(34, 211, 238, 0.22), rgba(74, 222, 128, 0.18)); color: #dcfce7; }
+    .danger-btn { border-color: rgba(251, 113, 133, 0.42); background: rgba(127, 29, 29, 0.24); color: #fecdd3; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    label { display: grid; gap: 7px; color: rgba(165, 243, 252, 0.78); font-family: "Share Tech Mono", ui-monospace, monospace; font-size: 13px; text-transform: uppercase; }
+    input, textarea, select {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid rgba(34, 211, 238, 0.2);
+      border-radius: 8px;
+      background: rgba(2, 6, 23, 0.68);
+      color: #f0f9ff;
+      padding: 12px;
+      outline: none;
+      text-transform: none;
+    }
+    textarea { resize: vertical; min-height: 120px; line-height: 1.55; }
+    input:focus, textarea:focus, select:focus { border-color: rgba(34, 211, 238, 0.7); box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.12); }
+
+    .progress { height: 8px; overflow: hidden; border-radius: 999px; background: #1e293b; }
+    .progress span { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--cyan), var(--green)); }
+    .terminal {
+      min-height: 430px;
+      max-height: 430px;
+      overflow: auto;
+      border: 1px solid rgba(74, 222, 128, 0.25);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.62);
+      color: var(--green);
+      padding: 16px;
+      font-family: "Share Tech Mono", ui-monospace, monospace;
+      line-height: 1.6;
+      box-shadow: inset 0 0 calc(24px * var(--glow)) rgba(74, 222, 128, 0.08);
+    }
+    .terminal p { margin: 0 0 8px; }
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 60;
+      max-width: 360px;
+      border: 1px solid rgba(74, 222, 128, 0.4);
+      border-radius: 8px;
+      background: rgba(2, 6, 23, 0.94);
+      color: var(--green);
+      padding: 14px 16px;
+      font-family: "Share Tech Mono", ui-monospace, monospace;
+      display: none;
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { border-right: 0; border-bottom: 1px solid rgba(34, 211, 238, 0.2); }
+      .nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .hero-grid, .cols-2, .cols-3, .cols-4 { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 620px) {
+      .top, main { padding: 16px; }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .big-title { font-size: 42px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="boot" id="boot">
+    <div class="boot-card">
+      <div class="boot-head">
+        <div class="boot-orb"><span></span></div>
+        <div>
+          <p class="kicker">Boot sequence</p>
+          <h1>Jarvis Console</h1>
+        </div>
+      </div>
+      <div class="boot-line">&gt; Loading operator memory...</div>
+      <div class="boot-line">&gt; Aligning mission sectors...</div>
+      <div class="boot-line">&gt; Establishing command surface...</div>
+      <div class="boot-line green">&gt; Core status: ONLINE</div>
+      <div class="bar"><span></span></div>
+    </div>
+  </div>
+
+  <header class="top">
+    <div class="top-row">
+      <div>
+        <p class="kicker">Personal supercomputer interface</p>
+        <h1>Jarvis / J-Core Console</h1>
+      </div>
+      <div class="chips">
+        <span class="chip online">AI Core Online</span>
+        <span class="chip" id="userChip">Huy</span>
+        <time class="chip" id="clock">--:--</time>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <nav class="nav" id="nav"></nav>
+    </aside>
+    <main>
+      <div class="main-head">
+        <div>
+          <p class="kicker">Active interface</p>
+          <h2 id="activeTitle">CORE</h2>
+        </div>
+        <p class="mono muted" id="persona">Persona: J-Core</p>
+      </div>
+      <section id="view"></section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORE = "jarvis-console:data:v2";
+    const tabs = ["CORE", "CHAT", "MISSION", "SECTORS", "TERMINAL", "MEMORY", "TOOLS", "SETTINGS"];
+    const promptCards = [
+      ["Plan My Day", "Act as my personal mission planner. Use my current context to create a focused day plan with priorities, time blocks, risks, and a realistic first action."],
+      ["Debug Problem", "Help me debug a problem. Ask clarifying questions only if needed, isolate the likely causes, propose tests, and give me a step-by-step repair path."],
+      ["Recover Mood", "I need a mood reset. Help me name what is happening, reduce pressure, choose one small stabilizing action, and return to useful momentum."],
+      ["Make Content", "Turn my idea into content. Give me angles, a strong outline, opening hooks, a clear structure, and a simple publishing checklist."],
+      ["Learn Something", "Teach me this topic like a patient expert. Start with the mental model, then examples, mistakes to avoid, and a short practice task."],
+      ["Review My Day", "Review my day with me. Help me extract wins, unfinished loops, lessons, emotional signals, and the best next action for tomorrow."]
+    ];
+
+    const defaults = {
+      username: "Huy",
+      aiPersonaName: "J-Core",
+      mood: "calm",
+      energy: "medium",
+      mainQuest: "Build my personal AI console",
+      sideQuests: ["", "", ""],
+      activeProject: "Personal AI assistant app",
+      missionStatus: "Not started",
+      themeIntensity: "Medium",
+      memory: {
+        whoIAm: "I am Huy, building a personal AI operating system for focus, planning, and creative execution.",
+        currentProjects: "Personal AI assistant app",
+        longTermGoals: "Design a calm, powerful workflow that helps me think clearly and finish important missions.",
+        aiRules: "Be direct, useful, warm, and practical. Help me turn vague thoughts into next actions.",
+        remember: "Prefer clean systems, daily momentum, and tools that reduce friction."
+      },
+      sectors: [
+        { name: "Work Sector", status: "Stable", progress: 68, notes: "Primary focus orbit is stable." },
+        { name: "Money Sector", status: "Warning", progress: 42, notes: "Review income systems and expenses." },
+        { name: "Learning Sector", status: "Stable", progress: 61, notes: "Keep one active study track." },
+        { name: "Health Sector", status: "Stable", progress: 55, notes: "Protect sleep and movement windows." },
+        { name: "Content Sector", status: "Warning", progress: 36, notes: "Prepare one reusable content pipeline." },
+        { name: "System Sector", status: "Stable", progress: 73, notes: "Console build in progress." }
+      ],
+      toolUrls: {
+        ChatGPT: "https://chatgpt.com/",
+        Notion: "https://www.notion.so/",
+        "Google Drive": "https://drive.google.com/",
+        GitHub: "https://github.com/",
+        n8n: "https://n8n.io/",
+        "YouTube Studio": "https://studio.youtube.com/",
+        Gmail: "https://mail.google.com/",
+        Calendar: "https://calendar.google.com/"
+      },
+      logs: ["J-Core kernel initialized.", "Operator profile loaded.", "Mission control standing by."]
+    };
+
+    let active = "CORE";
+    let editingSector = null;
+    let terminalLog = ["J-Core local terminal ready.", "Type help to list available commands."];
+    let data = load();
+
+    function load() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORE) || "null");
+        if (!saved) return structuredClone(defaults);
+        return {
+          ...structuredClone(defaults),
+          ...saved,
+          memory: { ...defaults.memory, ...(saved.memory || {}) },
+          toolUrls: { ...defaults.toolUrls, ...(saved.toolUrls || {}) },
+          sectors: Array.isArray(saved.sectors) ? saved.sectors : structuredClone(defaults.sectors),
+          sideQuests: Array.isArray(saved.sideQuests) ? saved.sideQuests.slice(0, 3) : ["", "", ""],
+          logs: Array.isArray(saved.logs) ? saved.logs.slice(-16) : defaults.logs
+        };
+      } catch {
+        return structuredClone(defaults);
+      }
+    }
+
+    function save() {
+      localStorage.setItem(STORE, JSON.stringify(data));
+      document.body.className = data.themeIntensity === "Low" ? "theme-low" : data.themeIntensity === "High" ? "theme-high" : "";
+      document.getElementById("userChip").textContent = data.username || "Operator";
+      document.getElementById("persona").textContent = "Persona: " + (data.aiPersonaName || "J-Core");
+    }
+
+    function addLog(message) {
+      const stamp = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date());
+      data.logs = [...data.logs, `[${stamp}] ${message}`].slice(-16);
+      save();
+    }
+
+    function toast(message) {
+      const el = document.getElementById("toast");
+      el.textContent = message;
+      el.style.display = "block";
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => el.style.display = "none", 2600);
+    }
+
+    async function copyText(text, message) {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast(message);
+        addLog(message);
+      } catch {
+        toast("Clipboard blocked by browser.");
+        addLog("Clipboard access blocked.");
+      }
+    }
+
+    function todayContext() {
+      const side = data.sideQuests.filter(Boolean).join("; ") || "No side quests set";
+      return [
+        `Operator: ${data.username}`,
+        `AI persona: ${data.aiPersonaName}`,
+        `Mood: ${data.mood}`,
+        `Energy: ${data.energy}`,
+        `Main mission: ${data.mainQuest}`,
+        `Side quests: ${side}`,
+        `Mission status: ${data.missionStatus}`,
+        `Active project: ${data.activeProject}`,
+        "",
+        "Use this as my current context. Help me choose the next useful action."
+      ].join("\n");
+    }
+
+    function fullContext() {
+      return [
+        todayContext(),
+        "",
+        "Memory:",
+        `Who I am: ${data.memory.whoIAm}`,
+        `Current projects: ${data.memory.currentProjects}`,
+        `Long-term goals: ${data.memory.longTermGoals}`,
+        `AI response rules: ${data.memory.aiRules}`,
+        `Things to remember: ${data.memory.remember}`
+      ].join("\n");
+    }
+
+    function panel(title, kicker, body, action = "") {
+      return `<div class="panel"><div class="panel-head"><div><p class="kicker">${kicker || ""}</p><h3>${title || ""}</h3></div>${action}</div>${body}</div>`;
+    }
+
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[ch]));
+    }
+
+    function setActive(tab) {
+      active = tab;
+      addLog(`Navigation shifted to ${tab}.`);
+      render();
+    }
+
+    function renderNav() {
+      document.getElementById("nav").innerHTML = tabs.map((tab, index) => `
+        <button class="${active === tab ? "active" : ""}" onclick="setActive('${tab}')">
+          <span>${tab}</span><small>${String(index + 1).padStart(2, "0")}</small>
+        </button>
+      `).join("");
+    }
+
+    function render() {
+      save();
+      renderNav();
+      document.getElementById("activeTitle").textContent = active;
+      const view = document.getElementById("view");
+      view.innerHTML = ({
+        CORE: coreView,
+        CHAT: chatView,
+        MISSION: missionView,
+        SECTORS: sectorsView,
+        TERMINAL: terminalView,
+        MEMORY: memoryView,
+        TOOLS: toolsView,
+        SETTINGS: settingsView
+      }[active])();
+    }
+
+    function coreView() {
+      const threat = data.energy === "low" || data.mood === "tired" ? "Warning" : "Nominal";
+      const logs = data.logs.slice(-6).reverse().map(log => `<div class="log"><span class="green">&gt;</span> ${esc(log)}</div>`).join("");
+      return `
+        <div class="grid hero-grid">
+          ${panel("", "", `
+            <div class="grid" style="grid-template-columns: 1fr 340px; align-items: center;">
+              <div>
+                <p class="kicker">Core deck</p>
+                <div class="big-title">J-Core Console</div>
+                <p class="muted">Operator dashboard for daily missions, prompt generation, personal context, and rapid access to AI workflows.</p>
+                <div class="grid cols-3" style="margin-top: 22px;">
+                  <div class="metric"><span class="kicker">AI Core</span><strong class="green">ONLINE</strong></div>
+                  <div class="metric"><span class="kicker">Current Time</span><strong>${esc(document.getElementById("clock").textContent)}</strong></div>
+                  <div class="metric"><span class="kicker">Threat Level</span><strong class="${threat === "Warning" ? "amber" : "green"}">${threat}</strong></div>
+                </div>
+              </div>
+              <div style="display:grid; place-items:center;"><div class="radar"><span style="--inset: 24px"></span><span style="--inset: 58px"></span><span style="--inset: 96px"></span></div></div>
+            </div>
+          `)}
+          <div class="grid">
+            ${panel("Today Summary", "Operator state", `<div class="grid"><div class="row"><p class="kicker">Main quest</p>${esc(data.mainQuest)}</div><div class="row"><p class="kicker">Active project</p>${esc(data.activeProject)}</div><div class="row"><p class="kicker">Mission status</p>${esc(data.missionStatus)}</div></div>`)}
+            ${panel("Mood / Energy", "Bio-signal estimate", `<div class="grid cols-2"><div class="status-block"><span class="kicker">Mood</span><strong>${esc(data.mood)}</strong></div><div class="status-block"><span class="kicker">Energy</span><strong>${esc(data.energy)}</strong></div></div>`)}
+          </div>
+        </div>
+        <div style="height:16px"></div>
+        ${panel("Recent System Logs", "Event stream", `<div class="grid cols-3">${logs}</div>`)}
+      `;
+    }
+
+    function chatView() {
+      return `
+        ${panel("AI Link", "External bridge", `
+          <div class="actions">
+            <a class="btn primary" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" onclick="addLog('ChatGPT Web launch requested.')">Open ChatGPT Web</a>
+            <a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" onclick="addLog('ChatGPT Voice launch requested.')">Open ChatGPT Voice</a>
+            <button class="btn" onclick="copyText(todayContext(), 'Today context copied.')">Copy Today Context</button>
+          </div>
+        `)}
+        <div style="height:16px"></div>
+        <div class="grid cols-3">
+          ${promptCards.map(([title, prompt]) => panel(title, "Prompt generator", `<p class="muted" style="min-height:110px; line-height:1.6;">${esc(prompt)}</p><button class="btn" style="width:100%;" onclick="copyText(${JSON.stringify(prompt)}, '${title} prompt copied.')">Copy Prompt</button>`)).join("")}
+        </div>
+      `;
+    }
+
+    function missionView() {
+      return `
+        <div class="grid" style="grid-template-columns: 1fr 360px;">
+          ${panel("Mission Parameters", "Daily operation", `
+            <div class="grid">
+              <label>Main Quest<input value="${esc(data.mainQuest)}" oninput="data.mainQuest=this.value;save()"></label>
+              <div class="grid cols-3">${[0,1,2].map(i => `<label>Side Quest ${i + 1}<input value="${esc(data.sideQuests[i] || "")}" oninput="data.sideQuests[${i}]=this.value;save()"></label>`).join("")}</div>
+              <label>Active Project<input value="${esc(data.activeProject)}" oninput="data.activeProject=this.value;save()"></label>
+            </div>
+          `)}
+          ${panel("Mission Control", "Execution", `
+            <div class="row" style="text-align:center;"><p class="kicker">Focus timer</p><div class="mono" style="font-size:54px;">25:00</div><p class="muted">Timer module reserved for next upgrade.</p></div>
+            <div class="status-block" style="margin-top:14px;"><span class="kicker">Mission status</span><strong>${esc(data.missionStatus)}</strong></div>
+            <div class="grid" style="margin-top:14px;">
+              <button class="btn primary" onclick="data.missionStatus='In progress';addLog('Mission status changed: In progress.');render()">Start Mission</button>
+              <button class="btn" onclick="data.missionStatus='Completed';addLog('Mission status changed: Completed.');render()">Complete Mission</button>
+              <button class="btn danger-btn" onclick="data.missionStatus='Not started';addLog('Mission status changed: Not started.');render()">Reset Mission</button>
+            </div>
+          `)}
+        </div>
+      `;
+    }
+
+    function sectorsView() {
+      return `<div class="grid cols-3">${data.sectors.map((s, i) => panel(s.name, "Life sector", `
+        <div class="actions" style="justify-content:space-between;"><span class="${s.status === "Critical" ? "danger" : s.status === "Warning" ? "amber" : "green"} mono">${esc(s.status)}</span><strong class="mono">${s.progress}%</strong></div>
+        <div class="progress" style="margin:14px 0;"><span style="width:${s.progress}%"></span></div>
+        <p class="muted" style="min-height:48px;">${esc(s.notes)}</p>
+        ${editingSector === i ? `
+          <div class="grid" style="border-top:1px solid rgba(34,211,238,.1); padding-top:14px;">
+            <label>Status<select onchange="data.sectors[${i}].status=this.value;save();render()"><option ${s.status==="Stable"?"selected":""}>Stable</option><option ${s.status==="Warning"?"selected":""}>Warning</option><option ${s.status==="Critical"?"selected":""}>Critical</option></select></label>
+            <label>Progress<input type="range" min="0" max="100" value="${s.progress}" oninput="data.sectors[${i}].progress=Number(this.value);save();render()"></label>
+            <label>Notes<textarea oninput="data.sectors[${i}].notes=this.value;save()">${esc(s.notes)}</textarea></label>
+          </div>
+        ` : ""}
+      `, `<button class="btn" onclick="editingSector=${editingSector === i ? "null" : i};addLog('${esc(s.name)} edit toggled.');render()">Edit</button>`)).join("")}</div>`;
+    }
+
+    function terminalView() {
+      return `${panel("Command Terminal", "Local simulation", `
+        <div class="terminal" id="terminal">${terminalLog.map(line => `<p>${esc(line)}</p>`).join("")}</div>
+        <form class="actions" style="margin-top:12px;" onsubmit="runCommand(event)">
+          <input id="cmd" placeholder="Type command..." autocomplete="off">
+          <button class="btn primary" type="submit">Run</button>
+        </form>
+      `)}`;
+    }
+
+    function runCommand(event) {
+      event.preventDefault();
+      const input = document.getElementById("cmd");
+      const command = input.value.trim().toLowerCase();
+      if (!command) return;
+      input.value = "";
+      if (command === "clear") {
+        terminalLog = [];
+        addLog("Terminal buffer cleared.");
+        render();
+        return;
+      }
+      const out = [`> ${command}`];
+      if (command === "help") out.push("Commands: help, scan, mission, mood tired, mood calm, energy low, energy high, copy context, open chatgpt, clear");
+      else if (command === "scan") out.push(`Mood=${data.mood}; Energy=${data.energy}; Mission=${data.missionStatus}; Core=ONLINE.`);
+      else if (command === "mission") out.push(`Main quest: ${data.mainQuest}`, `Active project: ${data.activeProject}`);
+      else if (command === "mood tired") { data.mood = "tired"; out.push("Mood channel updated: tired. Reduce task load and choose a recovery action."); }
+      else if (command === "mood calm") { data.mood = "calm"; out.push("Mood channel updated: calm. Maintain steady execution."); }
+      else if (command === "energy low") { data.energy = "low"; out.push("Energy channel updated: low. Recommend one essential mission only."); }
+      else if (command === "energy high") { data.energy = "high"; out.push("Energy channel updated: high. Deep work window available."); }
+      else if (command === "copy context") { copyText(todayContext(), "Terminal context copied."); out.push("Today context copied to clipboard."); }
+      else if (command === "open chatgpt") { const opened = window.open("https://chatgpt.com/", "_blank", "noopener,noreferrer"); out.push(opened ? "Opening external AI console." : "Popup blocked. Use CHAT or TOOLS."); }
+      else out.push("Unknown command. Type help for command list.");
+      terminalLog = [...terminalLog, ...out].slice(-80);
+      addLog(`Terminal command executed: ${command}.`);
+      render();
+      setTimeout(() => document.getElementById("terminal")?.scrollTo(0, 99999));
+    }
+
+    function memoryView() {
+      const fields = [["whoIAm", "Who I am"], ["currentProjects", "Current projects"], ["longTermGoals", "Long-term goals"], ["aiRules", "AI response rules"], ["remember", "Things to remember"]];
+      return panel("Memory Vault", "Persistent context", `<div class="grid cols-2">${fields.map(([key, label]) => `<label>${label}<textarea oninput="data.memory.${key}=this.value;save()">${esc(data.memory[key])}</textarea></label>`).join("")}</div>`, `<button class="btn" onclick="copyText(fullContext(), 'Full memory context copied.')">Copy Full Context</button>`);
+    }
+
+    function toolsView() {
+      return panel("Quick Launch", "External tools", `<div class="grid cols-4">${Object.entries(data.toolUrls).map(([name, url]) => `<a class="tile" href="${esc(url)}" target="_blank" rel="noopener noreferrer" onclick="addLog('${esc(name)} tool launch requested.')"><strong>${esc(name)}</strong><br><small class="muted">${esc(url)}</small></a>`).join("")}</div>`);
+    }
+
+    function settingsView() {
+      return `<div class="grid" style="grid-template-columns: .8fr 1.2fr;">
+        ${panel("Operator Settings", "Console identity", `
+          <div class="grid">
+            <label>Username<input value="${esc(data.username)}" oninput="data.username=this.value;save();renderNav()"></label>
+            <label>AI persona name<input value="${esc(data.aiPersonaName)}" oninput="data.aiPersonaName=this.value;save()"></label>
+            <label>Theme intensity<select onchange="data.themeIntensity=this.value;addLog('Theme intensity set to '+this.value+'.');render()"><option ${data.themeIntensity==="Low"?"selected":""}>Low</option><option ${data.themeIntensity==="Medium"?"selected":""}>Medium</option><option ${data.themeIntensity==="High"?"selected":""}>High</option></select></label>
+            <div class="row"><p class="kicker danger">Reset local data</p><p class="muted">Restores the original operator profile, memory, sectors, tools, and logs on this browser.</p><button class="btn danger-btn" style="width:100%;" onclick="if(confirm('Reset all Jarvis local data on this browser?')){localStorage.removeItem(STORE);data=load();addLog('Local data reset.');render()}">Reset All Local Data</button></div>
+          </div>
+        `)}
+        ${panel("Custom Tool URLs", "Launch matrix", `<div class="grid cols-2">${Object.keys(defaults.toolUrls).map(name => `<label>${esc(name)}<input value="${esc(data.toolUrls[name] || "")}" oninput="data.toolUrls['${esc(name)}']=this.value;save()"></label>`).join("")}</div>`)}
+      </div>`;
+    }
+
+    function tick() {
+      document.getElementById("clock").textContent = new Intl.DateTimeFormat(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date());
+    }
+
+    setTimeout(() => document.getElementById("boot").style.display = "none", 2000);
+    setInterval(tick, 1000);
+    tick();
+    render();
+  </script>
+</body>
 </html>
