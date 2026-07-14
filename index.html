@@ -210,27 +210,28 @@
     .hero-text {
       position: absolute;
       left: 50%;
-      bottom: 11%;
+      bottom: 16%;
       transform: translateX(-50%);
-      width: min(1000px, 92vw);
+      width: min(760px, 86vw);
       text-align: center;
+      pointer-events: none;
     }
     .hero-text h2 {
       margin: 0;
-      color: #fff;
-      font-size: clamp(52px, 12vw, 172px);
-      line-height: .82;
-      letter-spacing: -.02em;
+      color: var(--gold);
+      font-size: clamp(24px, 4.8vw, 64px);
+      line-height: 1;
+      letter-spacing: .22em;
       font-weight: 900;
       text-transform: uppercase;
-      text-shadow: 0 10px 0 rgba(0,0,0,.38), 0 0 45px rgba(255,184,61,.24);
+      text-shadow: 0 0 34px var(--glow);
     }
     .hero-text p {
-      margin: 18px auto 0;
-      max-width: 720px;
+      margin: 10px auto 0;
+      max-width: 620px;
       color: var(--muted);
-      line-height: 1.65;
-      font-size: 14px;
+      line-height: 1.55;
+      font-size: 12px;
     }
 
     .console {
@@ -295,27 +296,33 @@
     .quick-row {
       position: absolute;
       left: 50%;
-      top: calc(8% + 82px);
-      transform: translateX(-50%);
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px;
+      top: 50%;
+      transform: translate(-50%, -50%);
       width: min(760px, 82vw);
-      pointer-events: auto;
+      height: min(480px, 54vh);
+      pointer-events: none;
     }
     .chip {
+      position: absolute;
+      min-width: 128px;
       border: 1px solid rgba(255,184,61,.22);
       border-radius: 999px;
-      background: rgba(5,5,5,.44);
+      background: rgba(5,5,5,.58);
       color: var(--muted);
       padding: 8px 12px;
       font-family: "JetBrains Mono", ui-monospace, monospace;
       font-size: 11px;
       letter-spacing: .08em;
       text-transform: uppercase;
+      pointer-events: auto;
+      box-shadow: 0 0 22px rgba(0,0,0,.35);
+      backdrop-filter: blur(12px);
     }
     .chip:hover, .chip:focus-visible { outline: none; color: var(--gold); border-color: var(--gold); }
+    .chip:nth-child(1) { left: 50%; top: 0; transform: translateX(-50%); }
+    .chip:nth-child(2) { right: 0; top: 48%; transform: translateY(-50%); }
+    .chip:nth-child(3) { left: 50%; bottom: 0; transform: translateX(-50%); }
+    .chip:nth-child(4) { left: 0; top: 48%; transform: translateY(-50%); }
 
     .boot {
       position: fixed;
@@ -372,8 +379,13 @@
       .status-stack .status:not(:first-child) { display: none; }
       .brand { width: auto; }
       .prompt { top: 14%; width: min(92vw, 720px); }
-      .quick-row { top: calc(14% + 82px); }
-      .hero-text { bottom: 25%; }
+      .quick-row {
+        top: 52%;
+        width: min(620px, 86vw);
+        height: min(380px, 44vh);
+      }
+      .chip { min-width: 112px; font-size: 10px; padding: 7px 10px; }
+      .hero-text { bottom: 24%; }
       .console { grid-template-columns: 1fr; }
       .controls { grid-template-columns: repeat(3, 1fr); }
       .chat { max-height: 220px; }
@@ -384,7 +396,19 @@
       .status-stack { display: none; }
       .prompt { grid-template-columns: 50px 1fr 50px; }
       .orb-btn { width: 50px; height: 50px; }
-      .hero-text h2 { font-size: 56px; }
+      .quick-row {
+        top: auto;
+        bottom: 38%;
+        height: auto;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 7px;
+        transform: translateX(-50%);
+      }
+      .chip { position: static; transform: none !important; min-width: auto; }
+      .hero-text { bottom: 29%; }
+      .hero-text h2 { font-size: 28px; letter-spacing: .16em; }
       .hero-text p { display: none; }
       .controls { grid-template-columns: 1fr; }
     }
