@@ -465,7 +465,13 @@
     const STORE = "jarvis-active-reference:v1";
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const themes = ["", "blue", "violet"];
-    let themeIndex = Number(localStorage.getItem("jarvis-palette") || 0);
+    function readStore(key) {
+      try { return localStorage.getItem(key); } catch { return null; }
+    }
+    function writeStore(key, value) {
+      try { localStorage.setItem(key, value); } catch {}
+    }
+    let themeIndex = Number(readStore("jarvis-palette") || 0);
     let toastTimer = null;
     let recognition = null;
     const defaults = {
@@ -475,11 +481,21 @@
     };
     let data = load();
 
-    function load() {
-      try { return { ...defaults, ...JSON.parse(localStorage.getItem(STORE) || "{}") }; }
-      catch { return structuredClone(defaults); }
+    window.addEventListener("error", event => {
+      const boot = document.getElementById("boot");
+      if (boot) boot.classList.add("hide");
+      console.error("Jarvis interface error:", event.message);
+    });
+    function cloneDefaults() {
+      return JSON.parse(JSON.stringify(defaults));
     }
-    function save() { localStorage.setItem(STORE, JSON.stringify(data)); }
+    function load() {
+      try { return { ...cloneDefaults(), ...JSON.parse(readStore(STORE) || "{}") }; }
+      catch { return cloneDefaults(); }
+    }
+    function save() {
+      writeStore(STORE, JSON.stringify(data));
+    }
     function esc(value) {
       return String(value).replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[ch]));
     }
@@ -505,10 +521,10 @@
     function answerFor(input) {
       const q = input.toLowerCase();
       if (q.includes("weather")) return "Weather briefing module is visual-only for now. Next step: connect a safe weather API through a small backend or static public endpoint.";
-      if (q.includes("pc") || q.includes("computer") || q.includes("máy tính")) return "PC control must use a local agent with allowlisted commands, confirmation prompts, and no public secrets in this page.";
-      if (q.includes("phone") || q.includes("điện thoại")) return "Phone control should start with shortcuts and notifications, then a secure bridge. The web UI should request actions, not store credentials.";
+      if (q.includes("pc") || q.includes("computer") || q.includes("may tinh")) return "PC control must use a local agent with allowlisted commands, confirmation prompts, and no public secrets in this page.";
+      if (q.includes("phone") || q.includes("dien thoai")) return "Phone control should start with shortcuts and notifications, then a secure bridge. The web UI should request actions, not store credentials.";
       if (q.includes("detective") || q.includes("trinh") || q.includes("case")) return "Detective mode: collect facts, build a timeline, mark contradictions, then ask one verification question.";
-      if (q.includes("api") || q.includes("key") || q.includes("bảo mật") || q.includes("bao mat")) return "Security rule: never put a real AI API key into GitHub Pages. Use a backend proxy or serverless function.";
+      if (q.includes("api") || q.includes("key") || q.includes("bao mat")) return "Security rule: never put a real AI API key into GitHub Pages. Use a backend proxy or serverless function.";
       return "Understood. I would turn that into a clean command: objective, context, constraints, evidence, then next action.";
     }
     function speak(text) {
@@ -571,7 +587,7 @@
     function applyTheme() {
       document.body.classList.remove("blue", "violet");
       if (themes[themeIndex]) document.body.classList.add(themes[themeIndex]);
-      localStorage.setItem("jarvis-palette", String(themeIndex));
+      writeStore("jarvis-palette", String(themeIndex));
     }
     function tick() {
       const now = new Date();
@@ -596,7 +612,7 @@
       copy(data.messages.map(m => `${m.role === "you" ? "You" : "Jarvis"}: ${m.text}`).join("\n"), "Copied");
     });
     document.getElementById("clearBtn").addEventListener("click", () => {
-      data.messages = structuredClone(defaults.messages);
+      data.messages = cloneDefaults().messages;
       save();
       renderMessages();
       setMode("online", "Conversation reset.", "COMMAND");
@@ -609,22 +625,23 @@
       });
     });
 
-    const network = document.getElementById("network");
-    const nctx = network.getContext("2d");
-    const core = document.getElementById("core");
-    const cctx = core.getContext("2d");
+    const networkCanvas = document.getElementById("network");
+    const networkCtx = networkCanvas && networkCanvas.getContext ? networkCanvas.getContext("2d") : null;
+    const coreCanvas = document.getElementById("core");
+    const coreCtx = coreCanvas && coreCanvas.getContext ? coreCanvas.getContext("2d") : null;
     let points = [];
     let sparks = [];
     function resize() {
       const dpr = Math.min(devicePixelRatio || 1, 2);
-      [network, core].forEach(canvas => {
+      [networkCanvas, coreCanvas].forEach(canvas => {
+        if (!canvas) return;
         canvas.width = Math.floor(innerWidth * dpr);
         canvas.height = Math.floor(innerHeight * dpr);
         canvas.style.width = innerWidth + "px";
         canvas.style.height = innerHeight + "px";
       });
-      nctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (networkCtx) networkCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (coreCtx) coreCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       points = Array.from({ length: Math.min(80, Math.floor(innerWidth / 18)) }, () => ({
         x: Math.random() * innerWidth,
         y: Math.random() * innerHeight,
@@ -643,49 +660,51 @@
       return getComputedStyle(document.body).getPropertyValue(name).trim();
     }
     function drawNetwork() {
-      nctx.clearRect(0, 0, innerWidth, innerHeight);
-      nctx.strokeStyle = "rgba(255,184,61,.18)";
-      nctx.fillStyle = color("--gold");
+      if (!networkCtx) return;
+      networkCtx.clearRect(0, 0, innerWidth, innerHeight);
+      networkCtx.strokeStyle = "rgba(255,184,61,.18)";
+      networkCtx.fillStyle = color("--gold");
       points.forEach((p, i) => {
         p.x += p.vx;
         p.y += p.vy;
         if (p.x < 0 || p.x > innerWidth) p.vx *= -1;
         if (p.y < 0 || p.y > innerHeight) p.vy *= -1;
-        nctx.globalAlpha = .32;
-        nctx.beginPath();
-        nctx.arc(p.x, p.y, 1.2, 0, Math.PI * 2);
-        nctx.fill();
+        networkCtx.globalAlpha = .32;
+        networkCtx.beginPath();
+        networkCtx.arc(p.x, p.y, 1.2, 0, Math.PI * 2);
+        networkCtx.fill();
         for (let j = i + 1; j < points.length; j++) {
           const q = points[j];
           const d = Math.hypot(p.x - q.x, p.y - q.y);
           if (d < 120) {
-            nctx.globalAlpha = (120 - d) / 520;
-            nctx.beginPath();
-            nctx.moveTo(p.x, p.y);
-            nctx.lineTo(q.x, q.y);
-            nctx.stroke();
+            networkCtx.globalAlpha = (120 - d) / 520;
+            networkCtx.beginPath();
+            networkCtx.moveTo(p.x, p.y);
+            networkCtx.lineTo(q.x, q.y);
+            networkCtx.stroke();
           }
         }
       });
       requestAnimationFrame(drawNetwork);
     }
     function drawCore() {
-      cctx.clearRect(0, 0, innerWidth, innerHeight);
-      cctx.globalCompositeOperation = "lighter";
+      if (!coreCtx) return;
+      coreCtx.clearRect(0, 0, innerWidth, innerHeight);
+      coreCtx.globalCompositeOperation = "lighter";
       const cx = innerWidth / 2;
       const cy = innerHeight * .45;
       const base = Math.min(innerWidth, innerHeight);
-      const g = cctx.createRadialGradient(cx, cy, 0, cx, cy, base * .28);
+      const g = coreCtx.createRadialGradient(cx, cy, 0, cx, cy, base * .28);
       g.addColorStop(0, color("--gold"));
       g.addColorStop(.22, "rgba(255,184,61,.28)");
       g.addColorStop(1, "rgba(255,184,61,0)");
-      cctx.globalAlpha = .52;
-      cctx.fillStyle = g;
-      cctx.beginPath();
-      cctx.arc(cx, cy, base * .27, 0, Math.PI * 2);
-      cctx.fill();
-      cctx.strokeStyle = color("--gold");
-      cctx.fillStyle = color("--gold");
+      coreCtx.globalAlpha = .52;
+      coreCtx.fillStyle = g;
+      coreCtx.beginPath();
+      coreCtx.arc(cx, cy, base * .27, 0, Math.PI * 2);
+      coreCtx.fill();
+      coreCtx.strokeStyle = color("--gold");
+      coreCtx.fillStyle = color("--gold");
       const speedBoost = document.body.classList.contains("speaking") ? 2.2 : document.body.classList.contains("listening") ? 1.6 : 1;
       sparks.forEach((p, i) => {
         p.a += p.s * speedBoost;
@@ -693,21 +712,21 @@
         const x = cx + Math.cos(p.a) * (p.r + wobble);
         const y = cy + Math.sin(p.a) * (p.r * p.z);
         if (i % 16 === 0) {
-          cctx.globalAlpha = .16;
-          cctx.beginPath();
-          cctx.ellipse(cx, cy, p.r, p.r * p.z, Math.sin(i) * .8, 0, Math.PI * 2);
-          cctx.stroke();
+          coreCtx.globalAlpha = .16;
+          coreCtx.beginPath();
+          coreCtx.ellipse(cx, cy, p.r, p.r * p.z, Math.sin(i) * .8, 0, Math.PI * 2);
+          coreCtx.stroke();
         }
-        cctx.globalAlpha = .55 + Math.sin(p.a * 2) * .22;
-        cctx.beginPath();
-        cctx.arc(x, y, p.size, 0, Math.PI * 2);
-        cctx.fill();
+        coreCtx.globalAlpha = .55 + Math.sin(p.a * 2) * .22;
+        coreCtx.beginPath();
+        coreCtx.arc(x, y, p.size, 0, Math.PI * 2);
+        coreCtx.fill();
       });
-      cctx.globalAlpha = .96;
-      cctx.beginPath();
-      cctx.arc(cx, cy, 8 + Math.sin(Date.now() * .005) * 2, 0, Math.PI * 2);
-      cctx.fill();
-      cctx.globalCompositeOperation = "source-over";
+      coreCtx.globalAlpha = .96;
+      coreCtx.beginPath();
+      coreCtx.arc(cx, cy, 8 + Math.sin(Date.now() * .005) * 2, 0, Math.PI * 2);
+      coreCtx.fill();
+      coreCtx.globalCompositeOperation = "source-over";
       requestAnimationFrame(drawCore);
     }
 
