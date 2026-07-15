@@ -1062,13 +1062,33 @@
         coreCtx.stroke();
       }
 
+      function noise01(seed) {
+        const raw = Math.sin(seed * 91.771 + 12.9898) * 43758.5453;
+        return raw - Math.floor(raw);
+      }
+
+      function brokenArcBand(r, spin, count, alpha, width, bias = 0) {
+        for (let i = 0; i < count; i++) {
+          const n = noise01(i * 11.7 + r * .013 + bias);
+          const cluster = Math.sin(i * 1.92 + bias) > .05 || (i > count * .58 && i < count * .78);
+          if (!cluster && n < .76) continue;
+          const start = spin + i * Math.PI * 2 / count + Math.sin(i * 2.1 + t) * .045;
+          const len = (.08 + n * .28) * (cluster ? 1.25 : .72);
+          strokeArc(r + Math.sin(i * 1.37 + t) * radius * .018, start, len, width * (.7 + n), alpha * (.45 + n));
+        }
+      }
+
       function tickRing(r, count, innerLen, outerLen, alpha, spin, activeEvery) {
         coreCtx.strokeStyle = rgbaVar("--gold-rgb", .85);
-        coreCtx.lineWidth = 1.45;
+        coreCtx.lineWidth = 1.35;
         for (let i = 0; i < count; i++) {
+          const pocket = Math.sin(i * .72 + spin * 2.4) > .38 || (i > count * .06 && i < count * .2) || (i > count * .63 && i < count * .76);
+          if (!pocket && i % 7 !== 0) continue;
+          if (noise01(i * 3.13 + r * .02) < .34) continue;
           const a = (Math.PI * 2 / count) * i + spin;
           const hot = activeEvery && i % activeEvery === 0;
-          const len = hot ? outerLen : innerLen;
+          const jitter = .7 + noise01(i * 8.91) * .9;
+          const len = (hot ? outerLen : innerLen) * jitter;
           coreCtx.globalAlpha = hot ? alpha * 1.35 : alpha;
           coreCtx.beginPath();
           coreCtx.moveTo(cx + Math.cos(a) * (r - len), cy + Math.sin(a) * (r - len));
@@ -1077,31 +1097,44 @@
         }
       }
 
-      tickRing(radius * 1.18, 72, radius * .042, radius * .082, .42, t * .18, 8);
-      tickRing(radius * .66, 36, radius * .04, radius * .072, .62, -t * .42, 6);
-
-      coreCtx.save();
-      coreCtx.setLineDash([radius * .18, radius * .12]);
-      coreCtx.globalAlpha = .18;
-      coreCtx.lineWidth = 1;
-      coreCtx.strokeStyle = rgbaVar("--gold-rgb", .7);
-      coreCtx.beginPath();
-      coreCtx.arc(cx, cy, radius * .94, t * .3, Math.PI * 2 + t * .3);
-      coreCtx.stroke();
-      coreCtx.restore();
+      tickRing(radius * 1.2, 84, radius * .035, radius * .09, .38, t * .16, 8);
+      tickRing(radius * .64, 44, radius * .035, radius * .078, .56, -t * .46, 6);
+      brokenArcBand(radius * 1.04, t * .34, 30, .54, 2.1, 1.2);
+      brokenArcBand(radius * .9, -t * .68, 24, .36, 1.35, 5.7);
+      brokenArcBand(radius * .52, t * 1.1, 18, .48, 1.8, 9.1);
 
       const ringSets = [
-        { r: 1.0, w: 3.2, s: .72, parts: 4, gap: .42, alpha: .82 },
-        { r: .82, w: 2.1, s: -.96, parts: 3, gap: .62, alpha: .66 },
-        { r: .58, w: 2.4, s: 1.35, parts: 2, gap: .9, alpha: .72 },
-        { r: .42, w: 1.5, s: -.58, parts: 3, gap: 1.05, alpha: .4 }
+        { r: 1.0, w: 2.8, s: .72, parts: 7, alpha: .72, bias: 2.1 },
+        { r: .82, w: 1.9, s: -.96, parts: 6, alpha: .58, bias: 4.8 },
+        { r: .58, w: 2.2, s: 1.35, parts: 5, alpha: .66, bias: 8.4 },
+        { r: .42, w: 1.25, s: -.58, parts: 4, alpha: .34, bias: 11.7 }
       ];
       ringSets.forEach((ring, ringIndex) => {
         for (let i = 0; i < ring.parts; i++) {
-          const start = t * ring.s + i * (Math.PI * 2 / ring.parts) + ringIndex * .35;
-          const len = Math.PI * 2 / ring.parts - ring.gap + Math.sin(t * 1.6 + i) * .08;
-          strokeArc(radius * ring.r, start, len, ring.w, ring.alpha);
+          const n = noise01(i * 13.4 + ring.bias);
+          if (n < .38 && i !== ringIndex) continue;
+          const start = t * ring.s + i * (Math.PI * 2 / ring.parts) + ringIndex * .35 + n * .35;
+          const len = .2 + n * .92 + Math.sin(t * 1.6 + i) * .06;
+          strokeArc(radius * (ring.r + Math.sin(i + ring.bias) * .018), start, len, ring.w * (.75 + n * .5), ring.alpha * (.58 + n * .5));
         }
+      });
+
+      const orbits = [
+        { rx: 1.52, ry: .4, rot: .18, spin: .28, a: .28 },
+        { rx: 1.32, ry: .28, rot: -1.0, spin: -.36, a: .22 },
+        { rx: 1.68, ry: .22, rot: .82, spin: .44, a: .18 },
+        { rx: 1.16, ry: .76, rot: -.42, spin: -.2, a: .2 }
+      ];
+      orbits.forEach((orbit, i) => {
+        coreCtx.save();
+        coreCtx.globalAlpha = orbit.a * (isSpeaking ? 1.45 : 1);
+        coreCtx.lineWidth = i === 0 ? 1.25 : .8;
+        coreCtx.setLineDash([radius * (.14 + i * .03), radius * (.08 + i * .035)]);
+        coreCtx.strokeStyle = rgbaVar("--gold-rgb", .65);
+        coreCtx.beginPath();
+        coreCtx.ellipse(cx + Math.sin(t + i) * radius * .06, cy + Math.cos(t * .7 + i) * radius * .04, radius * orbit.rx, radius * orbit.ry, orbit.rot + t * orbit.spin, 0, Math.PI * 2);
+        coreCtx.stroke();
+        coreCtx.restore();
       });
 
       const sweep = -Math.PI * .12 + t * .9;
@@ -1114,18 +1147,52 @@
       coreCtx.stroke();
       coreCtx.globalCompositeOperation = "lighter";
 
-      for (let i = 0; i < 20; i++) {
-        const a = t * .62 + i * Math.PI * 2 / 20;
-        const r1 = radius * (.72 + Math.sin(t * 1.5 + i) * .012);
-        const r2 = radius * (1.02 + Math.cos(t * 1.2 + i) * .018);
-        coreCtx.globalAlpha = i % 5 === 0 ? .34 : .12;
-        coreCtx.lineWidth = i % 5 === 0 ? 1.2 : .6;
-        coreCtx.strokeStyle = rgbaVar("--gold-rgb", .55);
+      for (let i = 0; i < 36; i++) {
+        const n = noise01(i * 4.44);
+        const a = t * (.38 + n * .35) + i * Math.PI * 2 / 36 + Math.sin(i) * .18;
+        const concentrated = (a % (Math.PI * 2)) > .9 && (a % (Math.PI * 2)) < 1.9 || i > 25;
+        if (!concentrated && n < .64) continue;
+        const r1 = radius * (.16 + n * .58);
+        const r2 = radius * (.62 + n * .68);
+        coreCtx.globalAlpha = concentrated ? .34 : .16;
+        coreCtx.lineWidth = concentrated ? 1.15 : .55;
+        coreCtx.strokeStyle = rgbaVar("--gold-rgb", .58);
         coreCtx.beginPath();
-        coreCtx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
-        coreCtx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+        coreCtx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1 * (.78 + n * .22));
+        coreCtx.lineTo(cx + Math.cos(a + n * .34) * r2, cy + Math.sin(a + n * .22) * r2 * (.68 + n * .32));
         coreCtx.stroke();
       }
+
+      const clusters = [
+        { a: .18, r: .92, count: 18 },
+        { a: 2.42, r: .76, count: 14 },
+        { a: 4.9, r: .88, count: 20 }
+      ];
+      clusters.forEach((cluster, clusterIndex) => {
+        for (let i = 0; i < cluster.count; i++) {
+          const n = noise01(clusterIndex * 20 + i);
+          const a = cluster.a + Math.sin(i * 1.7 + t) * .42 + t * (.12 + clusterIndex * .05);
+          const r = radius * cluster.r * (.72 + n * .34);
+          const x = cx + Math.cos(a) * r;
+          const y = cy + Math.sin(a) * r * (.62 + clusterIndex * .08);
+          coreCtx.globalAlpha = .18 + n * .42;
+          coreCtx.fillStyle = i % 4 === 0 ? "rgba(255,255,230,.9)" : gold;
+          coreCtx.beginPath();
+          coreCtx.arc(x, y, 1 + n * 2.4, 0, Math.PI * 2);
+          coreCtx.fill();
+          if (i > 0 && n > .38) {
+            const px = cx + Math.cos(a - .12 - n * .16) * r * (.92 + n * .1);
+            const py = cy + Math.sin(a - .12) * r * (.58 + clusterIndex * .08);
+            coreCtx.globalAlpha = .1 + n * .22;
+            coreCtx.lineWidth = .5 + n * .7;
+            coreCtx.strokeStyle = rgbaVar("--gold-rgb", .55);
+            coreCtx.beginPath();
+            coreCtx.moveTo(px, py);
+            coreCtx.lineTo(x, y);
+            coreCtx.stroke();
+          }
+        }
+      });
 
       const coreGlow = coreCtx.createRadialGradient(cx, cy, 0, cx, cy, radius * .38);
       coreGlow.addColorStop(0, "rgba(255,255,240,.92)");
@@ -1134,12 +1201,12 @@
       coreCtx.globalAlpha = isSpeaking ? .95 : .8;
       coreCtx.fillStyle = coreGlow;
       coreCtx.beginPath();
-      coreCtx.arc(cx, cy, radius * (.24 + Math.abs(fastBreath) * (isSpeaking ? .035 : .012)), 0, Math.PI * 2);
+      coreCtx.arc(cx + Math.sin(t * 2.3) * radius * .018, cy + Math.cos(t * 1.8) * radius * .012, radius * (.22 + Math.abs(fastBreath) * (isSpeaking ? .05 : .018)), 0, Math.PI * 2);
       coreCtx.fill();
 
       const triR = radius * .27;
       const triSpin = Math.sin(t * .8) * .035;
-      coreCtx.globalAlpha = .92;
+      coreCtx.globalAlpha = .78;
       coreCtx.lineWidth = 1.8;
       coreCtx.strokeStyle = gold;
       coreCtx.fillStyle = rgbaVar("--gold-rgb", .12);
@@ -1154,6 +1221,19 @@
       coreCtx.closePath();
       coreCtx.fill();
       coreCtx.stroke();
+
+      for (let i = 0; i < 10; i++) {
+        const n = noise01(i * 9.2);
+        const a = t * (1.1 + n) + i * Math.PI * .62;
+        const rr = triR * (.28 + n * .92);
+        coreCtx.globalAlpha = .18 + n * .36;
+        coreCtx.lineWidth = .7 + n;
+        coreCtx.strokeStyle = i % 3 === 0 ? "rgba(255,255,230,.8)" : rgbaVar("--gold-rgb", .78);
+        coreCtx.beginPath();
+        coreCtx.moveTo(cx + Math.cos(a) * rr * .28, cy + Math.sin(a) * rr * .28);
+        coreCtx.lineTo(cx + Math.cos(a + n * 1.6) * rr, cy + Math.sin(a + n * .9) * rr);
+        coreCtx.stroke();
+      }
 
       coreCtx.globalAlpha = .38;
       coreCtx.lineWidth = 1;
