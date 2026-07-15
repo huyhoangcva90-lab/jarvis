@@ -46,7 +46,7 @@
       position: fixed;
       inset: 0;
       background:
-        radial-gradient(circle at 50% 42%, rgba(255, 184, 61, .16), transparent 24%),
+        radial-gradient(circle at 50% 45%, rgba(255, 184, 61, .2), transparent 29%),
         radial-gradient(circle at 50% 70%, rgba(45, 230, 255, .08), transparent 26%),
         linear-gradient(180deg, #050505 0%, #070707 52%, #020202 100%);
     }
@@ -162,7 +162,7 @@
       position: absolute;
       left: 50%;
       top: 48%;
-      width: min(620px, 66vw);
+      width: min(720px, 72vw);
       aspect-ratio: 1;
       transform: translate(-50%, -50%);
       border-radius: 999px;
@@ -356,8 +356,8 @@
       left: 50%;
       top: 48%;
       transform: translate(-50%, -50%);
-      width: min(780px, 82vw);
-      height: min(500px, 56vh);
+      width: min(900px, 88vw);
+      height: min(590px, 64vh);
       pointer-events: none;
     }
     .chip {
@@ -393,10 +393,10 @@
       opacity: .58;
     }
     .chip:hover, .chip:focus-visible { outline: none; color: var(--gold); border-color: var(--gold); box-shadow: 0 0 34px var(--glow); }
-    .chip:nth-child(1) { left: 50%; top: -8px; transform: translateX(-50%); }
-    .chip:nth-child(2) { right: -8px; top: 50%; transform: translateY(-50%); }
-    .chip:nth-child(3) { left: 50%; bottom: -8px; transform: translateX(-50%); }
-    .chip:nth-child(4) { left: -8px; top: 50%; transform: translateY(-50%); }
+    .chip:nth-child(1) { left: 50%; top: -18px; transform: translateX(-50%); }
+    .chip:nth-child(2) { right: -18px; top: 50%; transform: translateY(-50%); }
+    .chip:nth-child(3) { left: 50%; bottom: -18px; transform: translateX(-50%); }
+    .chip:nth-child(4) { left: -18px; top: 50%; transform: translateY(-50%); }
 
     .boot {
       position: fixed;
@@ -739,7 +739,11 @@
     const coreCanvas = document.getElementById("core");
     const coreCtx = coreCanvas && coreCanvas.getContext ? coreCanvas.getContext("2d") : null;
     let points = [];
-    let sparks = [];
+    let outerDust = [];
+    let orbitDots = [];
+    let meshNodes = [];
+    let radialBeams = [];
+    let orbitRings = [];
     function resize() {
       const dpr = Math.min(devicePixelRatio || 1, 2);
       [networkCanvas, coreCanvas].forEach(canvas => {
@@ -757,12 +761,47 @@
         vx: (Math.random() - .5) * .28,
         vy: (Math.random() - .5) * .28
       }));
-      sparks = Array.from({ length: 260 }, (_, i) => ({
-        r: 24 + Math.random() * Math.min(innerWidth, innerHeight) * .22,
+      const base = Math.min(innerWidth, innerHeight);
+      const radius = Math.max(150, Math.min(330, base * .32));
+      const density = innerWidth < 720 ? .52 : innerWidth < 1100 ? .76 : 1;
+      outerDust = Array.from({ length: Math.floor(900 * density) }, (_, i) => ({
+        r: radius * (.9 + Math.random() * .18),
         a: Math.random() * Math.PI * 2,
-        s: (.0018 + Math.random() * .006) * (i % 2 ? 1 : -1),
-        z: .36 + Math.random() * .52,
-        size: .8 + Math.random() * 2.6
+        s: (.0008 + Math.random() * .0026) * (i % 2 ? 1 : -1),
+        z: .74 + Math.random() * .22,
+        size: .45 + Math.random() * 1.35,
+        phase: Math.random() * Math.PI * 2
+      }));
+      orbitDots = Array.from({ length: Math.floor(720 * density) }, (_, i) => ({
+        r: radius * (.28 + Math.random() * .62),
+        a: Math.random() * Math.PI * 2,
+        s: (.0012 + Math.random() * .0048) * (i % 2 ? 1 : -1),
+        tilt: .18 + Math.random() * .78,
+        rot: Math.random() * Math.PI,
+        size: .45 + Math.random() * 1.8,
+        phase: Math.random() * Math.PI * 2
+      }));
+      meshNodes = Array.from({ length: Math.floor(46 * density) }, (_, i) => ({
+        r: radius * (.18 + Math.random() * .45),
+        a: Math.random() * Math.PI * 2,
+        s: (.0009 + Math.random() * .0022) * (i % 2 ? 1 : -1),
+        tilt: .42 + Math.random() * .32,
+        rot: Math.random() * Math.PI,
+        size: 1.6 + Math.random() * 2.6
+      }));
+      radialBeams = Array.from({ length: 18 }, (_, i) => ({
+        a: (Math.PI * 2 / 18) * i + (Math.random() - .5) * .28,
+        len: radius * (.82 + Math.random() * .36),
+        width: .7 + Math.random() * 1.8,
+        phase: Math.random() * Math.PI * 2,
+        spin: (.0007 + Math.random() * .0014) * (i % 2 ? 1 : -1)
+      }));
+      orbitRings = Array.from({ length: 18 }, (_, i) => ({
+        r: radius * (.24 + i * .036),
+        tilt: .16 + (i % 6) * .13,
+        rot: (Math.PI / 18) * i,
+        alpha: .11 + (i % 4) * .035,
+        spin: (.0008 + (i % 5) * .00032) * (i % 2 ? 1 : -1)
       }));
     }
     function color(name) {
@@ -803,38 +842,145 @@
       const cx = innerWidth / 2;
       const cy = innerHeight * .45;
       const base = Math.min(innerWidth, innerHeight);
-      const g = coreCtx.createRadialGradient(cx, cy, 0, cx, cy, base * .28);
-      g.addColorStop(0, color("--gold"));
-      g.addColorStop(.22, "rgba(255,184,61,.28)");
-      g.addColorStop(1, "rgba(255,184,61,0)");
-      coreCtx.globalAlpha = .52;
+      const radius = Math.max(150, Math.min(330, base * .32));
+      const now = Date.now();
+      const gold = color("--gold");
+      const amber = color("--amber");
+      const speedBoost = document.body.classList.contains("speaking") ? 2.15 : document.body.classList.contains("listening") ? 1.55 : 1;
+      const g = coreCtx.createRadialGradient(cx, cy, 0, cx, cy, radius * .78);
+      g.addColorStop(0, "rgba(255,255,220,1)");
+      g.addColorStop(.08, gold);
+      g.addColorStop(.22, "rgba(255,132,28,.48)");
+      g.addColorStop(1, "rgba(255,132,28,0)");
+      coreCtx.globalAlpha = .9;
       coreCtx.fillStyle = g;
       coreCtx.beginPath();
-      coreCtx.arc(cx, cy, base * .27, 0, Math.PI * 2);
+      coreCtx.arc(cx, cy, radius * .72, 0, Math.PI * 2);
       coreCtx.fill();
-      coreCtx.strokeStyle = color("--gold");
-      coreCtx.fillStyle = color("--gold");
-      const speedBoost = document.body.classList.contains("speaking") ? 2.2 : document.body.classList.contains("listening") ? 1.6 : 1;
-      sparks.forEach((p, i) => {
-        p.a += p.s * speedBoost;
-        const wobble = Math.sin(Date.now() * .001 + i) * 12;
-        const x = cx + Math.cos(p.a) * (p.r + wobble);
-        const y = cy + Math.sin(p.a) * (p.r * p.z);
-        if (i % 16 === 0) {
-          coreCtx.globalAlpha = .16;
-          coreCtx.beginPath();
-          coreCtx.ellipse(cx, cy, p.r, p.r * p.z, Math.sin(i) * .8, 0, Math.PI * 2);
-          coreCtx.stroke();
+
+      function project(p, rScale = 1) {
+        const ca = Math.cos(p.a);
+        const sa = Math.sin(p.a);
+        const cr = Math.cos(p.rot || 0);
+        const sr = Math.sin(p.rot || 0);
+        const rx = ca * p.r * rScale;
+        const ry = sa * p.r * (p.tilt || p.z || 1) * rScale;
+        return {
+          x: cx + rx * cr - ry * sr,
+          y: cy + rx * sr + ry * cr
+        };
+      }
+
+      coreCtx.strokeStyle = gold;
+      orbitRings.forEach(ring => {
+        ring.rot += ring.spin * speedBoost;
+        coreCtx.globalAlpha = ring.alpha;
+        coreCtx.lineWidth = .7;
+        coreCtx.beginPath();
+        coreCtx.ellipse(cx, cy, ring.r, ring.r * ring.tilt, ring.rot, 0, Math.PI * 2);
+        coreCtx.stroke();
+      });
+
+      radialBeams.forEach(beam => {
+        beam.a += beam.spin * speedBoost;
+        const pulse = .55 + Math.sin(now * .0024 + beam.phase) * .32;
+        const x1 = cx + Math.cos(beam.a) * radius * .08;
+        const y1 = cy + Math.sin(beam.a) * radius * .08;
+        const x2 = cx + Math.cos(beam.a) * beam.len;
+        const y2 = cy + Math.sin(beam.a) * beam.len;
+        const grad = coreCtx.createLinearGradient(x1, y1, x2, y2);
+        grad.addColorStop(0, "rgba(255,255,220,.95)");
+        grad.addColorStop(.18, "rgba(255,184,61,.72)");
+        grad.addColorStop(1, "rgba(255,106,33,0)");
+        coreCtx.globalAlpha = pulse;
+        coreCtx.lineWidth = beam.width;
+        coreCtx.strokeStyle = grad;
+        coreCtx.beginPath();
+        coreCtx.moveTo(x1, y1);
+        coreCtx.lineTo(x2, y2);
+        coreCtx.stroke();
+      });
+
+      coreCtx.strokeStyle = "rgba(255,184,61,.34)";
+      coreCtx.lineWidth = .55;
+      for (let i = 0; i < meshNodes.length; i++) {
+        const a = meshNodes[i];
+        a.a += a.s * speedBoost;
+        const pa = project(a);
+        for (let j = i + 1; j < meshNodes.length; j++) {
+          const b = meshNodes[j];
+          const pb = project(b);
+          const d = Math.hypot(pa.x - pb.x, pa.y - pb.y);
+          if (d < radius * .34) {
+            coreCtx.globalAlpha = (1 - d / (radius * .34)) * .32;
+            coreCtx.beginPath();
+            coreCtx.moveTo(pa.x, pa.y);
+            coreCtx.lineTo(pb.x, pb.y);
+            coreCtx.stroke();
+          }
         }
-        coreCtx.globalAlpha = .55 + Math.sin(p.a * 2) * .22;
+      }
+
+      coreCtx.fillStyle = gold;
+      meshNodes.forEach((node) => {
+        const p = project(node);
+        coreCtx.globalAlpha = .42;
+        coreCtx.beginPath();
+        coreCtx.arc(p.x, p.y, node.size, 0, Math.PI * 2);
+        coreCtx.fill();
+      });
+
+      orbitDots.forEach((p, i) => {
+        p.a += p.s * speedBoost;
+        const wobble = Math.sin(now * .0012 + p.phase) * radius * .016;
+        const pos = project(p, 1 + wobble / Math.max(1, p.r));
+        const twinkle = .44 + Math.sin(now * .004 + p.phase + i) * .28;
+        coreCtx.globalAlpha = Math.max(.08, twinkle);
+        coreCtx.fillStyle = i % 5 === 0 ? "rgba(255,245,190,.95)" : gold;
+        coreCtx.beginPath();
+        coreCtx.arc(pos.x, pos.y, p.size, 0, Math.PI * 2);
+        coreCtx.fill();
+      });
+
+      outerDust.forEach((p, i) => {
+        p.a += p.s * speedBoost;
+        const ripple = Math.sin(now * .0016 + p.phase) * radius * .018;
+        const x = cx + Math.cos(p.a) * (p.r + ripple);
+        const y = cy + Math.sin(p.a) * ((p.r + ripple) * p.z);
+        const front = .52 + Math.sin(p.a) * .34;
+        coreCtx.globalAlpha = Math.max(.08, front);
+        coreCtx.fillStyle = i % 7 === 0 ? "rgba(255,239,160,.95)" : amber;
         coreCtx.beginPath();
         coreCtx.arc(x, y, p.size, 0, Math.PI * 2);
         coreCtx.fill();
       });
-      coreCtx.globalAlpha = .96;
+
+      coreCtx.globalAlpha = .55;
+      coreCtx.lineWidth = 1.2;
+      coreCtx.strokeStyle = "rgba(255,184,61,.72)";
       coreCtx.beginPath();
-      coreCtx.arc(cx, cy, 8 + Math.sin(Date.now() * .005) * 2, 0, Math.PI * 2);
+      coreCtx.arc(cx, cy, radius * .92, 0, Math.PI * 2);
+      coreCtx.stroke();
+      coreCtx.globalAlpha = .22;
+      coreCtx.lineWidth = 7;
+      coreCtx.beginPath();
+      coreCtx.arc(cx, cy, radius * .94, 0, Math.PI * 2);
+      coreCtx.stroke();
+
+      const coreGlow = coreCtx.createRadialGradient(cx, cy, 0, cx, cy, radius * .2);
+      coreGlow.addColorStop(0, "rgba(255,255,230,1)");
+      coreGlow.addColorStop(.24, "rgba(255,220,93,.98)");
+      coreGlow.addColorStop(1, "rgba(255,106,33,0)");
+      coreCtx.globalAlpha = 1;
+      coreCtx.fillStyle = coreGlow;
+      coreCtx.beginPath();
+      coreCtx.arc(cx, cy, radius * .22, 0, Math.PI * 2);
       coreCtx.fill();
+      coreCtx.fillStyle = "rgba(255,255,230,.98)";
+      coreCtx.beginPath();
+      coreCtx.arc(cx, cy, radius * .055 + Math.sin(now * .006) * 2, 0, Math.PI * 2);
+      coreCtx.fill();
+
       coreCtx.globalCompositeOperation = "source-over";
       requestAnimationFrame(drawCore);
     }
