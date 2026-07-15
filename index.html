@@ -91,12 +91,13 @@
       z-index: 3;
       min-height: 100dvh;
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto 1fr;
       padding: clamp(14px, 2vw, 28px);
     }
     .top {
       display: grid;
-      grid-template-columns: 1fr auto 1fr;
+      grid-template-columns: 1fr;
+      justify-items: center;
       align-items: start;
       gap: 16px;
       pointer-events: none;
@@ -199,11 +200,8 @@
     .reticle-line:nth-child(3) { transform: translate(-50%, -50%) rotate(35deg); opacity: .55; }
     .reticle-line:nth-child(4) { transform: translate(-50%, -50%) rotate(-35deg); opacity: .55; }
     .prompt {
-      position: absolute;
-      top: 8%;
-      left: 50%;
-      width: min(620px, 44vw);
-      transform: translateX(-50%);
+      position: relative;
+      width: 100%;
       border: 1px solid rgba(var(--gold-rgb),.28);
       border-radius: 999px;
       background: rgba(5,5,5,.54);
@@ -247,52 +245,39 @@
     .orb-btn.hot { background: linear-gradient(135deg, var(--gold), var(--amber)); color: #130700; border-color: transparent; }
     .orb-btn svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
-    .hero-text {
+    .chat-dock {
       position: absolute;
       left: 50%;
-      bottom: 18%;
+      bottom: 4.2%;
       transform: translateX(-50%);
-      width: min(620px, 82vw);
+      width: min(760px, 56vw);
+      min-width: 420px;
+      border: 1px solid rgba(var(--gold-rgb),.18);
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(var(--gold-rgb),.12), transparent 38%),
+        linear-gradient(135deg, rgba(255,255,255,.052), rgba(0,0,0,.48));
+      box-shadow: 0 20px 54px rgba(0,0,0,.48), inset 0 0 34px rgba(var(--gold-rgb),.035);
+      backdrop-filter: blur(18px);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+      pointer-events: auto;
+    }
+    .chat-caption {
+      min-height: 18px;
       text-align: center;
-      pointer-events: none;
-    }
-    .hero-text h2 {
-      margin: 0;
       color: var(--gold);
-      font-size: clamp(22px, 3.6vw, 46px);
-      line-height: 1;
-      letter-spacing: .26em;
-      font-weight: 900;
-      text-transform: uppercase;
-      text-shadow: 0 0 34px var(--glow);
-    }
-    .hero-text p {
-      margin: 10px auto 0;
-      max-width: 620px;
-      color: var(--muted);
-      line-height: 1.55;
-      font-size: 12px;
-    }
-    .hub-status {
-      display: inline-flex;
-      gap: 8px;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 8px;
-      color: var(--dim);
       font-size: 11px;
-      letter-spacing: .18em;
+      letter-spacing: .16em;
       text-transform: uppercase;
+      text-shadow: 0 0 24px var(--glow);
     }
-    .hub-status::before,
-    .hub-status::after {
-      content: "";
-      width: 48px;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--gold));
-      opacity: .55;
+    .chat-dock .chat {
+      min-height: 108px;
+      max-height: 172px;
+      padding: 2px;
     }
-    .hub-status::after { background: linear-gradient(90deg, var(--gold), transparent); }
 
     .side-panel {
       position: fixed;
@@ -312,8 +297,8 @@
       grid-template-rows: auto 1fr;
       transition: transform .28s ease, opacity .22s ease;
     }
-    .side-panel.left { left: 24px; }
-    .side-panel.right { right: 24px; }
+    .side-panel.left { left: 24px; width: 76px; border-radius: 18px; }
+    .side-panel.right { right: 24px; width: min(280px, 24vw); }
     body.left-closed .side-panel.left { transform: translateX(calc(-100% - 34px)); opacity: .18; }
     body.right-closed .side-panel.right { transform: translateX(calc(100% + 34px)); opacity: .18; }
     .side-head {
@@ -420,6 +405,61 @@
     }
     .mini:hover, .mini:focus-visible { outline: none; border-color: var(--gold); box-shadow: 0 0 22px var(--glow); }
     .quick-row { display: grid; gap: 10px; }
+    .side-panel.left .side-head {
+      justify-content: center;
+      min-height: 50px;
+      padding: 10px;
+    }
+    .side-panel.left .side-head b {
+      font-size: 10px;
+      letter-spacing: .12em;
+    }
+    .side-panel.left .side-head small,
+    .side-panel.left .system-card {
+      display: none;
+    }
+    .side-panel.left .side-body {
+      padding: 10px;
+      align-content: start;
+      overflow: hidden;
+    }
+    .side-panel.left .quick-row { gap: 10px; }
+    .side-panel.left .chip {
+      width: 54px;
+      min-height: 54px;
+      border-radius: 14px;
+      padding: 0;
+      display: grid;
+      place-items: center;
+      text-align: center;
+    }
+    .side-panel.left .chip b {
+      margin: 0;
+      font-size: 11px;
+      letter-spacing: .08em;
+    }
+    .side-panel.left .chip svg {
+      width: 21px;
+      height: 21px;
+      stroke: var(--gold);
+      stroke-width: 1.8;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 10px var(--glow));
+    }
+    .side-panel.left .chip b {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    .side-panel.left .chip span,
+    .side-panel.left .chip::after {
+      display: none;
+    }
     .chip {
       width: 100%;
       min-height: 84px;
@@ -522,30 +562,23 @@
     @media (max-width: 860px) {
       body { overflow: auto; }
       .app { min-height: 100dvh; gap: 12px; }
-      .top { grid-template-columns: 1fr auto; }
+      .top { grid-template-columns: 1fr; }
       .time { display: none; }
-      .status-stack { width: auto; }
-      .status-stack .status:not(:first-child) { display: none; }
-      .brand { width: auto; }
-      .prompt { top: 14%; width: min(92vw, 720px); }
+      .chat-dock { width: min(92vw, 720px); min-width: 0; bottom: 18px; }
       .side-panel { top: 92px; bottom: 16px; width: min(340px, 82vw); }
-      .side-panel.left { left: 12px; }
+      .side-panel.left { left: 12px; width: 76px; }
       .side-panel.right { right: 12px; }
-      .hero-text { bottom: 24%; }
       .controls { grid-template-columns: repeat(3, 1fr); }
     }
     @media (max-width: 560px) {
-      .brand small { display: none; }
-      .brand h1 { font-size: 16px; letter-spacing: .12em; }
-      .status-stack { display: none; }
       .prompt { grid-template-columns: 50px 1fr 50px; }
       .orb-btn { width: 50px; height: 50px; }
       .hub-reticle { width: 82vw; top: 47%; }
       .side-panel { width: min(330px, calc(100vw - 48px)); }
+      .side-panel.left { width: 76px; }
       .chip { min-height: 68px; padding: 10px; }
-      .hero-text { bottom: 29%; }
-      .hero-text h2 { font-size: 28px; letter-spacing: .16em; }
-      .hero-text p { display: none; }
+      .chat-dock { bottom: 14px; padding: 10px; }
+      .chat-dock .chat { max-height: 142px; }
       .controls { grid-template-columns: 1fr; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -568,18 +601,9 @@
 
   <main class="app">
     <header class="top">
-      <section class="brand">
-        <small class="mono">Private AI shell</small>
-        <h1 class="mono">JARVIS ACTIVE</h1>
-      </section>
       <section class="time">
         <small class="mono" id="dateLine">--</small>
         <b class="mono" id="clock">--:--:--</b>
-      </section>
-      <section class="status-stack">
-        <div class="status mono"><small>Mode</small><b id="mode">Online</b></div>
-        <div class="status mono"><small>Security</small><b>No frontend key</b></div>
-        <div class="status mono"><small>Signal</small><b id="signal">98%</b></div>
       </section>
     </header>
 
@@ -591,20 +615,20 @@
         <span class="reticle-line"></span>
       </div>
 
-      <form class="prompt" id="composer">
-        <button class="orb-btn" id="voiceBtn" type="button" aria-label="Talk by voice">
-          <svg viewBox="0 0 24 24"><path d="M12 3v10"/><path d="M8 7v5a4 4 0 0 0 8 0V7"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M9 21h6"/></svg>
-        </button>
-        <input id="chatInput" autocomplete="off" placeholder="Ask Jarvis...">
-        <button class="orb-btn hot" type="submit" aria-label="Send">
-          <svg viewBox="0 0 24 24"><path d="M4 12h15"/><path d="m13 6 6 6-6 6"/></svg>
-        </button>
-      </form>
-
-      <div class="hero-text">
-        <div class="hub-status mono">AI Hub</div>
-        <h2 id="bigWord">ACTIVE</h2>
-        <p id="caption">Type or speak. This page is only the cinematic local shell; real AI/device control should run through a protected backend, never a public API key in GitHub Pages.</p>
+      <div class="chat-dock">
+        <div class="chat-caption mono" id="caption">Awaiting command.</div>
+        <section class="chat">
+          <div class="messages" id="messages"></div>
+        </section>
+        <form class="prompt" id="composer">
+          <button class="orb-btn" id="voiceBtn" type="button" aria-label="Talk by voice">
+            <svg viewBox="0 0 24 24"><path d="M12 3v10"/><path d="M8 7v5a4 4 0 0 0 8 0V7"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M9 21h6"/></svg>
+          </button>
+          <input id="chatInput" autocomplete="off" placeholder="Ask Jarvis...">
+          <button class="orb-btn hot" type="submit" aria-label="Send">
+            <svg viewBox="0 0 24 24"><path d="M4 12h15"/><path d="m13 6 6 6-6 6"/></svg>
+          </button>
+        </form>
       </div>
     </section>
   </main>
@@ -612,20 +636,20 @@
   <button class="side-toggle left-toggle" id="leftToggle" aria-label="Toggle left hub panel">
     <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
   </button>
-  <button class="side-toggle right-toggle" id="rightToggle" aria-label="Toggle right chat panel">
+  <button class="side-toggle right-toggle" id="rightToggle" aria-label="Toggle right settings panel">
     <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
   </button>
 
   <aside class="side-panel left" id="leftPanel">
     <div class="side-head">
-      <div><b>Command Hub</b><small>modules</small></div>
+      <div><b>Menu</b><small>modules</small></div>
     </div>
     <div class="side-body">
       <div class="quick-row">
-        <button class="chip" data-command="Show weather-style briefing for today."><b>Weather</b><span>Daily signal, local briefing, next move.</span></button>
-        <button class="chip" data-command="Control PC plan: safe commands, confirmations, and next setup steps."><b>Control PC</b><span>Safe local agent, command allowlist.</span></button>
-        <button class="chip" data-command="Phone assistant plan: shortcuts, voice actions, and secure bridge."><b>Phone</b><span>Shortcuts, notifications, device bridge.</span></button>
-        <button class="chip" data-command="Detective mode: build a timeline and find contradictions."><b>Detective</b><span>Timeline, evidence, contradictions.</span></button>
+        <button class="chip" title="Weather" aria-label="Weather" data-command="Show weather-style briefing for today."><b>Weather</b><svg viewBox="0 0 24 24"><path d="M12 4v2"/><path d="M12 18v2"/><path d="m4.9 4.9 1.4 1.4"/><path d="m17.7 17.7 1.4 1.4"/><path d="M4 12h2"/><path d="M18 12h2"/><path d="m4.9 19.1 1.4-1.4"/><path d="m17.7 6.3 1.4-1.4"/><circle cx="12" cy="12" r="4"/></svg><span>Daily signal, local briefing, next move.</span></button>
+        <button class="chip" title="Control PC" aria-label="Control PC" data-command="Control PC plan: safe commands, confirmations, and next setup steps."><b>Control PC</b><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg><span>Safe local agent, command allowlist.</span></button>
+        <button class="chip" title="Phone" aria-label="Phone" data-command="Phone assistant plan: shortcuts, voice actions, and secure bridge."><b>Phone</b><svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M11 18h2"/></svg><span>Shortcuts, notifications, device bridge.</span></button>
+        <button class="chip" title="Detective" aria-label="Detective" data-command="Detective mode: build a timeline and find contradictions."><b>Detective</b><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 5 5"/><path d="M8.5 9.5h4"/><path d="M10.5 7.5v4"/></svg><span>Timeline, evidence, contradictions.</span></button>
       </div>
       <div class="system-card">
         <div class="system-row"><span>Core</span><b>Active</b></div>
@@ -637,12 +661,9 @@
 
   <aside class="side-panel right" id="rightPanel">
     <div class="side-head">
-      <div><b>Conversation</b><small>chat + controls</small></div>
+      <div><b>Settings</b><small>palette + data</small></div>
     </div>
     <div class="side-body">
-      <section class="chat">
-        <div class="messages" id="messages"></div>
-      </section>
       <section class="controls">
         <button class="mini" id="paletteBtn">Palette</button>
         <button class="mini" id="copyBtn">Copy</button>
@@ -694,15 +715,14 @@
     function setMode(mode, caption, word) {
       document.body.classList.toggle("listening", mode === "listening");
       document.body.classList.toggle("speaking", mode === "speaking");
-      const label = mode.charAt(0).toUpperCase() + mode.slice(1);
-      document.getElementById("mode").textContent = label;
-      document.getElementById("caption").textContent = caption;
-      if (word) document.getElementById("bigWord").textContent = word;
+      const captionEl = document.getElementById("caption");
+      if (captionEl) captionEl.textContent = caption;
     }
     function renderMessages() {
       const box = document.getElementById("messages");
       box.innerHTML = data.messages.map(m => `<div class="msg ${m.role === "you" ? "user" : ""}"><b>${m.role === "you" ? "You" : "Jarvis"}</b>${esc(m.text)}</div>`).join("");
-      document.querySelector(".chat").scrollTop = document.querySelector(".chat").scrollHeight;
+      const chat = document.querySelector(".chat");
+      if (chat) chat.scrollTop = chat.scrollHeight;
     }
     function addMessage(role, text) {
       data.messages.push({ role, text });
@@ -785,7 +805,6 @@
       const now = new Date();
       document.getElementById("clock").textContent = now.toLocaleTimeString([], { hour12: false });
       document.getElementById("dateLine").textContent = now.toLocaleDateString([], { weekday: "long", month: "short", day: "2-digit" });
-      document.getElementById("signal").textContent = Math.round(94 + Math.random() * 5) + "%";
     }
 
     document.getElementById("composer").addEventListener("submit", event => {
@@ -807,7 +826,7 @@
       data.messages = cloneDefaults().messages;
       save();
       renderMessages();
-      setMode("online", "Conversation reset.", "ACTIVE");
+      setMode("online", "Conversation reset.");
     });
     document.getElementById("leftToggle").addEventListener("click", () => {
       document.body.classList.toggle("left-closed");
@@ -820,7 +839,6 @@
         const input = document.getElementById("chatInput");
         input.value = chip.dataset.command || "";
         input.focus();
-        document.body.classList.remove("right-closed");
       });
     });
 
