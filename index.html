@@ -1041,8 +1041,32 @@
       const gold = color("--gold");
       const speedBoost = isSpeaking ? 2.1 : isLoading ? 1.65 : 1;
       const t = now * .001 * speedBoost;
+      const cameraBreath = 1 + Math.sin(now * .0016) * .012;
 
       coreCtx.lineCap = "round";
+      coreCtx.save();
+      coreCtx.translate(cx, cy);
+      coreCtx.scale(cameraBreath, cameraBreath);
+      coreCtx.translate(-cx, -cy);
+
+      [
+        { x: -.32, y: -.22, r: .8, a: .08 },
+        { x: .42, y: -.1, r: .58, a: .055 },
+        { x: .18, y: .32, r: .66, a: .045 }
+      ].forEach((light, i) => {
+        const lx = cx + radius * light.x + Math.sin(t * .35 + i) * radius * .04;
+        const ly = cy + radius * light.y + Math.cos(t * .28 + i) * radius * .03;
+        const cyanLight = coreCtx.createRadialGradient(lx, ly, 0, lx, ly, radius * light.r);
+        cyanLight.addColorStop(0, `rgba(45,230,255,${light.a})`);
+        cyanLight.addColorStop(.42, "rgba(45,230,255,.018)");
+        cyanLight.addColorStop(1, "rgba(45,230,255,0)");
+        coreCtx.globalAlpha = 1;
+        coreCtx.fillStyle = cyanLight;
+        coreCtx.beginPath();
+        coreCtx.arc(lx, ly, radius * light.r, 0, Math.PI * 2);
+        coreCtx.fill();
+      });
+
       const aura = coreCtx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.55);
       aura.addColorStop(0, rgbaVar("--gold-rgb", isSpeaking ? .34 : .24));
       aura.addColorStop(.38, rgbaVar("--gold-rgb", .08));
@@ -1053,6 +1077,16 @@
       coreCtx.arc(cx, cy, radius * 1.6, 0, Math.PI * 2);
       coreCtx.fill();
 
+      const amberBloom = coreCtx.createRadialGradient(cx, cy, radius * .12, cx, cy, radius * .92);
+      amberBloom.addColorStop(0, rgbaVar("--amber-rgb", isSpeaking ? .16 : .11));
+      amberBloom.addColorStop(.42, rgbaVar("--amber-rgb", .035));
+      amberBloom.addColorStop(1, rgbaVar("--amber-rgb", 0));
+      coreCtx.fillStyle = amberBloom;
+      coreCtx.globalAlpha = 1;
+      coreCtx.beginPath();
+      coreCtx.arc(cx, cy, radius * .95, 0, Math.PI * 2);
+      coreCtx.fill();
+
       function depthAt(angle) {
         return .5 + .5 * Math.sin(angle);
       }
@@ -1061,11 +1095,15 @@
         return alpha * (.18 + depth * .82);
       }
 
+      function flicker(seed, amount = .22, rate = 1) {
+        return 1 - amount * .5 + amount * (.5 + .5 * Math.sin(t * (2.1 + rate) + seed * 17.13));
+      }
+
       function strokeArc(r, start, len, width, alpha) {
         const depth = depthAt(start + len * .5);
         coreCtx.save();
         coreCtx.filter = depth < .42 ? "blur(1.2px)" : "none";
-        coreCtx.globalAlpha = withDepth(alpha, depth);
+        coreCtx.globalAlpha = withDepth(alpha, depth) * flicker(start + r * .01, .18);
         coreCtx.lineWidth = width;
         coreCtx.strokeStyle = rgbaVar("--gold-rgb", .9);
         coreCtx.beginPath();
@@ -1161,10 +1199,23 @@
           const oy = cy + Math.cos(t * .7 + i) * radius * .04;
           const px = ox + Math.cos(orbit.rot + t * orbit.spin) * ca * radius * orbit.rx - Math.sin(orbit.rot + t * orbit.spin) * sa * radius * orbit.ry;
           const py = oy + Math.sin(orbit.rot + t * orbit.spin) * ca * radius * orbit.rx + Math.cos(orbit.rot + t * orbit.spin) * sa * radius * orbit.ry;
+          const trailA = a - .08 * Math.sign(orbit.spin || 1);
+          const tca = Math.cos(trailA);
+          const tsa = Math.sin(trailA);
+          const tx = ox + Math.cos(orbit.rot + t * orbit.spin) * tca * radius * orbit.rx - Math.sin(orbit.rot + t * orbit.spin) * tsa * radius * orbit.ry;
+          const ty = oy + Math.sin(orbit.rot + t * orbit.spin) * tca * radius * orbit.rx + Math.cos(orbit.rot + t * orbit.spin) * tsa * radius * orbit.ry;
           const depth = depthAt(a);
           coreCtx.save();
-          coreCtx.filter = depth < .42 ? "blur(1px)" : "none";
-          coreCtx.globalAlpha = withDepth(.62, depth);
+          coreCtx.filter = depth < .42 ? "blur(1px)" : p === 0 ? "blur(.55px)" : "none";
+          const packetAlpha = withDepth(.62, depth) * flicker(i * 10 + p, .28, 1.7);
+          coreCtx.globalAlpha = packetAlpha * .58;
+          coreCtx.lineWidth = 2.4 + depth * 2;
+          coreCtx.strokeStyle = p === 0 ? "rgba(255,255,235,.9)" : rgbaVar("--gold-rgb", .8);
+          coreCtx.beginPath();
+          coreCtx.moveTo(tx, ty);
+          coreCtx.lineTo(px, py);
+          coreCtx.stroke();
+          coreCtx.globalAlpha = packetAlpha;
           coreCtx.fillStyle = p === 0 ? "rgba(255,255,230,.95)" : gold;
           coreCtx.beginPath();
           coreCtx.arc(px, py, 2.2 + depth * 2.6, 0, Math.PI * 2);
@@ -1216,9 +1267,19 @@
           const x = cx + Math.cos(a) * r;
           const y = cy + Math.sin(a) * r * (.62 + clusterIndex * .08);
           const depth = depthAt(a);
+          const tail = .08 + n * .1;
+          const tx = cx + Math.cos(a - tail) * r * .96;
+          const ty = cy + Math.sin(a - tail) * r * (.62 + clusterIndex * .08);
           coreCtx.save();
           coreCtx.filter = depth < .42 ? "blur(1px)" : "none";
-          coreCtx.globalAlpha = withDepth(.18 + n * .42, depth);
+          coreCtx.globalAlpha = withDepth(.08 + n * .18, depth) * flicker(i + clusterIndex * 7, .35);
+          coreCtx.lineWidth = .6 + n * 1.4;
+          coreCtx.strokeStyle = rgbaVar("--gold-rgb", .62);
+          coreCtx.beginPath();
+          coreCtx.moveTo(tx, ty);
+          coreCtx.lineTo(x, y);
+          coreCtx.stroke();
+          coreCtx.globalAlpha = withDepth(.18 + n * .42, depth) * flicker(i + clusterIndex * 11, .24);
           coreCtx.fillStyle = i % 4 === 0 ? "rgba(255,255,230,.9)" : gold;
           coreCtx.beginPath();
           coreCtx.arc(x, y, 1 + n * 2.4, 0, Math.PI * 2);
@@ -1251,6 +1312,20 @@
       coreCtx.arc(cx + Math.sin(t * 2.3) * radius * .018, cy + Math.cos(t * 1.8) * radius * .012, radius * (.22 + Math.abs(fastBreath) * (isSpeaking ? .05 : .018)), 0, Math.PI * 2);
       coreCtx.fill();
 
+      const hotX = cx + Math.sin(t * 2.3) * radius * .018;
+      const hotY = cy + Math.cos(t * 1.8) * radius * .012;
+      for (let h = 0; h < 4; h++) {
+        const hot = coreCtx.createRadialGradient(hotX, hotY, 0, hotX, hotY, radius * (.07 + h * .035));
+        hot.addColorStop(0, `rgba(255,255,255,${.82 - h * .14})`);
+        hot.addColorStop(.35, `rgba(255,246,205,${.46 - h * .08})`);
+        hot.addColorStop(1, "rgba(255,184,61,0)");
+        coreCtx.globalAlpha = (isSpeaking ? .92 : .72) * flicker(h + 21, .2, 2.2);
+        coreCtx.fillStyle = hot;
+        coreCtx.beginPath();
+        coreCtx.arc(hotX, hotY, radius * (.075 + h * .035), 0, Math.PI * 2);
+        coreCtx.fill();
+      }
+
       for (let i = 0; i < 26; i++) {
         const n = noise01(i * 6.41);
         const a = t * (2.4 + n * 1.8) + i * .74;
@@ -1259,7 +1334,7 @@
         const depth = depthAt(a);
         coreCtx.save();
         coreCtx.filter = depth < .42 ? "blur(1px)" : "none";
-        coreCtx.globalAlpha = withDepth(.32 + n * .5, depth);
+        coreCtx.globalAlpha = withDepth(.32 + n * .5, depth) * flicker(i * 3.1, .3, 1.4);
         coreCtx.lineWidth = .75 + n * 2.2;
         coreCtx.strokeStyle = i % 5 === 0 ? "rgba(255,255,235,.9)" : rgbaVar("--gold-rgb", .92);
         coreCtx.beginPath();
@@ -1276,7 +1351,7 @@
         if (n < .22 && depth < .55) continue;
         coreCtx.save();
         coreCtx.filter = depth < .38 ? "blur(.8px)" : "none";
-        coreCtx.globalAlpha = withDepth(.16 + n * .5, depth);
+        coreCtx.globalAlpha = withDepth(.16 + n * .5, depth) * flicker(i * 2.4 + 10, .32);
         coreCtx.fillStyle = n > .82 ? "rgba(255,255,240,.95)" : gold;
         coreCtx.beginPath();
         coreCtx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r * (.78 + n * .16), .7 + n * 2.2, 0, Math.PI * 2);
@@ -1342,6 +1417,19 @@
       }
       coreCtx.stroke();
 
+      const fog = coreCtx.createRadialGradient(cx, cy + radius * .12, radius * .45, cx, cy, radius * 1.55);
+      fog.addColorStop(0, "rgba(45,230,255,0)");
+      fog.addColorStop(.48, "rgba(45,230,255,.018)");
+      fog.addColorStop(.78, rgbaVar("--amber-rgb", .026));
+      fog.addColorStop(1, "rgba(0,0,0,0)");
+      coreCtx.globalCompositeOperation = "lighter";
+      coreCtx.globalAlpha = .55 + Math.sin(t * .32) * .12;
+      coreCtx.fillStyle = fog;
+      coreCtx.beginPath();
+      coreCtx.arc(cx, cy, radius * 1.62, 0, Math.PI * 2);
+      coreCtx.fill();
+
+      coreCtx.restore();
       coreCtx.globalCompositeOperation = "source-over";
       requestAnimationFrame(drawCore);
     }
