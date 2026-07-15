@@ -28,7 +28,7 @@
     body.blue { --gold:#2de6ff; --amber:#246bff; --cyan:#7cf7ff; --gold-rgb:45,230,255; --amber-rgb:36,107,255; --line:rgba(45,230,255,.28); --glow:rgba(45,230,255,.38); }
     body.green { --gold:#64ff9a; --amber:#16c96f; --cyan:#caff4a; --gold-rgb:100,255,154; --amber-rgb:22,201,111; --line:rgba(100,255,154,.28); --glow:rgba(100,255,154,.34); }
     body.listening { --gold:#ff315f; --amber:#ff6a21; --cyan:#ffb83d; --gold-rgb:255,49,95; --amber-rgb:255,106,33; --line:rgba(255,49,95,.32); --glow:rgba(255,49,95,.46); }
-    body.speaking { }
+    body.speaking { --gold:#ff4f7c; --amber:#ff7a9b; --cyan:#ffb83d; --gold-rgb:255,79,124; --amber-rgb:255,122,155; --line:rgba(255,79,124,.32); --glow:rgba(255,79,124,.42); }
 
     * { box-sizing: border-box; }
     html, body { min-width: 320px; min-height: 100%; }
@@ -1033,203 +1033,153 @@
       const now = Date.now();
       const isSpeaking = document.body.classList.contains("speaking");
       const isLoading = document.body.classList.contains("listening");
-      const breath = Math.sin(now * .0032);
-      const fastBreath = Math.sin(now * .012);
-      const pulseScale = isSpeaking ? 1.1 + fastBreath * .095 : isLoading ? 1.035 + fastBreath * .045 : 1 + breath * .012;
-      const radius = Math.max(170, Math.min(390, base * .36)) * pulseScale;
+      const breath = Math.sin(now * .004);
+      const fastBreath = Math.sin(now * .014);
+      const pulseScale = isSpeaking ? 1.045 + fastBreath * .035 : isLoading ? 1.025 + fastBreath * .025 : 1 + breath * .01;
+      const radius = Math.max(150, Math.min(245, base * .255)) * pulseScale;
       const gold = color("--gold");
-      const amber = color("--amber");
-      const speedBoost = isSpeaking ? 2.85 : isLoading ? 2.2 : 1;
-      const coreX = cx + Math.sin(now * .0011) * radius * .035;
-      const coreY = cy + Math.cos(now * .00135) * radius * .018;
-      const g = coreCtx.createRadialGradient(coreX, coreY, 0, cx, cy, radius * .96);
-      g.addColorStop(0, "rgba(255,255,220,1)");
-      g.addColorStop(.07, rgbaVar("--gold-rgb", .9));
-      g.addColorStop(.2, rgbaVar("--amber-rgb", .38));
-      g.addColorStop(.58, rgbaVar("--gold-rgb", .09));
-      g.addColorStop(1, rgbaVar("--amber-rgb", 0));
-      coreCtx.globalAlpha = isSpeaking ? .86 : .72;
-      coreCtx.fillStyle = g;
+      const speedBoost = isSpeaking ? 2.1 : isLoading ? 1.65 : 1;
+      const t = now * .001 * speedBoost;
+
+      coreCtx.lineCap = "round";
+      const aura = coreCtx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.55);
+      aura.addColorStop(0, rgbaVar("--gold-rgb", isSpeaking ? .34 : .24));
+      aura.addColorStop(.38, rgbaVar("--gold-rgb", .08));
+      aura.addColorStop(1, rgbaVar("--gold-rgb", 0));
+      coreCtx.fillStyle = aura;
+      coreCtx.globalAlpha = 1;
       coreCtx.beginPath();
-      coreCtx.arc(cx, cy, radius * .92, 0, Math.PI * 2);
+      coreCtx.arc(cx, cy, radius * 1.6, 0, Math.PI * 2);
       coreCtx.fill();
 
-      function project(p, rScale = 1) {
-        const ca = Math.cos(p.a);
-        const sa = Math.sin(p.a);
-        const cr = Math.cos(p.rot || 0);
-        const sr = Math.sin(p.rot || 0);
-        const rx = ca * p.r * rScale;
-        const ry = sa * p.r * (p.tilt || p.z || 1) * rScale;
-        const depth = .48 + .52 * (Math.sin(p.a + (p.rot || 0)) * .5 + .5);
-        return {
-          x: cx + rx * cr - ry * sr,
-          y: cy + rx * sr + ry * cr,
-          depth
-        };
+      function strokeArc(r, start, len, width, alpha) {
+        coreCtx.globalAlpha = alpha;
+        coreCtx.lineWidth = width;
+        coreCtx.strokeStyle = rgbaVar("--gold-rgb", .9);
+        coreCtx.beginPath();
+        coreCtx.arc(cx, cy, r, start, start + len);
+        coreCtx.stroke();
       }
 
-      shellBands.forEach((band) => {
-        band.rot += band.spin * speedBoost;
-        coreCtx.save();
-        coreCtx.setLineDash([band.dash, band.gap]);
-        coreCtx.globalAlpha = band.alpha * (isSpeaking ? 1.55 : 1);
-        coreCtx.lineWidth = .8;
-        coreCtx.strokeStyle = rgbaVar("--gold-rgb", .5);
-        coreCtx.beginPath();
-        coreCtx.ellipse(cx, cy, band.r, band.r * band.tilt, band.rot, 0, Math.PI * 2);
-        coreCtx.stroke();
-        coreCtx.restore();
-      });
-
-      coreCtx.strokeStyle = gold;
-      orbitRings.forEach(ring => {
-        ring.rot += ring.spin * speedBoost;
-        coreCtx.globalAlpha = ring.alpha * (isSpeaking ? 1.45 : 1);
-        coreCtx.lineWidth = ring.width;
-        coreCtx.beginPath();
-        coreCtx.ellipse(cx, cy, ring.r, ring.r * ring.tilt, ring.rot, 0, Math.PI * 2);
-        coreCtx.stroke();
-      });
-
-      vortexArcs.forEach((arc) => {
-        arc.rot += arc.spin * speedBoost;
-        arc.start += arc.spin * speedBoost * 2.2;
-        const grad = coreCtx.createRadialGradient(coreX, coreY, arc.r * .1, coreX, coreY, arc.r * 1.05);
-        grad.addColorStop(0, "rgba(255,255,230,.95)");
-        grad.addColorStop(.42, rgbaVar("--gold-rgb", .72));
-        grad.addColorStop(1, rgbaVar("--amber-rgb", .02));
-        coreCtx.globalAlpha = arc.alpha * (isSpeaking ? 1.75 : 1);
-        coreCtx.lineWidth = arc.width;
-        coreCtx.strokeStyle = grad;
-        coreCtx.beginPath();
-        coreCtx.ellipse(coreX, coreY, arc.r, arc.r * arc.tilt, arc.rot, arc.start, arc.start + arc.len);
-        coreCtx.stroke();
-      });
-
-      radialBeams.forEach(beam => {
-        beam.a += beam.spin * speedBoost;
-        beam.rot += beam.spin * speedBoost * .45;
-        const pulse = .42 + Math.sin(now * .003 + beam.phase) * .38;
-        const inner = project({ a: beam.a, r: beam.inner, tilt: beam.tilt, rot: beam.rot });
-        const outer = project({ a: beam.a, r: beam.len, tilt: beam.tilt, rot: beam.rot });
-        const x1 = inner.x;
-        const y1 = inner.y;
-        const x2 = outer.x;
-        const y2 = outer.y;
-        const grad = coreCtx.createLinearGradient(x1, y1, x2, y2);
-        grad.addColorStop(0, "rgba(255,255,220,.95)");
-        grad.addColorStop(.16, rgbaVar("--gold-rgb", .82));
-        grad.addColorStop(.7, rgbaVar("--amber-rgb", .28));
-        grad.addColorStop(1, rgbaVar("--amber-rgb", 0));
-        coreCtx.globalAlpha = isSpeaking ? Math.min(1, pulse + .28) : pulse;
-        coreCtx.lineWidth = beam.width;
-        coreCtx.strokeStyle = grad;
-        coreCtx.beginPath();
-        coreCtx.moveTo(x1, y1);
-        coreCtx.lineTo(x2, y2);
-        coreCtx.stroke();
-      });
-
-      shardLines.forEach((line) => {
-        line.a1 += line.spin * speedBoost;
-        line.a2 -= line.spin * speedBoost * .72;
-        line.rot += line.spin * speedBoost * .22;
-        const a = project({ a: line.a1, r: line.r1, tilt: line.tilt, rot: line.rot });
-        const b = project({ a: line.a2, r: line.r2, tilt: line.tilt, rot: line.rot });
-        const d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (d > radius * .46) return;
-        coreCtx.globalAlpha = line.alpha * Math.min(1, .45 + a.depth);
-        coreCtx.lineWidth = .45;
-        coreCtx.strokeStyle = rgbaVar("--gold-rgb", .44);
-        coreCtx.beginPath();
-        coreCtx.moveTo(a.x, a.y);
-        coreCtx.lineTo(b.x, b.y);
-        coreCtx.stroke();
-      });
-
-      coreCtx.strokeStyle = rgbaVar("--gold-rgb", .34);
-      coreCtx.lineWidth = .5;
-      for (let i = 0; i < meshNodes.length; i++) {
-        const a = meshNodes[i];
-        a.a += a.s * speedBoost;
-        const pa = project(a);
-        for (let j = i + 1; j < meshNodes.length; j++) {
-          const b = meshNodes[j];
-          const pb = project(b);
-          const d = Math.hypot(pa.x - pb.x, pa.y - pb.y);
-          if (d < radius * .3) {
-            coreCtx.globalAlpha = (1 - d / (radius * .3)) * .3 * Math.min(1, pa.depth + .2);
-            coreCtx.beginPath();
-            coreCtx.moveTo(pa.x, pa.y);
-            coreCtx.lineTo(pb.x, pb.y);
-            coreCtx.stroke();
-          }
+      function tickRing(r, count, innerLen, outerLen, alpha, spin, activeEvery) {
+        coreCtx.strokeStyle = rgbaVar("--gold-rgb", .85);
+        coreCtx.lineWidth = 1.45;
+        for (let i = 0; i < count; i++) {
+          const a = (Math.PI * 2 / count) * i + spin;
+          const hot = activeEvery && i % activeEvery === 0;
+          const len = hot ? outerLen : innerLen;
+          coreCtx.globalAlpha = hot ? alpha * 1.35 : alpha;
+          coreCtx.beginPath();
+          coreCtx.moveTo(cx + Math.cos(a) * (r - len), cy + Math.sin(a) * (r - len));
+          coreCtx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+          coreCtx.stroke();
         }
       }
 
-      coreCtx.fillStyle = gold;
-      meshNodes.forEach((node) => {
-        const p = project(node);
-        coreCtx.globalAlpha = (.24 + p.depth * .34) * (isSpeaking ? 1.25 : 1);
-        coreCtx.beginPath();
-        coreCtx.arc(p.x, p.y, node.size * (.72 + p.depth * .62), 0, Math.PI * 2);
-        coreCtx.fill();
-      });
+      tickRing(radius * 1.18, 72, radius * .042, radius * .082, .42, t * .18, 8);
+      tickRing(radius * .66, 36, radius * .04, radius * .072, .62, -t * .42, 6);
 
-      orbitDots.forEach((p, i) => {
-        p.a += p.s * speedBoost;
-        p.rot += p.s * speedBoost * .18;
-        const wobble = Math.sin(now * .0018 + p.phase) * radius * .02;
-        const pos = project(p, 1 + wobble / Math.max(1, p.r));
-        const twinkle = .34 + Math.sin(now * .005 + p.phase + i) * .34;
-        coreCtx.globalAlpha = Math.max(.08, twinkle);
-        coreCtx.fillStyle = i % 5 === 0 ? "rgba(255,255,220,.95)" : gold;
-        coreCtx.beginPath();
-        coreCtx.arc(pos.x, pos.y, p.size * (.65 + pos.depth * .75), 0, Math.PI * 2);
-        coreCtx.fill();
-      });
-
-      outerDust.forEach((p, i) => {
-        p.a += p.s * speedBoost;
-        p.rot += p.s * speedBoost * .12;
-        const laneBreak = Math.sin(p.a * 5 + p.lane * 1.7 + now * .001) > .18;
-        if (!laneBreak && !p.spark) return;
-        const ripple = Math.sin(now * .002 + p.phase) * radius * .02;
-        const pos = project(p, 1 + ripple / Math.max(1, p.r));
-        const front = .24 + pos.depth * .66;
-        coreCtx.globalAlpha = Math.max(.04, front) * (p.spark ? 1 : .62);
-        coreCtx.fillStyle = i % 7 === 0 ? "rgba(255,245,190,.95)" : amber;
-        coreCtx.beginPath();
-        coreCtx.arc(pos.x, pos.y, p.size * (.58 + pos.depth * .84), 0, Math.PI * 2);
-        coreCtx.fill();
-      });
-
-      coreCtx.globalAlpha = isSpeaking ? .86 : .58;
-      coreCtx.lineWidth = 1.1;
-      coreCtx.strokeStyle = rgbaVar("--gold-rgb", .72);
+      coreCtx.save();
+      coreCtx.setLineDash([radius * .18, radius * .12]);
+      coreCtx.globalAlpha = .18;
+      coreCtx.lineWidth = 1;
+      coreCtx.strokeStyle = rgbaVar("--gold-rgb", .7);
       coreCtx.beginPath();
-      coreCtx.ellipse(cx, cy, radius * .94, radius * .7, Math.sin(now * .0008) * .3, 0, Math.PI * 2);
+      coreCtx.arc(cx, cy, radius * .94, t * .3, Math.PI * 2 + t * .3);
       coreCtx.stroke();
-      coreCtx.globalAlpha = isSpeaking ? .42 : .2;
-      coreCtx.lineWidth = isSpeaking ? 12 : 7;
-      coreCtx.beginPath();
-      coreCtx.ellipse(cx, cy, radius * .96, radius * .72, Math.sin(now * .0008) * .3, 0, Math.PI * 2);
-      coreCtx.stroke();
+      coreCtx.restore();
 
-      const coreGlow = coreCtx.createRadialGradient(coreX, coreY, 0, coreX, coreY, radius * .23);
-      coreGlow.addColorStop(0, "rgba(255,255,230,1)");
-      coreGlow.addColorStop(.24, rgbaVar("--gold-rgb", .98));
-      coreGlow.addColorStop(1, rgbaVar("--amber-rgb", 0));
-      coreCtx.globalAlpha = 1;
+      const ringSets = [
+        { r: 1.0, w: 3.2, s: .72, parts: 4, gap: .42, alpha: .82 },
+        { r: .82, w: 2.1, s: -.96, parts: 3, gap: .62, alpha: .66 },
+        { r: .58, w: 2.4, s: 1.35, parts: 2, gap: .9, alpha: .72 },
+        { r: .42, w: 1.5, s: -.58, parts: 3, gap: 1.05, alpha: .4 }
+      ];
+      ringSets.forEach((ring, ringIndex) => {
+        for (let i = 0; i < ring.parts; i++) {
+          const start = t * ring.s + i * (Math.PI * 2 / ring.parts) + ringIndex * .35;
+          const len = Math.PI * 2 / ring.parts - ring.gap + Math.sin(t * 1.6 + i) * .08;
+          strokeArc(radius * ring.r, start, len, ring.w, ring.alpha);
+        }
+      });
+
+      const sweep = -Math.PI * .12 + t * .9;
+      coreCtx.globalCompositeOperation = "source-over";
+      coreCtx.strokeStyle = "rgba(0,0,0,.74)";
+      coreCtx.globalAlpha = .9;
+      coreCtx.lineWidth = 3.2;
+      coreCtx.beginPath();
+      coreCtx.arc(cx, cy, radius * .48, sweep, sweep + Math.PI * .42);
+      coreCtx.stroke();
+      coreCtx.globalCompositeOperation = "lighter";
+
+      for (let i = 0; i < 20; i++) {
+        const a = t * .62 + i * Math.PI * 2 / 20;
+        const r1 = radius * (.72 + Math.sin(t * 1.5 + i) * .012);
+        const r2 = radius * (1.02 + Math.cos(t * 1.2 + i) * .018);
+        coreCtx.globalAlpha = i % 5 === 0 ? .34 : .12;
+        coreCtx.lineWidth = i % 5 === 0 ? 1.2 : .6;
+        coreCtx.strokeStyle = rgbaVar("--gold-rgb", .55);
+        coreCtx.beginPath();
+        coreCtx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+        coreCtx.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2);
+        coreCtx.stroke();
+      }
+
+      const coreGlow = coreCtx.createRadialGradient(cx, cy, 0, cx, cy, radius * .38);
+      coreGlow.addColorStop(0, "rgba(255,255,240,.92)");
+      coreGlow.addColorStop(.22, rgbaVar("--gold-rgb", .72));
+      coreGlow.addColorStop(1, rgbaVar("--gold-rgb", 0));
+      coreCtx.globalAlpha = isSpeaking ? .95 : .8;
       coreCtx.fillStyle = coreGlow;
       coreCtx.beginPath();
-      coreCtx.arc(coreX, coreY, radius * (.18 + (isSpeaking ? Math.abs(fastBreath) * .035 : 0)), 0, Math.PI * 2);
+      coreCtx.arc(cx, cy, radius * (.24 + Math.abs(fastBreath) * (isSpeaking ? .035 : .012)), 0, Math.PI * 2);
       coreCtx.fill();
-      coreCtx.fillStyle = "rgba(255,255,230,.98)";
+
+      const triR = radius * .27;
+      const triSpin = Math.sin(t * .8) * .035;
+      coreCtx.globalAlpha = .92;
+      coreCtx.lineWidth = 1.8;
+      coreCtx.strokeStyle = gold;
+      coreCtx.fillStyle = rgbaVar("--gold-rgb", .12);
       coreCtx.beginPath();
-      coreCtx.arc(coreX, coreY, radius * .045 + Math.sin(now * .008) * 2.2, 0, Math.PI * 2);
+      for (let i = 0; i < 3; i++) {
+        const a = -Math.PI / 2 + triSpin + i * Math.PI * 2 / 3;
+        const x = cx + Math.cos(a) * triR;
+        const y = cy + Math.sin(a) * triR;
+        if (i === 0) coreCtx.moveTo(x, y);
+        else coreCtx.lineTo(x, y);
+      }
+      coreCtx.closePath();
       coreCtx.fill();
+      coreCtx.stroke();
+
+      coreCtx.globalAlpha = .38;
+      coreCtx.lineWidth = 1;
+      coreCtx.strokeStyle = rgbaVar("--gold-rgb", .72);
+      coreCtx.beginPath();
+      coreCtx.moveTo(cx - triR * .7, cy + triR * .58);
+      coreCtx.lineTo(cx, cy - triR * .52);
+      coreCtx.lineTo(cx + triR * .68, cy + triR * .58);
+      coreCtx.stroke();
+
+      const waveY = Math.min(innerHeight * .78, cy + radius * 1.42);
+      const waveW = Math.min(650, innerWidth * .52);
+      const waveAmp = isSpeaking ? 18 : isLoading ? 9 : 3;
+      const waveGrad = coreCtx.createLinearGradient(cx - waveW / 2, waveY, cx + waveW / 2, waveY);
+      waveGrad.addColorStop(0, rgbaVar("--gold-rgb", 0));
+      waveGrad.addColorStop(.5, rgbaVar("--gold-rgb", .88));
+      waveGrad.addColorStop(1, rgbaVar("--gold-rgb", 0));
+      coreCtx.globalAlpha = isSpeaking ? .88 : .5;
+      coreCtx.lineWidth = 2;
+      coreCtx.strokeStyle = waveGrad;
+      coreCtx.beginPath();
+      for (let x = -waveW / 2; x <= waveW / 2; x += 8) {
+        const y = waveY + Math.sin(x * .035 + t * 4.2) * waveAmp * Math.sin((x / waveW + .5) * Math.PI);
+        if (x === -waveW / 2) coreCtx.moveTo(cx + x, y);
+        else coreCtx.lineTo(cx + x, y);
+      }
+      coreCtx.stroke();
 
       coreCtx.globalCompositeOperation = "source-over";
       requestAnimationFrame(drawCore);
