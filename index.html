@@ -273,12 +273,6 @@
       text-transform: uppercase;
       text-shadow: 0 0 24px var(--glow);
     }
-    .chat-dock .chat {
-      min-height: 108px;
-      max-height: 172px;
-      padding: 2px;
-    }
-
     .side-panel {
       position: fixed;
       z-index: 6;
@@ -298,7 +292,7 @@
       transition: transform .28s ease, opacity .22s ease;
     }
     .side-panel.left { left: 24px; width: 76px; border-radius: 18px; }
-    .side-panel.right { right: 24px; width: min(280px, 24vw); }
+    .side-panel.right { right: 24px; width: min(360px, 28vw); }
     body.left-closed .side-panel.left { transform: translateX(calc(-100% - 34px)); opacity: .18; }
     body.right-closed .side-panel.right { transform: translateX(calc(100% + 34px)); opacity: .18; }
     .side-head {
@@ -361,6 +355,9 @@
       padding: 0;
       scrollbar-color: var(--gold) transparent;
     }
+    .side-panel.right .chat {
+      padding: 2px;
+    }
     .messages { display: flex; gap: 10px; flex-direction: column; }
     .msg {
       width: fit-content;
@@ -389,6 +386,39 @@
     .controls {
       display: grid;
       gap: 8px;
+    }
+    .settings-tray {
+      position: fixed;
+      z-index: 9;
+      left: 112px;
+      bottom: 24px;
+      width: min(300px, calc(100vw - 136px));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 18% 0, rgba(var(--gold-rgb),.18), transparent 38%),
+        linear-gradient(135deg, rgba(255,255,255,.06), rgba(5,5,5,.7));
+      box-shadow: 0 20px 48px rgba(0,0,0,.5), inset 0 0 26px rgba(var(--gold-rgb),.035);
+      backdrop-filter: blur(18px);
+      padding: 12px;
+      pointer-events: auto;
+      transform: translateY(12px);
+      opacity: 0;
+      visibility: hidden;
+      transition: transform .22s ease, opacity .18s ease, visibility .18s ease;
+    }
+    body.settings-open .settings-tray {
+      transform: translateY(0);
+      opacity: 1;
+      visibility: visible;
+    }
+    .settings-title {
+      color: var(--gold);
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size: 11px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
     }
     .mini {
       min-height: 44px;
@@ -568,6 +598,7 @@
       .side-panel { top: 92px; bottom: 16px; width: min(340px, 82vw); }
       .side-panel.left { left: 12px; width: 76px; }
       .side-panel.right { right: 12px; }
+      .settings-tray { left: 100px; bottom: 16px; }
       .controls { grid-template-columns: repeat(3, 1fr); }
     }
     @media (max-width: 560px) {
@@ -578,7 +609,6 @@
       .side-panel.left { width: 76px; }
       .chip { min-height: 68px; padding: 10px; }
       .chat-dock { bottom: 14px; padding: 10px; }
-      .chat-dock .chat { max-height: 142px; }
       .controls { grid-template-columns: 1fr; }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -617,9 +647,6 @@
 
       <div class="chat-dock">
         <div class="chat-caption mono" id="caption">Awaiting command.</div>
-        <section class="chat">
-          <div class="messages" id="messages"></div>
-        </section>
         <form class="prompt" id="composer">
           <button class="orb-btn" id="voiceBtn" type="button" aria-label="Talk by voice">
             <svg viewBox="0 0 24 24"><path d="M12 3v10"/><path d="M8 7v5a4 4 0 0 0 8 0V7"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M9 21h6"/></svg>
@@ -636,7 +663,7 @@
   <button class="side-toggle left-toggle" id="leftToggle" aria-label="Toggle left hub panel">
     <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
   </button>
-  <button class="side-toggle right-toggle" id="rightToggle" aria-label="Toggle right settings panel">
+  <button class="side-toggle right-toggle" id="rightToggle" aria-label="Toggle right chat history panel">
     <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
   </button>
 
@@ -650,6 +677,7 @@
         <button class="chip" title="Control PC" aria-label="Control PC" data-command="Control PC plan: safe commands, confirmations, and next setup steps."><b>Control PC</b><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M8 20h8"/><path d="M12 16v4"/></svg><span>Safe local agent, command allowlist.</span></button>
         <button class="chip" title="Phone" aria-label="Phone" data-command="Phone assistant plan: shortcuts, voice actions, and secure bridge."><b>Phone</b><svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="18" rx="2"/><path d="M11 18h2"/></svg><span>Shortcuts, notifications, device bridge.</span></button>
         <button class="chip" title="Detective" aria-label="Detective" data-command="Detective mode: build a timeline and find contradictions."><b>Detective</b><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 5 5"/><path d="M8.5 9.5h4"/><path d="M10.5 7.5v4"/></svg><span>Timeline, evidence, contradictions.</span></button>
+        <button class="chip" title="Settings" aria-label="Settings" id="settingsToggle" type="button"><b>Settings</b><svg viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.04.04a2 2 0 1 1-2.83 2.83l-.04-.04A1.8 1.8 0 0 0 15 19.4a1.8 1.8 0 0 0-1 .6 1.8 1.8 0 0 0-.4 1.1V21a2 2 0 0 1-4 0v-.06A1.8 1.8 0 0 0 8.6 19.4a1.8 1.8 0 0 0-1.98.36l-.04.04a2 2 0 1 1-2.83-2.83l.04-.04A1.8 1.8 0 0 0 4.6 15a1.8 1.8 0 0 0-.6-1 1.8 1.8 0 0 0-1.1-.4H3a2 2 0 0 1 0-4h.06A1.8 1.8 0 0 0 4.6 8.6a1.8 1.8 0 0 0-.36-1.98l-.04-.04a2 2 0 1 1 2.83-2.83l.04.04A1.8 1.8 0 0 0 9 4.6a1.8 1.8 0 0 0 1-.6 1.8 1.8 0 0 0 .4-1.1V3a2 2 0 0 1 4 0v.06A1.8 1.8 0 0 0 15.4 4.6a1.8 1.8 0 0 0 1.98-.36l.04-.04a2 2 0 1 1 2.83 2.83l-.04.04A1.8 1.8 0 0 0 19.4 9c.23.36.6.6 1 .6h.6a2 2 0 0 1 0 4h-.06a1.8 1.8 0 0 0-1.54 1.4Z"/></svg><span>Palette, copy, clear.</span></button>
       </div>
       <div class="system-card">
         <div class="system-row"><span>Core</span><b>Active</b></div>
@@ -661,15 +689,22 @@
 
   <aside class="side-panel right" id="rightPanel">
     <div class="side-head">
-      <div><b>Settings</b><small>palette + data</small></div>
+      <div><b>Chat History</b><small>conversation text</small></div>
     </div>
     <div class="side-body">
-      <section class="controls">
-        <button class="mini" id="paletteBtn">Palette</button>
-        <button class="mini" id="copyBtn">Copy</button>
-        <button class="mini" id="clearBtn">Clear</button>
+      <section class="chat">
+        <div class="messages" id="messages"></div>
       </section>
     </div>
+  </aside>
+
+  <aside class="settings-tray" id="settingsTray" aria-label="Settings controls">
+    <div class="settings-title">Settings</div>
+    <section class="controls">
+      <button class="mini" id="paletteBtn">Palette</button>
+      <button class="mini" id="copyBtn">Copy</button>
+      <button class="mini" id="clearBtn">Clear</button>
+    </section>
   </aside>
 
   <div class="toast mono" id="toast"></div>
@@ -834,7 +869,10 @@
     document.getElementById("rightToggle").addEventListener("click", () => {
       document.body.classList.toggle("right-closed");
     });
-    document.querySelectorAll(".chip").forEach(chip => {
+    document.getElementById("settingsToggle").addEventListener("click", () => {
+      document.body.classList.toggle("settings-open");
+    });
+    document.querySelectorAll(".chip[data-command]").forEach(chip => {
       chip.addEventListener("click", () => {
         const input = document.getElementById("chatInput");
         input.value = chip.dataset.command || "";
