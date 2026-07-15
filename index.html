@@ -1224,6 +1224,63 @@
         }
       });
 
+      for (let i = 0; i < 18; i++) {
+        const n = noise01(i * 12.41);
+        const a = t * (.2 + n * .16) + i * Math.PI * 2 / 18 + Math.sin(i * 2.2) * .18;
+        const depth = depthAt(a);
+        if (depth < .32 && n < .72) continue;
+        const r1 = radius * (.18 + n * .18);
+        const r2 = radius * (1.02 + n * .48);
+        const grad = coreCtx.createLinearGradient(
+          cx + Math.cos(a) * r1,
+          cy + Math.sin(a) * r1 * .72,
+          cx + Math.cos(a + n * .1) * r2,
+          cy + Math.sin(a + n * .08) * r2 * .72
+        );
+        grad.addColorStop(0, "rgba(255,255,235,.82)");
+        grad.addColorStop(.18, rgbaVar("--gold-rgb", .62));
+        grad.addColorStop(1, rgbaVar("--amber-rgb", 0));
+        coreCtx.save();
+        coreCtx.filter = depth < .42 ? "blur(1px)" : "none";
+        coreCtx.globalAlpha = withDepth(.22 + n * .42, depth) * flicker(i * 3.7, .32);
+        coreCtx.lineWidth = .65 + n * 1.8;
+        coreCtx.strokeStyle = grad;
+        coreCtx.beginPath();
+        coreCtx.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1 * .72);
+        coreCtx.lineTo(cx + Math.cos(a + n * .1) * r2, cy + Math.sin(a + n * .08) * r2 * .72);
+        coreCtx.stroke();
+        coreCtx.restore();
+      }
+
+      [
+        { a: -.35, span: .55, count: 18 },
+        { a: .72, span: .38, count: 12 },
+        { a: 2.72, span: .48, count: 14 },
+        { a: 4.95, span: .52, count: 16 }
+      ].forEach((zone, zi) => {
+        for (let i = 0; i < zone.count; i++) {
+          const n = noise01(zi * 30 + i * 5.4);
+          const a = zone.a + (n - .5) * zone.span + Math.sin(t * .4 + i) * .035;
+          const r = radius * (1.06 + noise01(i + zi * 9) * .28);
+          const depth = depthAt(a);
+          const x = cx + Math.cos(a) * r;
+          const y = cy + Math.sin(a) * r * (.58 + n * .22);
+          const step = radius * (.018 + n * .025);
+          coreCtx.save();
+          coreCtx.filter = depth < .4 ? "blur(1.1px)" : "none";
+          coreCtx.globalAlpha = withDepth(.18 + n * .46, depth) * flicker(i + zi * 4, .38, 1.6);
+          coreCtx.lineWidth = .55 + n * 1.1;
+          coreCtx.strokeStyle = i % 5 === 0 ? "rgba(255,255,235,.82)" : rgbaVar("--gold-rgb", .82);
+          coreCtx.beginPath();
+          coreCtx.moveTo(x, y);
+          coreCtx.lineTo(x + step * (i % 2 ? 1 : -1), y + step * .2);
+          coreCtx.lineTo(x + step * (i % 2 ? 1 : -1), y + step * (1.1 + n));
+          coreCtx.lineTo(x + step * (i % 3 ? .2 : 1.6), y + step * (1.1 + n));
+          coreCtx.stroke();
+          coreCtx.restore();
+        }
+      });
+
       const sweep = -Math.PI * .12 + t * .9;
       coreCtx.globalCompositeOperation = "source-over";
       coreCtx.strokeStyle = "rgba(0,0,0,.74)";
@@ -1359,12 +1416,25 @@
         coreCtx.restore();
       }
 
+      for (let i = 0; i < 7; i++) {
+        const rr = radius * (.12 + i * .034 + Math.sin(t * 1.8 + i) * .006);
+        const start = t * (1.15 + i * .17) + i * .8;
+        coreCtx.save();
+        coreCtx.globalAlpha = (.34 - i * .025) * flicker(i + 40, .22);
+        coreCtx.lineWidth = 1.4 + (i % 2) * .8;
+        coreCtx.strokeStyle = i < 2 ? "rgba(255,255,245,.92)" : rgbaVar("--gold-rgb", .88);
+        coreCtx.beginPath();
+        coreCtx.arc(hotX, hotY, rr, start, start + Math.PI * (1.2 + noise01(i) * .6));
+        coreCtx.stroke();
+        coreCtx.restore();
+      }
+
       const triR = radius * .27;
       const triSpin = Math.sin(t * .8) * .035;
-      coreCtx.globalAlpha = .78;
+      coreCtx.globalAlpha = .24;
       coreCtx.lineWidth = 1.8;
       coreCtx.strokeStyle = gold;
-      coreCtx.fillStyle = rgbaVar("--gold-rgb", .12);
+      coreCtx.fillStyle = rgbaVar("--gold-rgb", .035);
       coreCtx.beginPath();
       for (let i = 0; i < 3; i++) {
         const a = -Math.PI / 2 + triSpin + i * Math.PI * 2 / 3;
