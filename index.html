@@ -200,7 +200,7 @@
       position: absolute;
       top: 8%;
       left: 50%;
-      width: min(720px, 78vw);
+      width: min(620px, 44vw);
       transform: translateX(-50%);
       border: 1px solid rgba(255,184,61,.28);
       border-radius: 999px;
@@ -292,20 +292,86 @@
     }
     .hub-status::after { background: linear-gradient(90deg, var(--gold), transparent); }
 
-    .console {
-      position: relative;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 12px;
-      align-items: end;
+    .side-panel {
+      position: fixed;
+      z-index: 6;
+      top: 112px;
+      bottom: 24px;
+      width: min(330px, 28vw);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background:
+        radial-gradient(circle at 80% 12%, rgba(255,184,61,.12), transparent 30%),
+        linear-gradient(135deg, rgba(255,255,255,.055), rgba(5,5,5,.5));
+      box-shadow: 0 18px 44px rgba(0,0,0,.44), inset 0 0 26px rgba(255,184,61,.035);
+      backdrop-filter: blur(18px);
       pointer-events: auto;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      transition: transform .28s ease, opacity .22s ease;
     }
-    .chat {
-      min-height: 156px;
-      max-height: 240px;
-      overflow: auto;
-      border-radius: 18px;
+    .side-panel.left { left: 24px; }
+    .side-panel.right { right: 24px; }
+    body.left-closed .side-panel.left { transform: translateX(calc(-100% - 34px)); opacity: .18; }
+    body.right-closed .side-panel.right { transform: translateX(calc(100% + 34px)); opacity: .18; }
+    .side-head {
+      min-height: 58px;
       padding: 14px;
+      border-bottom: 1px solid rgba(255,184,61,.12);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .side-head b {
+      color: var(--gold);
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size: 12px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    .side-head small {
+      display: block;
+      margin-top: 3px;
+      color: var(--dim);
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size: 10px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .side-body {
+      min-height: 0;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+      overflow: auto;
+      scrollbar-color: var(--gold) transparent;
+    }
+    .side-toggle {
+      position: fixed;
+      z-index: 8;
+      top: 50%;
+      width: 42px;
+      height: 88px;
+      border: 1px solid var(--line);
+      background: rgba(5,5,5,.72);
+      color: var(--gold);
+      box-shadow: 0 0 22px rgba(255,130,32,.16);
+      backdrop-filter: blur(12px);
+      pointer-events: auto;
+      transition: .2s ease;
+    }
+    .side-toggle.left-toggle { left: 0; border-radius: 0 14px 14px 0; }
+    .side-toggle.right-toggle { right: 0; border-radius: 14px 0 0 14px; }
+    .side-toggle:hover, .side-toggle:focus-visible { outline: none; box-shadow: 0 0 28px var(--glow); }
+    .side-toggle svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    body.left-closed .left-toggle svg { transform: rotate(180deg); }
+    body.right-closed .right-toggle svg { transform: rotate(180deg); }
+    .chat {
+      min-height: 0;
+      overflow: auto;
+      border-radius: 14px;
+      padding: 0;
       scrollbar-color: var(--gold) transparent;
     }
     .messages { display: flex; gap: 10px; flex-direction: column; }
@@ -351,19 +417,10 @@
       transition: .18s ease;
     }
     .mini:hover, .mini:focus-visible { outline: none; border-color: var(--gold); box-shadow: 0 0 22px var(--glow); }
-    .quick-row {
-      position: absolute;
-      left: 50%;
-      top: 48%;
-      transform: translate(-50%, -50%);
-      width: min(900px, 88vw);
-      height: min(590px, 64vh);
-      pointer-events: none;
-    }
+    .quick-row { display: grid; gap: 10px; }
     .chip {
-      position: absolute;
-      width: 176px;
-      min-height: 82px;
+      width: 100%;
+      min-height: 84px;
       border: 1px solid rgba(255,184,61,.24);
       border-radius: 16px;
       background:
@@ -393,10 +450,25 @@
       opacity: .58;
     }
     .chip:hover, .chip:focus-visible { outline: none; color: var(--gold); border-color: var(--gold); box-shadow: 0 0 34px var(--glow); }
-    .chip:nth-child(1) { left: 50%; top: -18px; transform: translateX(-50%); }
-    .chip:nth-child(2) { right: -18px; top: 50%; transform: translateY(-50%); }
-    .chip:nth-child(3) { left: 50%; bottom: -18px; transform: translateX(-50%); }
-    .chip:nth-child(4) { left: -18px; top: 50%; transform: translateY(-50%); }
+    .chip:nth-child(n) { position: relative; left: auto; right: auto; top: auto; bottom: auto; transform: none; }
+    .system-card {
+      border: 1px solid rgba(255,184,61,.14);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(5,5,5,.42);
+      color: var(--muted);
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size: 11px;
+    }
+    .system-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,184,61,.08);
+    }
+    .system-row:last-child { border-bottom: 0; }
+    .system-row b { color: var(--gold); font-weight: 600; }
 
     .boot {
       position: fixed;
@@ -454,16 +526,11 @@
       .status-stack .status:not(:first-child) { display: none; }
       .brand { width: auto; }
       .prompt { top: 14%; width: min(92vw, 720px); }
-      .quick-row {
-        top: 52%;
-        width: min(640px, 90vw);
-        height: min(420px, 46vh);
-      }
-      .chip { width: 144px; min-height: 72px; font-size: 10px; padding: 10px; }
+      .side-panel { top: 92px; bottom: 16px; width: min(340px, 82vw); }
+      .side-panel.left { left: 12px; }
+      .side-panel.right { right: 12px; }
       .hero-text { bottom: 24%; }
-      .console { grid-template-columns: 1fr; }
       .controls { grid-template-columns: repeat(3, 1fr); }
-      .chat { max-height: 220px; }
     }
     @media (max-width: 560px) {
       .brand small { display: none; }
@@ -471,19 +538,9 @@
       .status-stack { display: none; }
       .prompt { grid-template-columns: 50px 1fr 50px; }
       .orb-btn { width: 50px; height: 50px; }
-      .quick-row {
-        top: auto;
-        bottom: 36%;
-        height: auto;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 7px;
-        transform: translateX(-50%);
-      }
       .hub-reticle { width: 82vw; top: 47%; }
-      .chip { position: static; transform: none !important; width: auto; min-height: 42px; padding: 8px 10px; }
-      .chip span, .chip::after { display: none; }
+      .side-panel { width: min(330px, calc(100vw - 48px)); }
+      .chip { min-height: 68px; padding: 10px; }
       .hero-text { bottom: 29%; }
       .hero-text h2 { font-size: 28px; letter-spacing: .16em; }
       .hero-text p { display: none; }
@@ -542,22 +599,46 @@
         </button>
       </form>
 
-      <div class="quick-row">
-        <button class="chip" data-command="Show weather-style briefing for today."><b>Weather</b><span>Daily signal, local briefing, next move.</span></button>
-        <button class="chip" data-command="Control PC plan: safe commands, confirmations, and next setup steps."><b>Control PC</b><span>Safe local agent, command allowlist.</span></button>
-        <button class="chip" data-command="Phone assistant plan: shortcuts, voice actions, and secure bridge."><b>Phone</b><span>Shortcuts, notifications, device bridge.</span></button>
-        <button class="chip" data-command="Detective mode: build a timeline and find contradictions."><b>Detective</b><span>Timeline, evidence, contradictions.</span></button>
-      </div>
-
       <div class="hero-text">
         <div class="hub-status mono">AI Hub</div>
         <h2 id="bigWord">ACTIVE</h2>
         <p id="caption">Type or speak. This page is only the cinematic local shell; real AI/device control should run through a protected backend, never a public API key in GitHub Pages.</p>
       </div>
     </section>
+  </main>
 
-    <footer class="console">
-      <section class="chat glass">
+  <button class="side-toggle left-toggle" id="leftToggle" aria-label="Toggle left hub panel">
+    <svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>
+  </button>
+  <button class="side-toggle right-toggle" id="rightToggle" aria-label="Toggle right chat panel">
+    <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+  </button>
+
+  <aside class="side-panel left" id="leftPanel">
+    <div class="side-head">
+      <div><b>Command Hub</b><small>modules</small></div>
+    </div>
+    <div class="side-body">
+      <div class="quick-row">
+        <button class="chip" data-command="Show weather-style briefing for today."><b>Weather</b><span>Daily signal, local briefing, next move.</span></button>
+        <button class="chip" data-command="Control PC plan: safe commands, confirmations, and next setup steps."><b>Control PC</b><span>Safe local agent, command allowlist.</span></button>
+        <button class="chip" data-command="Phone assistant plan: shortcuts, voice actions, and secure bridge."><b>Phone</b><span>Shortcuts, notifications, device bridge.</span></button>
+        <button class="chip" data-command="Detective mode: build a timeline and find contradictions."><b>Detective</b><span>Timeline, evidence, contradictions.</span></button>
+      </div>
+      <div class="system-card">
+        <div class="system-row"><span>Core</span><b>Active</b></div>
+        <div class="system-row"><span>Voice</span><b>Ready</b></div>
+        <div class="system-row"><span>Device</span><b>Sandbox</b></div>
+      </div>
+    </div>
+  </aside>
+
+  <aside class="side-panel right" id="rightPanel">
+    <div class="side-head">
+      <div><b>Conversation</b><small>chat + controls</small></div>
+    </div>
+    <div class="side-body">
+      <section class="chat">
         <div class="messages" id="messages"></div>
       </section>
       <section class="controls">
@@ -565,8 +646,8 @@
         <button class="mini" id="copyBtn">Copy</button>
         <button class="mini" id="clearBtn">Clear</button>
       </section>
-    </footer>
-  </main>
+    </div>
+  </aside>
 
   <div class="toast mono" id="toast"></div>
 
@@ -726,11 +807,18 @@
       renderMessages();
       setMode("online", "Conversation reset.", "ACTIVE");
     });
+    document.getElementById("leftToggle").addEventListener("click", () => {
+      document.body.classList.toggle("left-closed");
+    });
+    document.getElementById("rightToggle").addEventListener("click", () => {
+      document.body.classList.toggle("right-closed");
+    });
     document.querySelectorAll(".chip").forEach(chip => {
       chip.addEventListener("click", () => {
         const input = document.getElementById("chatInput");
         input.value = chip.dataset.command || "";
         input.focus();
+        document.body.classList.remove("right-closed");
       });
     });
 
