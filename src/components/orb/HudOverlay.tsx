@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import type { AiActivity } from "../../App";
 
 type Message = {
   id: string;
@@ -49,7 +50,11 @@ function loadState() {
   }
 }
 
-export default function HudOverlay() {
+type HudOverlayProps = {
+  onActivityChange: (activity: AiActivity) => void;
+};
+
+export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
   const initial = useMemo(() => (typeof window === "undefined" ? null : loadState()), []);
   const [time, setTime] = useState(() => new Date());
   const [input, setInput] = useState("");
@@ -71,8 +76,11 @@ export default function HudOverlay() {
   const [apiKey, setApiKey] = useState(initial?.apiKey ?? "");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [listening, setListening] = useState(false);
+  const [activity, setActivity] = useState<AiActivity>("idle");
   const [toast, setToast] = useState("");
   const recognitionRef = useRef<any>(null);
+  const thinkingTimer = useRef<number | null>(null);
+  const idleTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setTime(new Date()), 1000);
@@ -85,18 +93,39 @@ export default function HudOverlay() {
   }, [apiKey, messages, palette, voiceReply]);
 
   useEffect(() => {
+    onActivityChange(activity);
+  }, [activity, onActivityChange]);
+
+  useEffect(() => {
+    return () => {
+      if (thinkingTimer.current) window.clearTimeout(thinkingTimer.current);
+      if (idleTimer.current) window.clearTimeout(idleTimer.current);
+      window.speechSynthesis?.cancel();
+    };
+  }, []);
+
+  useEffect(() => {
     if (!toast) return undefined;
     const timer = window.setTimeout(() => setToast(""), 2200);
     return () => window.clearTimeout(timer);
   }, [toast]);
 
   const speak = (text: string) => {
-    if (!voiceReply || !("speechSynthesis" in window)) return;
+    setActivity("speaking");
+    if (!voiceReply || !("speechSynthesis" in window)) {
+      idleTimer.current = window.setTimeout(() => setActivity("idle"), 1800);
+      return;
+    }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "vi-VN";
     utterance.rate = 1;
     utterance.pitch = 0.92;
+    utterance.onstart = () => setActivity("speaking");
+    utterance.onend = () => {
+      idleTimer.current = window.setTimeout(() => setActivity("idle"), 350);
+    };
+    utterance.onerror = () => setActivity("idle");
     window.speechSynthesis.speak(utterance);
   };
 
@@ -104,10 +133,15 @@ export default function HudOverlay() {
     const trimmed = value.trim();
     if (!trimmed) return;
     const userMessage: Message = { id: createId(), role: "user", text: trimmed, at: Date.now() };
-    const reply: Message = { id: createId(), role: "assistant", text: createReply(trimmed), at: Date.now() + 1 };
-    setMessages((current) => [...current, userMessage, reply].slice(-80));
+    setMessages((current) => [...current, userMessage].slice(-80));
     setInput("");
-    speak(reply.text);
+    setActivity("thinking");
+    if (thinkingTimer.current) window.clearTimeout(thinkingTimer.current);
+    thinkingTimer.current = window.setTimeout(() => {
+      const reply: Message = { id: createId(), role: "assistant", text: createReply(trimmed), at: Date.now() + 1 };
+      setMessages((current) => [...current, reply].slice(-80));
+      speak(reply.text);
+    }, 980);
   };
 
   const submit = (event: FormEvent) => {
@@ -124,16 +158,24 @@ export default function HudOverlay() {
     if (listening) {
       recognitionRef.current?.stop();
       setListening(false);
+      setActivity("idle");
       return;
     }
     const recognition = new SpeechRecognition();
     recognition.lang = "vi-VN";
     recognition.interimResults = false;
     recognition.continuous = false;
-    recognition.onstart = () => setListening(true);
-    recognition.onend = () => setListening(false);
+    recognition.onstart = () => {
+      setListening(true);
+      setActivity("listening");
+    };
+    recognition.onend = () => {
+      setListening(false);
+      setActivity((current) => (current === "listening" ? "idle" : current));
+    };
     recognition.onerror = () => {
       setListening(false);
+      setActivity("idle");
       setToast("Voice capture blocked or unavailable.");
     };
     recognition.onresult = (event: any) => {
@@ -153,6 +195,7 @@ export default function HudOverlay() {
 
   const clearChat = () => {
     window.speechSynthesis?.cancel();
+    setActivity("idle");
     setMessages([
       {
         id: createId(),
@@ -172,7 +215,7 @@ export default function HudOverlay() {
       <header className="hud-top">
         <div className="hud-chip">
           <span>AI REACTOR</span>
-          <b>{listening ? "LISTENING" : "ONLINE"}</b>
+          <b>{activity === "idle" ? "ONLINE" : activity.toUpperCase()}</b>
         </div>
         <div className="hud-time">
           <span>{time.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "2-digit" })}</span>
@@ -251,6 +294,14 @@ export default function HudOverlay() {
       )}
 
       <section className="hud-bottom">
+        <div className={`ai-state-readout ${activity}`}>
+          <span>{activity === "idle" ? "JARVIS STANDBY" : activity === "listening" ? "VOICE INPUT LOCKED" : activity === "thinking" ? "COGNITIVE ROUTING" : "SYNTHESIZING RESPONSE"}</span>
+          <div className="voice-wave" aria-hidden="true">
+            {Array.from({ length: 18 }, (_, index) => (
+              <i key={index} style={{ animationDelay: `${index * 42}ms` }} />
+            ))}
+          </div>
+        </div>
         <form className="prompt-shell" onSubmit={submit}>
           <button className={listening ? "listening" : ""} type="button" aria-label="Voice input" onClick={startVoice}>
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -268,7 +319,7 @@ export default function HudOverlay() {
             </svg>
           </button>
         </form>
-        <p>{toast || "REACTOR FIELD STABLE - CHAT MEMORY ONLINE - VOICE LINK READY"}</p>
+        <p>{toast || (activity === "idle" ? "REACTOR FIELD STABLE - CHAT MEMORY ONLINE - VOICE LINK READY" : "AI CORE ACTIVE - ORBITAL TRAFFIC AMPLIFIED - RESPONSE FIELD LIVE")}</p>
       </section>
     </div>
   );

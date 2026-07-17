@@ -1,11 +1,16 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import type { AiActivity } from "../../App";
 import { seeded } from "./materials";
 
 const PARTICLE_COUNT = 2100;
 
-export default function ParticleShell() {
+type ParticleShellProps = {
+  activity: AiActivity;
+};
+
+export default function ParticleShell({ activity }: ParticleShellProps) {
   const points = useRef<THREE.Points>(null);
   const { positions, colors, sizes } = useMemo(() => {
     const positionData = new Float32Array(PARTICLE_COUNT * 3);
@@ -41,21 +46,23 @@ export default function ParticleShell() {
       blending: THREE.AdditiveBlending,
       uniforms: {
         uTime: { value: 0 },
+        uActivity: { value: 0 },
         uPixelRatio: { value: Math.min(window.devicePixelRatio, 1.75) }
       },
       vertexShader: `
         attribute float size;
         varying vec3 vColor;
         uniform float uTime;
+        uniform float uActivity;
         uniform float uPixelRatio;
         void main() {
           vColor = color;
           vec3 p = position;
-          p.x += sin(uTime * .18 + position.y * 3.2) * .035;
-          p.y += cos(uTime * .14 + position.x * 2.4) * .028;
-          p.z += sin(uTime * .16 + position.x * 2.1) * .035;
+          p.x += sin(uTime * (.18 + uActivity * .28) + position.y * 3.2) * (.035 + uActivity * .035);
+          p.y += cos(uTime * (.14 + uActivity * .22) + position.x * 2.4) * (.028 + uActivity * .026);
+          p.z += sin(uTime * (.16 + uActivity * .2) + position.x * 2.1) * (.035 + uActivity * .03);
           vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
-          gl_PointSize = size * 330.0 * uPixelRatio / max(1.0, -mvPosition.z);
+          gl_PointSize = size * (330.0 + uActivity * 150.0) * uPixelRatio / max(1.0, -mvPosition.z);
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -65,7 +72,7 @@ export default function ParticleShell() {
           vec2 uv = gl_PointCoord - vec2(.5);
           float d = length(uv);
           float alpha = smoothstep(.5, .08, d);
-          gl_FragColor = vec4(vColor, alpha * .78);
+          gl_FragColor = vec4(vColor, alpha * (.66 + uActivity * .42));
         }
       `,
       vertexColors: true
@@ -73,9 +80,11 @@ export default function ParticleShell() {
   }, []);
 
   useFrame(({ clock }) => {
+    const target = activity === "speaking" ? 1 : activity === "thinking" ? 0.78 : activity === "listening" ? 0.5 : 0;
     material.uniforms.uTime.value = clock.elapsedTime;
+    material.uniforms.uActivity.value = THREE.MathUtils.lerp(material.uniforms.uActivity.value as number, target, 0.08);
     if (points.current) {
-      points.current.rotation.y = clock.elapsedTime * 0.035;
+      points.current.rotation.y = clock.elapsedTime * (0.035 + target * 0.04);
       points.current.rotation.x = Math.sin(clock.elapsedTime * 0.09) * 0.04;
     }
   });

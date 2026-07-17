@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import type { AiActivity } from "../../App";
 import { ellipsePoint } from "./geometry";
 import { GOLD, HOT, additiveLine, seeded } from "./materials";
 
@@ -15,7 +16,11 @@ type Packet = {
   size: number;
 };
 
-export default function EnergyPackets() {
+type EnergyPacketsProps = {
+  activity: AiActivity;
+};
+
+export default function EnergyPackets({ activity }: EnergyPacketsProps) {
   const packets = useRef<Packet[]>([]);
   const specs = useMemo(() => {
     return Array.from({ length: 11 }, (_, index) => ({
@@ -47,14 +52,17 @@ export default function EnergyPackets() {
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
+    const speedBoost = activity === "speaking" ? 2.35 : activity === "thinking" ? 2.05 : activity === "listening" ? 1.35 : 1;
+    packetMaterial.opacity = activity === "idle" ? 0.72 : 0.96;
+    trailMaterial.opacity = activity === "idle" ? 0.26 : activity === "thinking" ? 0.54 : 0.42;
     specs.forEach((spec, index) => {
       const packet = packets.current[index];
       if (!packet?.mesh || !packet.trail) return;
-      const angle = spec.phase + t * spec.speed;
+      const angle = spec.phase + t * spec.speed * speedBoost;
       const position = ellipsePoint(spec.radius, spec.tilt, angle, spec.rotation);
       const pulse = 1 + Math.sin(t * 5.8 + index) * 0.22;
       packet.mesh.position.copy(position);
-      packet.mesh.scale.setScalar(spec.size * pulse);
+      packet.mesh.scale.setScalar(spec.size * pulse * (activity === "speaking" ? 1.45 : activity === "thinking" ? 1.25 : 1));
 
       const positions = packet.trail.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < 3; i += 1) {

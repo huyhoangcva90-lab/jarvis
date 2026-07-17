@@ -1,5 +1,5 @@
 import { Canvas } from "@react-three/fiber";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import CoreGlow from "./components/orb/CoreGlow";
 import EnergyPackets from "./components/orb/EnergyPackets";
 import HudOverlay from "./components/orb/HudOverlay";
@@ -11,7 +11,15 @@ import PostFX from "./components/orb/PostFX";
 import RadialSpikes from "./components/orb/RadialSpikes";
 import SceneRig from "./components/orb/SceneRig";
 
+export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
+
 export default function App() {
+  const [activity, setActivity] = useState<AiActivity>("idle");
+
+  useEffect(() => {
+    document.body.dataset.activity = activity;
+  }, [activity]);
+
   return (
     <main className="jarvis-shell">
       <div className="orb-stage">
@@ -24,19 +32,19 @@ export default function App() {
           <fog attach="fog" args={["#030303", 8, 18]} />
           <Suspense fallback={null}>
             <SceneRig>
-              <ParticleShell />
+              <ParticleShell activity={activity} />
               <InnerGrid />
               <OrbitRings />
               <OuterArcs />
-              <RadialSpikes />
-              <EnergyPackets />
-              <CoreGlow />
+              <RadialSpikes activity={activity} />
+              <EnergyPackets activity={activity} />
+              <CoreGlow activity={activity} />
             </SceneRig>
-            <PostFX />
+            <PostFX activity={activity} />
           </Suspense>
         </Canvas>
       </div>
-      <HudOverlay />
+      <HudOverlay onActivityChange={setActivity} />
     </main>
   );
 }
