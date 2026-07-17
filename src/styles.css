@@ -5,6 +5,28 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  --accent: #ffb83d;
+  --accent-rgb: 255, 184, 61;
+  --hot: #fff7ea;
+  --panel-bg: rgba(0, 0, 0, 0.58);
+}
+
+body[data-palette="blue"] {
+  --accent: #33d7ff;
+  --accent-rgb: 51, 215, 255;
+  --hot: #e9fbff;
+}
+
+body[data-palette="green"] {
+  --accent: #6eff9a;
+  --accent-rgb: 110, 255, 154;
+  --hot: #efffed;
+}
+
+body[data-palette="red"] {
+  --accent: #ff315f;
+  --accent-rgb: 255, 49, 95;
+  --hot: #fff1f5;
 }
 
 * {
@@ -42,7 +64,7 @@ button {
   height: 100dvh;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 48%, rgba(255, 166, 41, 0.12), transparent 24%),
+    radial-gradient(circle at 50% 48%, rgba(var(--accent-rgb), 0.12), transparent 24%),
     radial-gradient(circle at 50% 80%, rgba(19, 91, 93, 0.13), transparent 28%),
     linear-gradient(180deg, #040404 0%, #050403 48%, #010101 100%);
 }
@@ -67,8 +89,8 @@ button {
   z-index: 1;
   pointer-events: none;
   background:
-    linear-gradient(90deg, transparent, rgba(255, 184, 61, 0.08), transparent) 50% 49% / min(920px, 74vw) 1px no-repeat,
-    linear-gradient(0deg, transparent, rgba(255, 184, 61, 0.05), transparent) 50% 49% / 1px min(680px, 78vh) no-repeat;
+    linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.08), transparent) 50% 49% / min(920px, 74vw) 1px no-repeat,
+    linear-gradient(0deg, transparent, rgba(var(--accent-rgb), 0.05), transparent) 50% 49% / 1px min(680px, 78vh) no-repeat;
   opacity: 0.72;
 }
 
@@ -101,7 +123,7 @@ button {
 .hud-time {
   border: 1px solid rgba(255, 184, 61, 0.23);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.5));
-  box-shadow: 0 0 28px rgba(255, 122, 31, 0.08), inset 0 0 22px rgba(255, 184, 61, 0.035);
+  box-shadow: 0 0 28px rgba(var(--accent-rgb), 0.08), inset 0 0 22px rgba(var(--accent-rgb), 0.035);
   backdrop-filter: blur(16px);
 }
 
@@ -130,7 +152,7 @@ button {
 .hud-chip b {
   display: block;
   margin-top: 5px;
-  color: #ffb83d;
+  color: var(--accent);
   font-size: 13px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -148,11 +170,191 @@ button {
 .hud-time b {
   display: block;
   margin-top: 6px;
-  color: #fff7ea;
+  color: var(--hot);
   font-size: clamp(24px, 3.4vw, 42px);
   line-height: 1;
   letter-spacing: 0.12em;
   text-shadow: 0 0 30px rgba(255, 184, 61, 0.34);
+}
+
+.left-rail,
+.history-panel,
+.settings-panel {
+  pointer-events: auto;
+  position: absolute;
+  z-index: 4;
+  border: 1px solid rgba(var(--accent-rgb), 0.23);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.055), var(--panel-bg));
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.46), inset 0 0 26px rgba(var(--accent-rgb), 0.035);
+  backdrop-filter: blur(18px);
+}
+
+.left-rail {
+  left: clamp(16px, 3vw, 42px);
+  top: 50%;
+  display: grid;
+  gap: 10px;
+  width: 68px;
+  padding: 10px;
+  border-radius: 18px;
+  transform: translateY(-50%);
+}
+
+.left-rail button,
+.settings-panel button,
+.palette-grid button {
+  border: 1px solid rgba(var(--accent-rgb), 0.26);
+  background: rgba(0, 0, 0, 0.42);
+  color: var(--accent);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.left-rail button {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  font-size: 10px;
+}
+
+.left-rail button:hover,
+.left-rail button:focus-visible,
+.settings-panel button:hover,
+.settings-panel button:focus-visible,
+.palette-grid button.active {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.24);
+}
+
+.history-panel {
+  right: clamp(16px, 3vw, 42px);
+  top: 112px;
+  bottom: 132px;
+  width: min(360px, 27vw);
+  min-width: 280px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.panel-head {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.12);
+}
+
+.panel-head span,
+.panel-head b,
+.settings-panel label > span {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.message-list {
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  scrollbar-color: var(--accent) transparent;
+}
+
+.message {
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.42);
+  color: rgba(255, 247, 234, 0.9);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.message.user {
+  align-self: flex-end;
+  border-color: rgba(var(--accent-rgb), 0.28);
+  background: rgba(var(--accent-rgb), 0.08);
+}
+
+.message b {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+.message p {
+  margin: 0;
+}
+
+.settings-panel {
+  left: 124px;
+  bottom: 132px;
+  width: min(360px, calc(100vw - 160px));
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.settings-panel .panel-head {
+  min-height: 0;
+  padding: 0 0 12px;
+}
+
+.settings-panel .panel-head button {
+  min-height: 32px;
+  border-radius: 10px;
+  padding: 0 10px;
+  font-size: 10px;
+}
+
+.settings-panel label {
+  display: grid;
+  gap: 8px;
+}
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.palette-grid button {
+  min-height: 38px;
+  border-radius: 10px;
+  font-size: 10px;
+}
+
+.toggle-row {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.settings-input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(var(--accent-rgb), 0.22);
+  border-radius: 12px;
+  outline: none;
+  background: rgba(0, 0, 0, 0.46);
+  color: var(--hot);
+  padding: 0 12px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
 }
 
 .hud-bottom {
@@ -172,10 +374,10 @@ button {
   grid-template-columns: 54px 1fr 54px;
   gap: 10px;
   padding: 9px;
-  border: 1px solid rgba(255, 184, 61, 0.29);
+  border: 1px solid rgba(var(--accent-rgb), 0.29);
   border-radius: 999px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.72));
-  box-shadow: 0 0 42px rgba(255, 122, 31, 0.18), inset 0 0 30px rgba(255, 184, 61, 0.035);
+  box-shadow: 0 0 42px rgba(var(--accent-rgb), 0.18), inset 0 0 30px rgba(var(--accent-rgb), 0.035);
   backdrop-filter: blur(18px);
 }
 
@@ -185,7 +387,7 @@ button {
   border: 0;
   outline: none;
   background: transparent;
-  color: #fff7ea;
+  color: var(--hot);
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 14px;
 }
@@ -197,10 +399,10 @@ button {
 .prompt-shell button {
   width: 54px;
   height: 54px;
-  border: 1px solid rgba(255, 184, 61, 0.32);
+  border: 1px solid rgba(var(--accent-rgb), 0.32);
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(255, 184, 61, 0.16), rgba(0, 0, 0, 0.62));
-  color: #ffb83d;
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.16), rgba(0, 0, 0, 0.62));
+  color: var(--accent);
   display: grid;
   place-items: center;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
@@ -210,8 +412,14 @@ button {
 .prompt-shell button:focus-visible {
   outline: none;
   transform: scale(1.05);
-  border-color: #ffb83d;
-  box-shadow: 0 0 28px rgba(255, 122, 31, 0.34);
+  border-color: var(--accent);
+  box-shadow: 0 0 28px rgba(var(--accent-rgb), 0.34);
+}
+
+.prompt-shell button.listening {
+  color: #ff315f;
+  border-color: #ff315f;
+  box-shadow: 0 0 32px rgba(255, 49, 95, 0.42);
 }
 
 .prompt-shell svg {
@@ -225,7 +433,7 @@ button {
 }
 
 .hud-bottom p {
-  color: rgba(255, 184, 61, 0.64);
+  color: rgba(var(--accent-rgb), 0.64);
   text-shadow: 0 0 18px rgba(255, 122, 31, 0.22);
 }
 
@@ -245,5 +453,29 @@ button {
 
   .hud-bottom {
     bottom: 16px;
+  }
+
+  .left-rail {
+    top: auto;
+    bottom: 104px;
+    left: 12px;
+    grid-template-columns: repeat(4, 1fr);
+    width: min(320px, calc(100vw - 24px));
+    transform: none;
+  }
+
+  .left-rail button {
+    width: auto;
+  }
+
+  .history-panel {
+    display: none;
+  }
+
+  .settings-panel {
+    left: 12px;
+    right: 12px;
+    bottom: 176px;
+    width: auto;
   }
 }
