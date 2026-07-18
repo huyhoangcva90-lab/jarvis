@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import type { AiActivity } from "../../App";
 import { makeBrokenRingGeometry } from "./geometry";
 import { GOLD, HOT, additiveLine, seeded } from "./materials";
 
@@ -11,8 +12,13 @@ type RingObject = {
   speed: number;
 };
 
-export default function OrbitRings() {
+type OrbitRingsProps = {
+  activity: AiActivity;
+};
+
+export default function OrbitRings({ activity }: OrbitRingsProps) {
   const refs = useRef<Array<THREE.LineSegments | null>>([]);
+  const responseLevel = useRef(0);
   const rings = useMemo<RingObject[]>(() => {
     const count = 18;
     return Array.from({ length: count }, (_, index) => {
@@ -34,13 +40,19 @@ export default function OrbitRings() {
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
+    const target = activity === "speaking" ? 1 : activity === "thinking" ? 0.66 : activity === "listening" ? 0.3 : 0;
+    responseLevel.current = THREE.MathUtils.lerp(responseLevel.current, target, 0.06);
+    const response = responseLevel.current;
     refs.current.forEach((ring, index) => {
       if (!ring) return;
       const spec = rings[index];
-      ring.rotation.z += spec.speed * 0.012;
-      ring.rotation.x = spec.rotation[0] + Math.sin(t * 0.19 + index) * 0.035;
-      ring.rotation.y = spec.rotation[1] + Math.cos(t * 0.15 + index) * 0.04;
-      spec.material.opacity = 0.12 + seeded(index * 1.8) * 0.2 + Math.sin(t * (0.7 + index * 0.03) + index) * 0.04;
+      const laneBoost = 1 + response * (0.45 + (index % 4) * 0.11);
+      ring.rotation.z += spec.speed * 0.012 * laneBoost;
+      ring.rotation.x = spec.rotation[0] + Math.sin(t * 0.19 + index) * 0.035 + Math.sin(t * 1.2 + index) * 0.018 * response;
+      ring.rotation.y = spec.rotation[1] + Math.cos(t * 0.15 + index) * 0.04 + Math.cos(t * 0.9 + index) * 0.022 * response;
+      const pulse = Math.max(0, Math.sin(t * 4.25 - index * 0.42)) * response;
+      ring.scale.setScalar(1 + pulse * 0.028);
+      spec.material.opacity = 0.12 + seeded(index * 1.8) * 0.2 + Math.sin(t * (0.7 + index * 0.03) + index) * 0.04 + pulse * 0.18;
     });
   });
 

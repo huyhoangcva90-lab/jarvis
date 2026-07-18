@@ -1,11 +1,17 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import type { AiActivity } from "../../App";
 import { makeArcGeometry } from "./geometry";
 import { AMBER, GOLD, additiveLine, seeded } from "./materials";
 
-export default function OuterArcs() {
+type OuterArcsProps = {
+  activity: AiActivity;
+};
+
+export default function OuterArcs({ activity }: OuterArcsProps) {
   const refs = useRef<Array<THREE.LineSegments | null>>([]);
+  const responseLevel = useRef(0);
   const arcs = useMemo(() => {
     return Array.from({ length: 10 }, (_, index) => {
       const rot = new THREE.Euler(-0.88 + index * 0.18, 0.56 - index * 0.12, index * 0.58 + seeded(index * 2.2));
@@ -20,11 +26,16 @@ export default function OuterArcs() {
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
+    const target = activity === "speaking" ? 1 : activity === "thinking" ? 0.5 : activity === "listening" ? 0.24 : 0;
+    responseLevel.current = THREE.MathUtils.lerp(responseLevel.current, target, 0.045);
+    const response = responseLevel.current;
     refs.current.forEach((arc, index) => {
       if (!arc) return;
-      arc.rotation.z += arcs[index].speed * 0.01;
-      arc.rotation.x = arcs[index].base.x + Math.sin(t * 0.1 + index) * 0.05;
-      arcs[index].material.opacity = 0.18 + Math.sin(t * (0.55 + index * 0.15)) * 0.11;
+      const sweep = 1 + response * (0.3 + (index % 3) * 0.12);
+      arc.rotation.z += arcs[index].speed * 0.01 * sweep;
+      arc.rotation.x = arcs[index].base.x + Math.sin(t * 0.1 + index) * 0.05 + response * Math.sin(t * 0.72 + index) * 0.025;
+      arc.scale.setScalar(1 + response * 0.035 + Math.sin(t * 3.2 + index) * response * 0.018);
+      arcs[index].material.opacity = 0.18 + Math.sin(t * (0.55 + index * 0.15)) * 0.11 + response * 0.12;
     });
   });
 

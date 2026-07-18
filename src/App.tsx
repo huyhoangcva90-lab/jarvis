@@ -33,12 +33,12 @@ export default function App() {
           <color attach="background" args={["#030303"]} />
           <fog attach="fog" args={["#030303", 8, 18]} />
           <Suspense fallback={null}>
-            <SceneRig>
+            <SceneRig activity={activity}>
               <ParticleShell activity={activity} />
               <HologramFragments activity={activity} />
-              <InnerGrid />
-              <OrbitRings />
-              <OuterArcs />
+              <InnerGrid activity={activity} />
+              <OrbitRings activity={activity} />
+              <OuterArcs activity={activity} />
               <RadialSpikes activity={activity} />
               <EnergyPackets activity={activity} />
               <ApertureCore activity={activity} />
