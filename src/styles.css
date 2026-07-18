@@ -5,8 +5,8 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --accent: #ffb83d;
-  --accent-rgb: 255, 184, 61;
+  --accent: #ff7a18;
+  --accent-rgb: 255, 122, 24;
   --hot: #fff7ea;
   --panel-bg: rgba(0, 0, 0, 0.58);
 }

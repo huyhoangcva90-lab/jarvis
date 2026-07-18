@@ -8,8 +8,8 @@ type CinematicOrbProps = {
   activity: AiActivity;
 };
 
-const GOLD = new THREE.Color("#ff9d18");
-const HOT_GOLD = new THREE.Color("#ffd66b");
+const GOLD = new THREE.Color("#ff5a0a");
+const HOT_GOLD = new THREE.Color("#ff9318");
 const WHITE_HOT = new THREE.Color("#fffdf2");
 
 function mulberry32(seed: number) {
@@ -211,7 +211,7 @@ function OrbitPath({ descriptor, activity, index }: { descriptor: OrbitDescripto
       <line geometry={geometry}>
         <lineBasicMaterial
           blending={THREE.AdditiveBlending}
-          color={index % 4 === 0 ? WHITE_HOT : HOT_GOLD}
+          color={index % 4 === 0 ? HOT_GOLD : GOLD}
           depthWrite={false}
           opacity={descriptor.opacity}
           toneMapped={false}
@@ -450,7 +450,7 @@ function ParticleShell({ activity }: CinematicOrbProps) {
         void main() {
           float d = length(gl_PointCoord - 0.5);
           float alpha = smoothstep(0.5, 0.02, d) * vGlow;
-          vec3 color = mix(vec3(1.0, 0.38, 0.025), vec3(1.0, 0.94, 0.62), vGlow);
+          vec3 color = mix(vec3(1.0, 0.22, 0.012), vec3(1.0, 0.56, 0.055), vGlow);
           gl_FragColor = vec4(color, alpha);
         }
       `
@@ -565,7 +565,7 @@ function EnergyPackets({ activity }: CinematicOrbProps) {
     <points ref={points} geometry={geometry}>
       <pointsMaterial
         blending={THREE.AdditiveBlending}
-        color={WHITE_HOT}
+        color={HOT_GOLD}
         depthWrite={false}
         opacity={0.95}
         size={0.052}
@@ -608,7 +608,7 @@ function OrbitalNodes({ activity }: CinematicOrbProps) {
     <points ref={points} geometry={geometry}>
       <pointsMaterial
         blending={THREE.AdditiveBlending}
-        color={WHITE_HOT}
+        color={HOT_GOLD}
         depthWrite={false}
         opacity={1}
         size={0.105}
@@ -672,14 +672,9 @@ function SceneRig({ activity }: CinematicOrbProps) {
   return (
     <group ref={group}>
       <ParticleShell activity={activity} />
-      <InnerGrid activity={activity} />
-      <HolographicTriangles activity={activity} />
       <OrbitRings activity={activity} />
-      <OuterArcs activity={activity} />
-      <RadialSpikes activity={activity} />
       <EnergyPackets activity={activity} />
       <OrbitalNodes activity={activity} />
-      <RadarSweeps activity={activity} />
       <CoreGlow activity={activity} />
     </group>
   );
