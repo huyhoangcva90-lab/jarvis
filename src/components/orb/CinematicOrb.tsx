@@ -29,6 +29,7 @@ type OrbitSpec = {
 
 const PLASMA = new THREE.Color("#ff7a18");
 const HOT_PLASMA = new THREE.Color("#ffb13d");
+const WHITE_HOT = new THREE.Color("#fff2af");
 const FILAMENTS: FilamentSpec[] = [
   { radius: 0.72, seed: 1, span: 5.2, speed: 0.21, tilt: [0.2, 0.4, 0.1] },
   { radius: 0.86, seed: 2, span: 4.6, speed: -0.17, tilt: [1.1, 0.2, 0.6] },
@@ -159,6 +160,88 @@ function buildCoreSpokeGeometry() {
   return geometry;
 }
 
+function buildAxisBeamGeometry() {
+  const random = seededRandom(54421);
+  const positions: number[] = [];
+  const phases: number[] = [];
+  const intensities: number[] = [];
+  for (let index = 0; index < 12; index += 1) {
+    const theta = random() * Math.PI * 2;
+    const phi = Math.acos(2 * random() - 1);
+    const direction = new THREE.Vector3(
+      Math.sin(phi) * Math.cos(theta),
+      Math.cos(phi),
+      Math.sin(phi) * Math.sin(theta)
+    );
+    const length = index % 4 === 0 ? 2.05 + random() * 0.38 : 1.1 + random() * 0.66;
+    const offset = direction.clone().multiplyScalar((random() - 0.5) * 0.22);
+    const start = direction.clone().multiplyScalar(-length).add(offset);
+    const end = direction.clone().multiplyScalar(length).add(offset.multiplyScalar(0.35));
+    positions.push(start.x, start.y, start.z, end.x, end.y, end.z);
+    phases.push(random() * 6.28, random() * 6.28);
+    intensities.push(index % 4 === 0 ? 0.92 : 0.44 + random() * 0.32, index % 4 === 0 ? 0.92 : 0.44 + random() * 0.32);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("aPhase", new THREE.Float32BufferAttribute(phases, 1));
+  geometry.setAttribute("aIntensity", new THREE.Float32BufferAttribute(intensities, 1));
+  return geometry;
+}
+
+function buildOuterHaloGeometry() {
+  const random = seededRandom(77931);
+  const positions: number[] = [];
+  const phases: number[] = [];
+  const intensities: number[] = [];
+  const clusters = Array.from({ length: 11 }, () => ({
+    theta: random() * Math.PI * 2,
+    phi: Math.acos(2 * random() - 1),
+    spread: 0.18 + random() * 0.34
+  }));
+  const worldUp = new THREE.Vector3(0, 1, 0);
+  const worldSide = new THREE.Vector3(1, 0, 0);
+
+  for (let trace = 0; trace < 560; trace += 1) {
+    const cluster = clusters[trace % clusters.length];
+    const theta = cluster.theta + (random() - 0.5) * cluster.spread * 2.2;
+    const phi = cluster.phi + (random() - 0.5) * cluster.spread * 1.6;
+    const radius = 1.82 + random() * 0.54;
+    const normal = new THREE.Vector3(
+      Math.sin(phi) * Math.cos(theta),
+      Math.cos(phi),
+      Math.sin(phi) * Math.sin(theta)
+    ).normalize();
+    const reference = Math.abs(normal.y) > 0.82 ? worldSide : worldUp;
+    const tangentA = new THREE.Vector3().crossVectors(normal, reference).normalize();
+    const tangentB = new THREE.Vector3().crossVectors(normal, tangentA).normalize();
+    const steps = 1 + Math.floor(random() * 3);
+    let current = normal.clone().multiplyScalar(radius);
+    const phase = random() * 6.28;
+    const intensity = trace % 7 === 0 ? 0.95 : 0.32 + random() * 0.48;
+
+    for (let step = 0; step < steps; step += 1) {
+      const turn = step % 2 === 0 ? tangentA : tangentB;
+      const length = 0.012 + random() * 0.052;
+      const next = normal
+        .clone()
+        .addScaledVector(turn, length)
+        .normalize()
+        .multiplyScalar(radius + (random() - 0.5) * 0.04);
+      positions.push(current.x, current.y, current.z, next.x, next.y, next.z);
+      phases.push(phase + step * 0.27, phase + step * 0.27 + 0.12);
+      intensities.push(intensity, intensity);
+      current = next;
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("aPhase", new THREE.Float32BufferAttribute(phases, 1));
+  geometry.setAttribute("aIntensity", new THREE.Float32BufferAttribute(intensities, 1));
+  return geometry;
+}
+
 function makeMajorOrbitCurve(spec: OrbitSpec) {
   const random = seededRandom(spec.seed * 791);
   const points: THREE.Vector3[] = [];
@@ -247,22 +330,22 @@ function CoreVortex({ activity }: CinematicOrbProps) {
   return (
     <group ref={group}>
       <mesh>
-        <sphereGeometry args={[0.2, 32, 32]} />
-        <meshBasicMaterial color={HOT_PLASMA} toneMapped={false} />
+        <sphereGeometry args={[0.13, 32, 32]} />
+        <meshBasicMaterial color={WHITE_HOT} toneMapped={false} />
       </mesh>
-      <mesh scale={1 + activityEnergy(activity) * 0.06}>
-        <sphereGeometry args={[0.42, 32, 32]} />
+      <mesh scale={1 + activityEnergy(activity) * 0.075}>
+        <sphereGeometry args={[0.34, 32, 32]} />
         <meshBasicMaterial
           blending={THREE.AdditiveBlending}
-          color={PLASMA}
+          color={HOT_PLASMA}
           depthWrite={false}
-          opacity={0.2}
+          opacity={0.26}
           toneMapped={false}
           transparent
         />
       </mesh>
       <mesh scale={1.72}>
-        <sphereGeometry args={[0.42, 32, 32]} />
+        <sphereGeometry args={[0.46, 32, 32]} />
         <meshBasicMaterial
           blending={THREE.AdditiveBlending}
           color={PLASMA}
@@ -288,6 +371,40 @@ function CoreVortex({ activity }: CinematicOrbProps) {
   );
 }
 
+function AxisBeams({ activity }: CinematicOrbProps) {
+  const group = useRef<THREE.Group>(null);
+  const material = useRef<THREE.ShaderMaterial>(null);
+  const geometry = useMemo(buildAxisBeamGeometry, []);
+  const shader = useMemo(makeLineShader, []);
+
+  useFrame(({ clock }, delta) => {
+    if (material.current) {
+      material.current.uniforms.uTime.value = clock.elapsedTime * 1.28;
+      material.current.uniforms.uEnergy.value = activityEnergy(activity) * (activity === "speaking" ? 1.34 : 0.96);
+      material.current.uniforms.uOpacity.value = activity === "listening" ? 0.18 : 0.31;
+    }
+    if (group.current) {
+      group.current.rotation.y += delta * 0.035 * activitySpeed(activity);
+      group.current.rotation.z -= delta * 0.018;
+    }
+  });
+
+  return (
+    <group ref={group}>
+      <lineSegments geometry={geometry}>
+        <shaderMaterial
+          ref={material}
+          args={[shader]}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+    </group>
+  );
+}
+
 function CoreSpokes({ activity }: CinematicOrbProps) {
   const group = useRef<THREE.Group>(null);
   const material = useRef<THREE.ShaderMaterial>(null);
@@ -309,6 +426,41 @@ function CoreSpokes({ activity }: CinematicOrbProps) {
 
   return (
     <group ref={group}>
+      <lineSegments geometry={geometry}>
+        <shaderMaterial
+          ref={material}
+          args={[shader]}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+    </group>
+  );
+}
+
+function OuterHaloFragments({ activity }: CinematicOrbProps) {
+  const group = useRef<THREE.Group>(null);
+  const material = useRef<THREE.ShaderMaterial>(null);
+  const geometry = useMemo(buildOuterHaloGeometry, []);
+  const shader = useMemo(makeLineShader, []);
+
+  useFrame(({ clock }, delta) => {
+    if (material.current) {
+      material.current.uniforms.uTime.value = clock.elapsedTime * 0.82;
+      material.current.uniforms.uEnergy.value = activityEnergy(activity);
+      material.current.uniforms.uOpacity.value = 0.56;
+    }
+    if (group.current) {
+      group.current.rotation.y += delta * 0.024 * activitySpeed(activity);
+      group.current.rotation.x = Math.sin(clock.elapsedTime * 0.16) * 0.045;
+      group.current.rotation.z -= delta * 0.012;
+    }
+  });
+
+  return (
+    <group ref={group} rotation={[0.12, -0.22, 0.08]}>
       <lineSegments geometry={geometry}>
         <shaderMaterial
           ref={material}
@@ -963,12 +1115,14 @@ function SceneRig({ activity }: CinematicOrbProps) {
   return (
     <group ref={root}>
       <FresnelVolume activity={activity} />
+      <OuterHaloFragments activity={activity} />
       <CircuitShell activity={activity} />
       <DataFragments activity={activity} />
       <PlanetaryOrbitField activity={activity} />
       <EnergyFilaments activity={activity} />
       <AccretionBelt activity={activity} />
       <FluxPackets activity={activity} />
+      <AxisBeams activity={activity} />
       <CoreSpokes activity={activity} />
       <CoreVortex activity={activity} />
     </group>
@@ -979,9 +1133,9 @@ function PostFX({ activity }: CinematicOrbProps) {
   return (
     <EffectComposer multisampling={0}>
       <Bloom
-        intensity={activity === "speaking" ? 2.05 : activity === "thinking" ? 1.88 : 1.72}
-        luminanceSmoothing={0.56}
-        luminanceThreshold={0.27}
+        intensity={activity === "speaking" ? 2.18 : activity === "thinking" ? 1.96 : 1.78}
+        luminanceSmoothing={0.6}
+        luminanceThreshold={0.24}
         mipmapBlur
       />
     </EffectComposer>
