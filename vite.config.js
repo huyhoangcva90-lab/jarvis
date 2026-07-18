@@ -5,13 +5,6 @@ export default defineConfig({
   base: "./",
   plugins: [react()],
   build: {
-    chunkSizeWarningLimit: 1400,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          "three-vendor": ["three", "@react-three/fiber", "@react-three/postprocessing", "postprocessing"]
-        }
-      }
-    }
+    chunkSizeWarningLimit: 1400
   }
 });
