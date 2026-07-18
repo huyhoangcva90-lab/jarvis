@@ -4,7 +4,7 @@ import * as THREE from "three";
 import type { AiActivity } from "../../App";
 import { seeded } from "./materials";
 
-const PARTICLE_COUNT = 1550;
+const PARTICLE_COUNT = 2350;
 
 type ParticleShellProps = {
   activity: AiActivity;
@@ -24,9 +24,10 @@ export default function ParticleShell({ activity }: ParticleShellProps) {
       const a = seeded(i * 2.11) * Math.PI * 2;
       const b = Math.acos(seeded(i * 3.72) * 2 - 1);
       const shellBias = seeded(i * 5.19);
-      const r = shellBias > 0.62 ? 1.4 + seeded(i * 6.1) * 2.2 : seeded(i * 7.7) * 2.2;
-      const clusterPull = Math.max(0, Math.sin(a * 2.8 + i * 0.006));
-      const densityPocket = 0.52 + clusterPull * 0.42 + Math.sin(a * 7 + i * 0.01) * 0.08;
+      const outerBand = shellBias > 0.36;
+      const r = outerBand ? 2.18 + seeded(i * 6.1) * 1.05 : 0.34 + seeded(i * 7.7) * 2.1;
+      const clusterPull = Math.max(0, Math.sin(a * 4.8 + i * 0.004));
+      const densityPocket = 0.72 + clusterPull * 0.28 + Math.sin(a * 11 + i * 0.01) * 0.045;
       positionData[i * 3] = Math.sin(b) * Math.cos(a) * r * densityPocket;
       positionData[i * 3 + 1] = Math.cos(b) * r * (0.58 + seeded(i * 1.6) * 0.24);
       positionData[i * 3 + 2] = Math.sin(b) * Math.sin(a) * r * (0.62 + clusterPull * 0.22);
@@ -34,7 +35,7 @@ export default function ParticleShell({ activity }: ParticleShellProps) {
       colorData[i * 3] = color.r;
       colorData[i * 3 + 1] = color.g;
       colorData[i * 3 + 2] = color.b;
-      sizeData[i] = 0.018 + seeded(i * 8.44) * 0.045;
+      sizeData[i] = outerBand ? 0.012 + seeded(i * 8.44) * 0.032 : 0.018 + seeded(i * 8.44) * 0.052;
     }
 
     return { positions: positionData, colors: colorData, sizes: sizeData };

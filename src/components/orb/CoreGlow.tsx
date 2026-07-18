@@ -47,14 +47,14 @@ export default function CoreGlow({ activity }: CoreGlowProps) {
     const pulseRate = activity === "speaking" ? 7.8 : activity === "thinking" ? 5.2 : activity === "listening" ? 2.4 : 3.1;
     const pulse = 1 + Math.sin(t * pulseRate) * 0.07 * activityBoost + Math.sin(t * 13.4) * 0.018 * activityBoost;
     if (hotCore.current) {
-      hotCore.current.scale.setScalar(0.24 * pulse * (activity === "speaking" ? 1.16 : activity === "thinking" ? 1.08 : 1));
-      materials.hot.opacity = Math.min(1, 0.82 + Math.sin(t * 5.7) * 0.08 + (activityBoost - 1) * 0.14);
+      hotCore.current.scale.setScalar(0.34 * pulse * (activity === "speaking" ? 1.22 : activity === "thinking" ? 1.12 : 1));
+      materials.hot.opacity = Math.min(1, 0.94 + Math.sin(t * 5.7) * 0.05 + (activityBoost - 1) * 0.1);
     }
     if (halo.current) {
       const wide = activity === "listening" ? 1.18 : activity === "speaking" ? 1.28 : activity === "thinking" ? 1.12 : 1;
-      halo.current.scale.set((0.48 + Math.sin(t * 1.7) * 0.045) * wide, 0.24 + Math.cos(t * 1.5) * 0.025, 0.48 * wide);
+      halo.current.scale.set((0.82 + Math.sin(t * 1.7) * 0.075) * wide, 0.44 + Math.cos(t * 1.5) * 0.035, 0.82 * wide);
       halo.current.rotation.z = t * (activity === "thinking" ? 0.58 : 0.28);
-      materials.amber.opacity = 0.09 + Math.sin(t * 2.4) * 0.026 + (activityBoost - 1) * 0.05;
+      materials.amber.opacity = 0.16 + Math.sin(t * 2.4) * 0.04 + (activityBoost - 1) * 0.07;
     }
     if (shell.current) {
       const shellPulse = activity === "idle" ? 1 : 1 + Math.sin(t * 2.2) * 0.06;
@@ -63,13 +63,13 @@ export default function CoreGlow({ activity }: CoreGlowProps) {
       materials.shell.opacity = 0.008 + Math.sin(t * 1.8) * 0.006 + (activityBoost - 1) * 0.014;
     }
     if (light.current) {
-      light.current.intensity = 42 + Math.sin(t * 4.2) * 9 + activityBoost * 18;
+      light.current.intensity = 82 + Math.sin(t * 4.2) * 18 + activityBoost * 26;
     }
   });
 
   return (
     <group>
-      <pointLight ref={light} color="#ffb83d" intensity={50} distance={9} decay={2} />
+      <pointLight ref={light} color="#ffb83d" intensity={85} distance={11} decay={2} />
       <mesh ref={shell} material={materials.shell}>
         <sphereGeometry args={[1, 64, 64]} />
       </mesh>
@@ -77,7 +77,7 @@ export default function CoreGlow({ activity }: CoreGlowProps) {
         <sphereGeometry args={[1, 64, 24]} />
       </mesh>
       <mesh ref={hotCore} material={materials.hot}>
-        <sphereGeometry args={[1, 48, 48]} />
+        <sphereGeometry args={[1, 40, 40]} />
       </mesh>
     </group>
   );
