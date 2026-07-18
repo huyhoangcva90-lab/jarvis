@@ -44,7 +44,7 @@ function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as { messages?: Message[]; palette?: Palette; voiceReply?: boolean; apiKey?: string };
+    return JSON.parse(raw) as { messages?: Message[]; palette?: Palette; voiceReply?: boolean; handsFree?: boolean; apiKey?: string };
   } catch {
     return null;
   }
@@ -73,14 +73,21 @@ export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
   );
   const [palette, setPalette] = useState<Palette>(initial?.palette ?? "gold");
   const [voiceReply, setVoiceReply] = useState(initial?.voiceReply ?? true);
+  const [handsFree, setHandsFree] = useState(initial?.handsFree ?? true);
+  const [voiceMode, setVoiceMode] = useState(false);
   const [apiKey, setApiKey] = useState(initial?.apiKey ?? "");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [activity, setActivity] = useState<AiActivity>("idle");
   const [toast, setToast] = useState("");
   const recognitionRef = useRef<any>(null);
+  const voiceModeRef = useRef(false);
+  const recognitionActiveRef = useRef(false);
+  const manualStopRef = useRef(false);
+  const resultHandledRef = useRef(false);
   const thinkingTimer = useRef<number | null>(null);
   const idleTimer = useRef<number | null>(null);
+  const restartTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setTime(new Date()), 1000);
@@ -89,17 +96,23 @@ export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
 
   useEffect(() => {
     document.body.dataset.palette = palette;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, apiKey }));
-  }, [apiKey, messages, palette, voiceReply]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, handsFree, apiKey }));
+  }, [apiKey, handsFree, messages, palette, voiceReply]);
 
   useEffect(() => {
     onActivityChange(activity);
   }, [activity, onActivityChange]);
 
   useEffect(() => {
+    voiceModeRef.current = voiceMode;
+  }, [voiceMode]);
+
+  useEffect(() => {
     return () => {
       if (thinkingTimer.current) window.clearTimeout(thinkingTimer.current);
       if (idleTimer.current) window.clearTimeout(idleTimer.current);
+      if (restartTimer.current) window.clearTimeout(restartTimer.current);
+      recognitionRef.current?.abort?.();
       window.speechSynthesis?.cancel();
     };
   }, []);
@@ -110,10 +123,21 @@ export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  const scheduleVoiceRestart = (delay = 520) => {
+    if (!voiceModeRef.current || !handsFree) return;
+    if (restartTimer.current) window.clearTimeout(restartTimer.current);
+    restartTimer.current = window.setTimeout(() => {
+      startRecognition();
+    }, delay);
+  };
+
   const speak = (text: string) => {
     setActivity("speaking");
     if (!voiceReply || !("speechSynthesis" in window)) {
-      idleTimer.current = window.setTimeout(() => setActivity("idle"), 1800);
+      idleTimer.current = window.setTimeout(() => {
+        setActivity("idle");
+        scheduleVoiceRestart();
+      }, 900);
       return;
     }
     window.speechSynthesis.cancel();
@@ -123,9 +147,15 @@ export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
     utterance.pitch = 0.92;
     utterance.onstart = () => setActivity("speaking");
     utterance.onend = () => {
-      idleTimer.current = window.setTimeout(() => setActivity("idle"), 350);
+      idleTimer.current = window.setTimeout(() => {
+        setActivity("idle");
+        scheduleVoiceRestart();
+      }, 350);
     };
-    utterance.onerror = () => setActivity("idle");
+    utterance.onerror = () => {
+      setActivity("idle");
+      scheduleVoiceRestart();
+    };
     window.speechSynthesis.speak(utterance);
   };
 
@@ -149,42 +179,79 @@ export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
     sendMessage();
   };
 
-  const startVoice = () => {
+  function startRecognition() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       setToast("Browser does not support speech recognition.");
       return;
     }
-    if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
-      setActivity("idle");
+    if (recognitionActiveRef.current || activity === "thinking" || activity === "speaking") {
       return;
     }
+    manualStopRef.current = false;
+    resultHandledRef.current = false;
     const recognition = new SpeechRecognition();
     recognition.lang = "vi-VN";
     recognition.interimResults = false;
     recognition.continuous = false;
     recognition.onstart = () => {
+      recognitionActiveRef.current = true;
       setListening(true);
       setActivity("listening");
     };
     recognition.onend = () => {
+      recognitionActiveRef.current = false;
       setListening(false);
-      setActivity((current) => (current === "listening" ? "idle" : current));
+      if (manualStopRef.current) {
+        setActivity("idle");
+        return;
+      }
+      if (!resultHandledRef.current) {
+        setActivity((current) => (current === "listening" ? "idle" : current));
+        scheduleVoiceRestart(700);
+      }
     };
     recognition.onerror = () => {
+      recognitionActiveRef.current = false;
       setListening(false);
-      setActivity("idle");
-      setToast("Voice capture blocked or unavailable.");
+      if (!manualStopRef.current) {
+        setActivity("idle");
+        setToast("Voice capture blocked or unavailable.");
+      }
     };
     recognition.onresult = (event: any) => {
       const transcript = event.results?.[0]?.[0]?.transcript || "";
+      resultHandledRef.current = true;
       setInput(transcript);
       if (transcript) sendMessage(transcript);
     };
     recognitionRef.current = recognition;
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      recognitionActiveRef.current = false;
+    }
+  }
+
+  const stopVoice = () => {
+    manualStopRef.current = true;
+    if (restartTimer.current) window.clearTimeout(restartTimer.current);
+    recognitionRef.current?.stop?.();
+    setVoiceMode(false);
+    setListening(false);
+    setActivity("idle");
+    setToast("Voice mode offline.");
+  };
+
+  const toggleVoiceMode = () => {
+    if (voiceModeRef.current || listening) {
+      stopVoice();
+      return;
+    }
+    setVoiceMode(true);
+    voiceModeRef.current = true;
+    setToast("Voice mode armed. Nói tự nhiên, Jarvis sẽ nghe tiếp sau mỗi câu.");
+    startRecognition();
   };
 
   const copyContext = async () => {
@@ -259,37 +326,66 @@ export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
 
       {settingsOpen && (
         <aside className="settings-panel" aria-label="Settings">
-          <div className="panel-head">
-            <span>SETTINGS</span>
+          <div className="settings-hero">
+            <span>CONTROL MATRIX</span>
+            <b>{voiceMode ? "VOICE LINK ACTIVE" : "STANDBY CONFIG"}</b>
             <button type="button" onClick={() => setSettingsOpen(false)}>
               CLOSE
             </button>
           </div>
-          <label>
-            <span>Palette</span>
+          <div className="settings-status-grid">
+            <div>
+              <span>INPUT</span>
+              <b>{listening ? "LISTENING" : voiceMode ? "ARMED" : "MANUAL"}</b>
+            </div>
+            <div>
+              <span>VOICE</span>
+              <b>{voiceReply ? "REPLY ON" : "TEXT ONLY"}</b>
+            </div>
+          </div>
+          <section className="settings-block">
+            <div className="settings-block-head">
+              <span>Voice Link</span>
+              <button className={voiceMode ? "danger" : "primary"} type="button" onClick={toggleVoiceMode}>
+                {voiceMode ? "DISARM" : "ARM"}
+              </button>
+            </div>
+            <p>First click grants mic permission. After that Jarvis listens, answers, then listens again.</p>
+            <label className="toggle-row">
+              <span>Hands-free loop</span>
+              <input checked={handsFree} type="checkbox" onChange={(event) => setHandsFree(event.target.checked)} />
+            </label>
+            <label className="toggle-row">
+              <span>Voice reply</span>
+              <input checked={voiceReply} type="checkbox" onChange={(event) => setVoiceReply(event.target.checked)} />
+            </label>
+          </section>
+          <section className="settings-block">
+            <div className="settings-block-head">
+              <span>Palette</span>
+            </div>
             <div className="palette-grid">
               {(Object.keys(paletteLabels) as Palette[]).map((key) => (
                 <button className={palette === key ? "active" : ""} key={key} type="button" onClick={() => setPalette(key)}>
+                  <i />
                   {paletteLabels[key]}
                 </button>
               ))}
             </div>
-          </label>
-          <label className="toggle-row">
-            <span>Voice reply</span>
-            <input checked={voiceReply} type="checkbox" onChange={(event) => setVoiceReply(event.target.checked)} />
-          </label>
-          <label>
-            <span>OpenAI API key placeholder</span>
-            <input
-              autoComplete="off"
-              className="settings-input"
-              placeholder="Not connected yet"
-              type="password"
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-            />
-          </label>
+          </section>
+          <section className="settings-block">
+            <label>
+              <span>OpenAI API key placeholder</span>
+              <input
+                autoComplete="off"
+                className="settings-input"
+                placeholder="Backend connection later"
+                type="password"
+                value={apiKey}
+                onChange={(event) => setApiKey(event.target.value)}
+              />
+            </label>
+          </section>
         </aside>
       )}
 
@@ -303,7 +399,7 @@ export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
           </div>
         </div>
         <form className="prompt-shell" onSubmit={submit}>
-          <button className={listening ? "listening" : ""} type="button" aria-label="Voice input" onClick={startVoice}>
+          <button className={voiceMode || listening ? "listening" : ""} type="button" aria-label="Voice mode" onClick={toggleVoiceMode}>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 3v10" />
               <path d="M8 7v5a4 4 0 0 0 8 0V7" />
