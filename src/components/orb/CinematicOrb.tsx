@@ -8,11 +8,27 @@ type CinematicOrbProps = {
   activity: AiActivity;
 };
 
-const GOLD = new THREE.Color("#ff7a18");
-const HOT_GOLD = new THREE.Color("#ff7a18");
-const WHITE_HOT = new THREE.Color("#ff7a18");
+type FilamentSpec = {
+  radius: number;
+  seed: number;
+  span: number;
+  speed: number;
+  tilt: [number, number, number];
+};
 
-function mulberry32(seed: number) {
+const PLASMA = new THREE.Color("#ff7a18");
+const FILAMENTS: FilamentSpec[] = [
+  { radius: 0.72, seed: 1, span: 5.2, speed: 0.21, tilt: [0.2, 0.4, 0.1] },
+  { radius: 0.86, seed: 2, span: 4.6, speed: -0.17, tilt: [1.1, 0.2, 0.6] },
+  { radius: 1.02, seed: 3, span: 5.5, speed: 0.12, tilt: [0.6, 1.2, 0.2] },
+  { radius: 1.18, seed: 4, span: 4.3, speed: -0.1, tilt: [1.4, 0.3, 1.1] },
+  { radius: 1.36, seed: 5, span: 5.7, speed: 0.075, tilt: [0.35, 0.9, 1.5] },
+  { radius: 1.52, seed: 6, span: 4.9, speed: -0.065, tilt: [1.2, 1.1, 0.25] },
+  { radius: 1.72, seed: 7, span: 3.8, speed: 0.052, tilt: [0.75, 0.15, 1.35] },
+  { radius: 1.9, seed: 8, span: 4.2, speed: -0.044, tilt: [0.18, 1.35, 0.7] }
+];
+
+function seededRandom(seed: number) {
   return () => {
     let value = (seed += 0x6d2b79f5);
     value = Math.imul(value ^ (value >>> 15), value | 1);
@@ -22,400 +38,239 @@ function mulberry32(seed: number) {
 }
 
 function activityEnergy(activity: AiActivity) {
-  if (activity === "speaking") return 1.55;
-  if (activity === "thinking") return 1.3;
-  if (activity === "listening") return 0.88;
+  if (activity === "speaking") return 1.52;
+  if (activity === "thinking") return 1.28;
+  if (activity === "listening") return 0.82;
   return 1;
 }
 
 function activitySpeed(activity: AiActivity) {
-  if (activity === "speaking") return 2.15;
-  if (activity === "thinking") return 1.65;
-  if (activity === "listening") return 0.48;
+  if (activity === "speaking") return 1.85;
+  if (activity === "thinking") return 1.42;
+  if (activity === "listening") return 0.46;
   return 1;
 }
 
-function CoreGlow({ activity }: CinematicOrbProps) {
+function makeFilamentCurve(spec: FilamentSpec) {
+  const random = seededRandom(spec.seed * 991);
+  const rotation = new THREE.Euler(...spec.tilt);
+  const points: THREE.Vector3[] = [];
+  const count = 16;
+  for (let index = 0; index < count; index += 1) {
+    const t = index / (count - 1);
+    const angle = -spec.span * 0.5 + spec.span * t;
+    const radius = spec.radius * (0.9 + Math.sin(t * Math.PI * 3 + spec.seed) * 0.09 + random() * 0.035);
+    const point = new THREE.Vector3(
+      Math.cos(angle) * radius,
+      Math.sin(angle * 1.42 + spec.seed) * spec.radius * 0.34,
+      Math.sin(angle) * radius
+    );
+    point.applyEuler(rotation);
+    points.push(point);
+  }
+  return new THREE.CatmullRomCurve3(points, false, "centripetal", 0.45);
+}
+
+function CoreVortex({ activity }: CinematicOrbProps) {
   const group = useRef<THREE.Group>(null);
-  const shell = useRef<THREE.Mesh>(null);
-  const innerRing = useRef<THREE.Mesh>(null);
+  const knotA = useRef<THREE.Mesh>(null);
+  const knotB = useRef<THREE.Mesh>(null);
+  const knotC = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }, delta) => {
-    if (!group.current || !shell.current || !innerRing.current) return;
     const t = clock.elapsedTime;
+    const speed = activitySpeed(activity);
     const energy = activityEnergy(activity);
-    const voice = activity === "speaking" ? Math.abs(Math.sin(t * 8.4)) * 0.14 : 0;
-    const heartbeat = Math.pow(Math.max(0, Math.sin(t * 2.35)), 12) * 0.08;
-    const scale = 1 + voice + heartbeat + Math.sin(t * 1.7) * 0.025;
-    group.current.scale.setScalar(scale);
-    shell.current.scale.setScalar(1 + Math.sin(t * 2.1) * 0.07 * energy);
-    innerRing.current.rotation.z += delta * 0.75 * activitySpeed(activity);
+    if (group.current) {
+      const voicePulse = activity === "speaking" ? Math.sin(t * 7.2) * 0.075 : Math.sin(t * 2.2) * 0.025;
+      group.current.scale.setScalar((1 + voicePulse) * (0.98 + energy * 0.035));
+      group.current.rotation.y += delta * 0.18 * speed;
+    }
+    if (knotA.current) knotA.current.rotation.x += delta * 0.42 * speed;
+    if (knotB.current) knotB.current.rotation.y -= delta * 0.34 * speed;
+    if (knotC.current) knotC.current.rotation.z += delta * 0.27 * speed;
   });
 
   return (
     <group ref={group}>
       <mesh>
-        <sphereGeometry args={[0.19, 48, 48]} />
-        <meshBasicMaterial color={WHITE_HOT} toneMapped={false} />
+        <sphereGeometry args={[0.19, 24, 24]} />
+        <meshBasicMaterial color={PLASMA} toneMapped={false} />
       </mesh>
-      <mesh ref={shell}>
-        <sphereGeometry args={[0.31, 40, 40]} />
+      <mesh scale={1 + activityEnergy(activity) * 0.035}>
+        <sphereGeometry args={[0.42, 32, 32]} />
         <meshBasicMaterial
           blending={THREE.AdditiveBlending}
-          color={HOT_GOLD}
+          color={PLASMA}
           depthWrite={false}
-          opacity={0.72}
+          opacity={0.2}
           toneMapped={false}
           transparent
         />
       </mesh>
-      <mesh scale={1.55}>
-        <sphereGeometry args={[0.38, 40, 40]} />
-        <meshBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color={GOLD}
-          depthWrite={false}
-          opacity={0.13}
-          toneMapped={false}
-          transparent
-        />
+      <mesh ref={knotA} rotation={[0.3, 0.2, 0.1]}>
+        <torusKnotGeometry args={[0.34, 0.018, 180, 5, 2, 3]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={PLASMA} depthWrite={false} toneMapped={false} />
       </mesh>
-      <mesh ref={innerRing} rotation={[1.18, 0.32, 0.18]}>
-        <torusGeometry args={[0.48, 0.018, 8, 120]} />
-        <meshBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color={WHITE_HOT}
-          depthWrite={false}
-          toneMapped={false}
-        />
+      <mesh ref={knotB} rotation={[1.1, 0.4, 0.8]} scale={1.18}>
+        <torusKnotGeometry args={[0.34, 0.011, 180, 4, 3, 5]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={PLASMA} depthWrite={false} opacity={0.72} toneMapped={false} transparent />
       </mesh>
-      <mesh rotation={[0.4, 1.08, 0.55]}>
-        <torusGeometry args={[0.62, 0.009, 6, 120]} />
-        <meshBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color={HOT_GOLD}
-          depthWrite={false}
-          opacity={0.8}
-          toneMapped={false}
-          transparent
-        />
+      <mesh ref={knotC} rotation={[0.2, 1.2, 0.5]} scale={1.42}>
+        <torusKnotGeometry args={[0.34, 0.008, 180, 4, 2, 5]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={PLASMA} depthWrite={false} opacity={0.48} toneMapped={false} transparent />
       </mesh>
     </group>
   );
 }
 
-function RadialSpikes({ activity }: CinematicOrbProps) {
-  const material = useRef<THREE.LineBasicMaterial>(null);
-  const geometry = useMemo(() => {
-    const positions: number[] = [];
-    const directions = [
-      [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
-      [1, 1, 0.22], [-1, 1, -0.22], [1, -1, -0.18], [-1, -1, 0.18],
-      [1, 0.24, 1], [-1, -0.24, 1], [1, -0.22, -1], [-1, 0.22, -1],
-      [0.2, 1, 1], [-0.2, -1, 1], [-0.24, 1, -1], [0.24, -1, -1],
-      [1, 0.38, -0.62], [-1, -0.38, 0.62], [0.6, -0.32, 1], [-0.6, 0.32, -1]
-    ];
-    directions.forEach((values, index) => {
-      const direction = new THREE.Vector3(values[0], values[1], values[2]).normalize();
-      const start = direction.clone().multiplyScalar(index % 4 === 0 ? 0.18 : 0.42);
-      const length = index % 6 === 0 ? 4.7 : 2.35 + (index % 5) * 0.27;
-      const end = direction.clone().multiplyScalar(length);
-      positions.push(start.x, start.y, start.z, end.x, end.y, end.z);
-    });
-    const result = new THREE.BufferGeometry();
-    result.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    return result;
-  }, []);
+function buildCircuitGeometry() {
+  const random = seededRandom(73191);
+  const positions: number[] = [];
+  const phases: number[] = [];
+  const intensities: number[] = [];
+  const worldUp = new THREE.Vector3(0, 1, 0);
+  const worldSide = new THREE.Vector3(1, 0, 0);
 
-  useFrame(({ clock }) => {
-    if (!material.current) return;
-    const t = clock.elapsedTime;
-    material.current.opacity = (0.22 + Math.abs(Math.sin(t * 2.7 + Math.sin(t * 0.7))) * 0.38) * activityEnergy(activity);
-  });
+  for (let trace = 0; trace < 920; trace += 1) {
+    const radius = 1.5 + random() * 0.62;
+    const theta = random() * Math.PI * 2;
+    const phi = Math.acos(2 * random() - 1);
+    let current = new THREE.Vector3(
+      Math.sin(phi) * Math.cos(theta),
+      Math.cos(phi),
+      Math.sin(phi) * Math.sin(theta)
+    ).multiplyScalar(radius);
+    const steps = 2 + Math.floor(random() * 5);
+    const phase = random() * Math.PI * 2;
+    const intensity = 0.16 + random() * 0.84;
 
-  return (
-    <lineSegments geometry={geometry} rotation={[0.13, -0.21, 0.07]}>
-      <lineBasicMaterial
-        ref={material}
-        blending={THREE.AdditiveBlending}
-        color={HOT_GOLD}
-        depthWrite={false}
-        toneMapped={false}
-        transparent
-      />
-    </lineSegments>
-  );
+    for (let step = 0; step < steps; step += 1) {
+      const normal = current.clone().normalize();
+      const reference = Math.abs(normal.y) > 0.86 ? worldSide : worldUp;
+      const tangentA = new THREE.Vector3().crossVectors(normal, reference).normalize();
+      const tangentB = new THREE.Vector3().crossVectors(normal, tangentA).normalize();
+      const tangent = step % 2 === 0 ? tangentA : tangentB;
+      if ((trace + step) % 3 === 0) tangent.multiplyScalar(-1);
+      const length = 0.025 + Math.floor(random() * 5) * 0.026;
+      const nextDirection = normal.clone().addScaledVector(tangent, length / radius).normalize();
+      const nextRadius = radius + (random() - 0.5) * 0.026;
+      const next = nextDirection.multiplyScalar(nextRadius);
+      positions.push(current.x, current.y, current.z, next.x, next.y, next.z);
+      phases.push(phase, phase + step * 0.23);
+      intensities.push(intensity, intensity);
+      current = next;
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("aPhase", new THREE.Float32BufferAttribute(phases, 1));
+  geometry.setAttribute("aIntensity", new THREE.Float32BufferAttribute(intensities, 1));
+  return geometry;
 }
 
-type OrbitDescriptor = {
-  radius: number;
-  start: number;
-  span: number;
-  rotation: [number, number, number];
-  speed: number;
-  direction: number;
-  opacity: number;
-};
-
-const ORBIT_PLANES: Array<[number, number, number]> = [
-  [1.3, 0.08, 0.02],
-  [1.08, 0.46, 0.52],
-  [0.38, 1.18, 0.22],
-  [0.82, -0.66, 1.06],
-  [-0.52, 0.94, -0.44],
-  [1.46, 0.18, 1.54]
-];
-
-const ORBITS: OrbitDescriptor[] = Array.from({ length: 12 }, (_, index) => {
-  const random = mulberry32(1500 + index * 31);
-  return {
-    radius: 0.92 + index * 0.125 + (index % 3) * 0.035,
-    start: (index * Math.PI) / 6 + random() * 0.18,
-    span: Math.PI * (index < 4 ? 1.88 : 1.42 + (index % 3) * 0.18),
-    rotation: ORBIT_PLANES[index % ORBIT_PLANES.length],
-    speed: 0.065 + (index % 6) * 0.022,
-    direction: index % 2 === 0 ? 1 : -1,
-    opacity: 0.28 + (index % 4) * 0.1
-  };
-});
-
-function OrbitPath({ descriptor, activity, index }: { descriptor: OrbitDescriptor; activity: AiActivity; index: number }) {
+function CircuitShell({ activity }: CinematicOrbProps) {
   const group = useRef<THREE.Group>(null);
-  const geometry = useMemo(() => {
-    const points: THREE.Vector3[] = [];
-    const segments = 84;
-    for (let step = 0; step <= segments; step += 1) {
-      const angle = descriptor.start + descriptor.span * (step / segments);
-      const wobble = Math.sin(angle * (3 + (index % 4))) * (0.018 + (index % 3) * 0.008);
-      points.push(
-        new THREE.Vector3(
-          Math.cos(angle) * (descriptor.radius + wobble),
-          Math.sin(angle) * (descriptor.radius * (0.74 + (index % 5) * 0.045) + wobble),
-          Math.sin(angle * 2.2 + index) * 0.12
-        )
-      );
-    }
-    return new THREE.BufferGeometry().setFromPoints(points);
-  }, [descriptor, index]);
-
-  useFrame(({ clock }, delta) => {
-    if (!group.current) return;
-    const speed = activitySpeed(activity);
-    group.current.rotation.z += delta * descriptor.speed * descriptor.direction * speed;
-    group.current.rotation.y += delta * descriptor.speed * 0.22 * -descriptor.direction * speed;
-    group.current.scale.setScalar(1 + Math.sin(clock.elapsedTime * 1.2 + index) * 0.006 * activityEnergy(activity));
-  });
-
-  return (
-    <group ref={group} rotation={descriptor.rotation}>
-      <line geometry={geometry}>
-        <lineBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color={index % 4 === 0 ? HOT_GOLD : GOLD}
-          depthWrite={false}
-          opacity={descriptor.opacity}
-          toneMapped={false}
-          transparent
-        />
-      </line>
-    </group>
-  );
-}
-
-function OrbitRings({ activity }: CinematicOrbProps) {
-  return (
-    <group>
-      {ORBITS.map((descriptor, index) => (
-        <OrbitPath activity={activity} descriptor={descriptor} index={index} key={index} />
-      ))}
-    </group>
-  );
-}
-
-function HolographicTriangles({ activity }: CinematicOrbProps) {
-  const group = useRef<THREE.Group>(null);
-  const geometry = useMemo(() => {
-    const random = mulberry32(8137);
-    const positions: number[] = [];
-    const addEdge = (a: THREE.Vector3, b: THREE.Vector3) => {
-      positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
-    };
-
-    for (let index = 0; index < 42; index += 1) {
-      const theta = random() * Math.PI * 2;
-      const phi = Math.acos(2 * random() - 1);
-      const center = new THREE.Vector3(
-        Math.sin(phi) * Math.cos(theta),
-        Math.cos(phi),
-        Math.sin(phi) * Math.sin(theta)
-      ).multiplyScalar(1.05 + random() * 0.92);
-      const normal = center.clone().normalize();
-      const tangent = new THREE.Vector3(0, 1, 0).cross(normal);
-      if (tangent.lengthSq() < 0.01) tangent.set(1, 0, 0);
-      tangent.normalize();
-      const bitangent = normal.clone().cross(tangent).normalize();
-      const size = 0.12 + random() * 0.28;
-      const a = center.clone().addScaledVector(tangent, size);
-      const b = center.clone().addScaledVector(tangent, -size * 0.72).addScaledVector(bitangent, size * 0.76);
-      const c = center.clone().addScaledVector(tangent, -size * 0.72).addScaledVector(bitangent, -size * 0.76);
-      addEdge(a, b);
-      addEdge(b, c);
-      addEdge(c, a);
-    }
-
-    const result = new THREE.BufferGeometry();
-    result.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    return result;
-  }, []);
-
-  const polyhedron = useMemo(() => new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1.18, 1), 8), []);
-  const innerPolyhedron = useMemo(() => new THREE.EdgesGeometry(new THREE.TetrahedronGeometry(0.72, 1), 5), []);
-
-  useFrame(({ clock }, delta) => {
-    if (!group.current) return;
-    const speed = activitySpeed(activity);
-    group.current.rotation.y += delta * 0.075 * speed;
-    group.current.rotation.x = Math.sin(clock.elapsedTime * 0.24) * 0.18;
-    group.current.rotation.z -= delta * 0.026 * speed;
-  });
-
-  return (
-    <group ref={group}>
-      <lineSegments geometry={polyhedron}>
-        <lineBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color={HOT_GOLD}
-          depthWrite={false}
-          opacity={0.5}
-          toneMapped={false}
-          transparent
-        />
-      </lineSegments>
-      <lineSegments geometry={innerPolyhedron} rotation={[0.4, 0.22, 0.7]}>
-        <lineBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color={WHITE_HOT}
-          depthWrite={false}
-          opacity={0.72}
-          toneMapped={false}
-          transparent
-        />
-      </lineSegments>
-      <lineSegments geometry={geometry}>
-        <lineBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color={GOLD}
-          depthWrite={false}
-          opacity={0.36}
-          toneMapped={false}
-          transparent
-        />
-      </lineSegments>
-    </group>
-  );
-}
-
-function InnerGrid({ activity }: CinematicOrbProps) {
-  const geometry = useMemo(() => {
-    const random = mulberry32(9842);
-    const positions: number[] = [];
-    const colors: number[] = [];
-    const phases: number[] = [];
-    for (let index = 0; index < 230; index += 1) {
-      const radius = 0.58 + random() * 1.52;
-      const theta = random() * Math.PI * 2;
-      const phi = Math.acos(2 * random() - 1);
-      const a = new THREE.Vector3(
-        Math.sin(phi) * Math.cos(theta),
-        Math.cos(phi),
-        Math.sin(phi) * Math.sin(theta)
-      ).multiplyScalar(radius);
-      const chord = index % 5 === 0;
-      const offset = chord
-        ? new THREE.Vector3().randomDirection().multiplyScalar(0.8 + random() * 1.1)
-        : new THREE.Vector3().randomDirection().multiplyScalar(0.12 + random() * 0.44);
-      const b = a.clone().add(offset).clampLength(0.28, 2.2);
-      positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
-      const depthA = THREE.MathUtils.clamp((a.z + 2.2) / 4.4, 0.12, 1);
-      const depthB = THREE.MathUtils.clamp((b.z + 2.2) / 4.4, 0.12, 1);
-      const colorA = GOLD.clone().multiplyScalar(0.25 + depthA * 0.9);
-      const colorB = HOT_GOLD.clone().multiplyScalar(0.2 + depthB * 0.95);
-      colors.push(colorA.r, colorA.g, colorA.b, colorB.r, colorB.g, colorB.b);
-      phases.push(random() * Math.PI * 2, random() * Math.PI * 2);
-    }
-    const result = new THREE.BufferGeometry();
-    result.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    result.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    result.userData.base = new Float32Array(positions);
-    result.userData.phases = new Float32Array(phases);
-    return result;
-  }, []);
-  const group = useRef<THREE.Group>(null);
-
-  useFrame(({ clock }, delta) => {
-    if (!group.current) return;
-    const t = clock.elapsedTime;
-    const attribute = geometry.getAttribute("position") as THREE.BufferAttribute;
-    const base = geometry.userData.base as Float32Array;
-    const phases = geometry.userData.phases as Float32Array;
-    const amplitude = activity === "thinking" ? 0.046 : activity === "speaking" ? 0.032 : 0.018;
-    for (let vertex = 0; vertex < attribute.count; vertex += 1) {
-      const offset = vertex * 3;
-      const pulse = Math.sin(t * (0.55 + (vertex % 7) * 0.05) + phases[vertex]) * amplitude;
-      attribute.setXYZ(
-        vertex,
-        base[offset] * (1 + pulse),
-        base[offset + 1] * (1 - pulse * 0.7),
-        base[offset + 2] + pulse * 0.45
-      );
-    }
-    attribute.needsUpdate = true;
-    group.current.rotation.y += delta * 0.035 * activitySpeed(activity);
-    group.current.rotation.x -= delta * 0.012;
-  });
-
-  return (
-    <group ref={group}>
-      <lineSegments geometry={geometry}>
-        <lineBasicMaterial
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          opacity={0.48}
-          toneMapped={false}
-          transparent
-          vertexColors
-        />
-      </lineSegments>
-    </group>
-  );
-}
-
-function ParticleShell({ activity }: CinematicOrbProps) {
   const material = useRef<THREE.ShaderMaterial>(null);
+  const geometry = useMemo(buildCircuitGeometry, []);
+  const shader = useMemo(
+    () => ({
+      uniforms: {
+        uTime: { value: 0 },
+        uEnergy: { value: 1 },
+        uColor: { value: PLASMA }
+      },
+      vertexShader: `
+        attribute float aPhase;
+        attribute float aIntensity;
+        varying float vFront;
+        varying float vPhase;
+        varying float vIntensity;
+        void main() {
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * mv;
+          vFront = smoothstep(-9.4, -5.0, mv.z);
+          vPhase = aPhase;
+          vIntensity = aIntensity;
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        uniform float uEnergy;
+        uniform vec3 uColor;
+        varying float vFront;
+        varying float vPhase;
+        varying float vIntensity;
+        void main() {
+          float flicker = 0.48 + 0.52 * pow(0.5 + 0.5 * sin(uTime * (1.2 + vIntensity * 2.8) + vPhase), 4.0);
+          float alpha = (0.09 + vIntensity * 0.62) * mix(0.24, 1.0, vFront) * mix(0.72, flicker, 0.46) * uEnergy;
+          gl_FragColor = vec4(uColor, alpha);
+        }
+      `
+    }),
+    []
+  );
+
+  useFrame(({ clock }, delta) => {
+    if (material.current) {
+      material.current.uniforms.uTime.value = clock.elapsedTime;
+      material.current.uniforms.uEnergy.value = activityEnergy(activity);
+    }
+    if (group.current) {
+      group.current.rotation.y += delta * 0.028 * activitySpeed(activity);
+      group.current.rotation.z -= delta * 0.009;
+    }
+  });
+
+  return (
+    <group ref={group} rotation={[0.08, 0.16, -0.04]}>
+      <lineSegments geometry={geometry}>
+        <shaderMaterial
+          ref={material}
+          args={[shader]}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+    </group>
+  );
+}
+
+function DataFragments({ activity }: CinematicOrbProps) {
+  const material = useRef<THREE.ShaderMaterial>(null);
+  const points = useRef<THREE.Points>(null);
   const geometry = useMemo(() => {
-    const random = mulberry32(42069);
-    const count = 1900;
+    const random = seededRandom(18473);
+    const count = 2600;
     const positions = new Float32Array(count * 3);
     const phases = new Float32Array(count);
     const sizes = new Float32Array(count);
-    const speeds = new Float32Array(count);
+    const kinds = new Float32Array(count);
+    const clusters = Array.from({ length: 9 }, () => ({ theta: random() * Math.PI * 2, phi: Math.acos(2 * random() - 1) }));
+
     for (let index = 0; index < count; index += 1) {
-      const shellBias = index < 1450;
-      const radius = shellBias ? 1.85 + (random() - 0.5) * 0.46 : Math.pow(random(), 0.38) * 1.9;
-      const theta = random() * Math.PI * 2;
-      const phi = Math.acos(2 * random() - 1);
+      const clustered = index < 1900;
+      const cluster = clusters[index % clusters.length];
+      const theta = clustered ? cluster.theta + (random() - 0.5) * 0.72 : random() * Math.PI * 2;
+      const phi = clustered ? cluster.phi + (random() - 0.5) * 0.54 : Math.acos(2 * random() - 1);
+      const shellPoint = index < 2180;
+      const radius = shellPoint ? 1.56 + random() * 0.64 : 0.38 + Math.pow(random(), 0.46) * 1.55;
       positions[index * 3] = Math.sin(phi) * Math.cos(theta) * radius;
       positions[index * 3 + 1] = Math.cos(phi) * radius;
       positions[index * 3 + 2] = Math.sin(phi) * Math.sin(theta) * radius;
       phases[index] = random() * Math.PI * 2;
-      sizes[index] = 1.2 + random() * (index % 17 === 0 ? 5.4 : 2.5);
-      speeds[index] = 0.35 + random() * 1.35;
+      sizes[index] = 1 + random() * (index % 23 === 0 ? 5.8 : 2.7);
+      kinds[index] = random() > 0.62 ? 1 : 0;
     }
+
     const result = new THREE.BufferGeometry();
     result.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     result.setAttribute("aPhase", new THREE.BufferAttribute(phases, 1));
     result.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
-    result.setAttribute("aSpeed", new THREE.BufferAttribute(speeds, 1));
+    result.setAttribute("aKind", new THREE.BufferAttribute(kinds, 1));
     return result;
   }, []);
 
@@ -423,49 +278,62 @@ function ParticleShell({ activity }: CinematicOrbProps) {
     () => ({
       uniforms: {
         uTime: { value: 0 },
-        uEnergy: { value: 1 }
+        uEnergy: { value: 1 },
+        uColor: { value: PLASMA }
       },
       vertexShader: `
         attribute float aPhase;
         attribute float aSize;
-        attribute float aSpeed;
+        attribute float aKind;
         uniform float uTime;
         uniform float uEnergy;
-        varying float vGlow;
+        varying float vAlpha;
+        varying float vKind;
         void main() {
           vec3 p = position;
-          float angle = uTime * (0.018 + aSpeed * 0.014);
+          float angle = uTime * (0.012 + mod(aPhase, 1.0) * 0.009);
           float c = cos(angle);
           float s = sin(angle);
           p.xz = mat2(c, -s, s, c) * p.xz;
-          p *= 1.0 + sin(uTime * aSpeed + aPhase) * 0.018 * uEnergy;
+          p *= 1.0 + sin(uTime * 0.52 + aPhase) * 0.006 * uEnergy;
           vec4 mv = modelViewMatrix * vec4(p, 1.0);
           gl_Position = projectionMatrix * mv;
-          gl_PointSize = aSize * (15.0 / max(1.0, -mv.z)) * (0.8 + uEnergy * 0.3);
-          vGlow = 0.32 + 0.68 * pow(0.5 + 0.5 * sin(uTime * aSpeed * 2.0 + aPhase), 3.0);
+          gl_PointSize = aSize * (15.0 / max(1.0, -mv.z)) * (0.86 + uEnergy * 0.16);
+          float front = smoothstep(-9.4, -5.0, mv.z);
+          float pulse = 0.2 + 0.8 * pow(0.5 + 0.5 * sin(uTime * (0.7 + fract(aPhase) * 2.6) + aPhase), 5.0);
+          vAlpha = mix(0.14, 0.92, front) * pulse;
+          vKind = aKind;
         }
       `,
       fragmentShader: `
-        varying float vGlow;
+        uniform vec3 uColor;
+        varying float vAlpha;
+        varying float vKind;
         void main() {
-          float d = length(gl_PointCoord - 0.5);
-          float alpha = smoothstep(0.5, 0.02, d) * vGlow;
-          vec3 color = vec3(1.0, 0.478, 0.094);
-          gl_FragColor = vec4(color, alpha);
+          vec2 centered = abs(gl_PointCoord - 0.5);
+          float roundMask = smoothstep(0.5, 0.08, length(gl_PointCoord - 0.5));
+          float squareMask = 1.0 - smoothstep(0.34, 0.5, max(centered.x, centered.y));
+          float mask = mix(roundMask, squareMask, vKind);
+          gl_FragColor = vec4(uColor, mask * vAlpha);
         }
       `
     }),
     []
   );
 
-  useFrame(({ clock }) => {
-    if (!material.current) return;
-    material.current.uniforms.uTime.value = clock.elapsedTime;
-    material.current.uniforms.uEnergy.value = activityEnergy(activity);
+  useFrame(({ clock }, delta) => {
+    if (material.current) {
+      material.current.uniforms.uTime.value = clock.elapsedTime;
+      material.current.uniforms.uEnergy.value = activityEnergy(activity);
+    }
+    if (points.current) {
+      points.current.rotation.x += delta * 0.006;
+      points.current.rotation.z -= delta * 0.004 * activitySpeed(activity);
+    }
   });
 
   return (
-    <points geometry={geometry} rotation={[0.08, 0.18, -0.04]}>
+    <points ref={points} geometry={geometry}>
       <shaderMaterial
         ref={material}
         args={[shader]}
@@ -478,38 +346,28 @@ function ParticleShell({ activity }: CinematicOrbProps) {
   );
 }
 
-const ARC_SETTINGS = [
-  { radius: 2.08, span: 1.22, start: 0.1, rotation: [0.42, 0.18, 0.16] as [number, number, number], speed: 0.08 },
-  { radius: 2.28, span: 1.65, start: 2.2, rotation: [1.16, 0.48, 0.8] as [number, number, number], speed: -0.055 },
-  { radius: 2.42, span: 0.92, start: 4.15, rotation: [0.2, 1.22, 0.35] as [number, number, number], speed: 0.04 },
-  { radius: 2.18, span: 1.44, start: 5.08, rotation: [1.34, 0.12, 1.5] as [number, number, number], speed: -0.07 }
-];
-
-function OuterArc({ setting, activity, index }: { setting: (typeof ARC_SETTINGS)[number]; activity: AiActivity; index: number }) {
+function EnergyFilament({ activity, spec, index }: CinematicOrbProps & { spec: FilamentSpec; index: number }) {
   const mesh = useRef<THREE.Mesh>(null);
-  const geometry = useMemo(() => {
-    const points: THREE.Vector3[] = [];
-    for (let step = 0; step <= 96; step += 1) {
-      const angle = setting.start + setting.span * (step / 96);
-      const jitter = Math.sin(angle * 17 + index) * 0.018;
-      points.push(new THREE.Vector3(Math.cos(angle) * (setting.radius + jitter), Math.sin(angle) * (setting.radius + jitter), Math.sin(angle * 3) * 0.08));
-    }
-    return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 96, 0.014 + index * 0.002, 4, false);
-  }, [index, setting]);
+  const geometry = useMemo(
+    () => new THREE.TubeGeometry(makeFilamentCurve(spec), 128, 0.006 + (index % 3) * 0.003, 4, false),
+    [index, spec]
+  );
 
   useFrame(({ clock }, delta) => {
     if (!mesh.current) return;
-    mesh.current.rotation.z += delta * setting.speed * activitySpeed(activity);
-    mesh.current.scale.setScalar(1 + Math.sin(clock.elapsedTime * 0.8 + index) * 0.012);
+    const speed = activitySpeed(activity);
+    mesh.current.rotation.z += delta * spec.speed * speed;
+    mesh.current.rotation.y -= delta * spec.speed * 0.32 * speed;
+    const material = mesh.current.material as THREE.MeshBasicMaterial;
+    material.opacity = (0.28 + (index % 4) * 0.12) * (0.82 + Math.sin(clock.elapsedTime * 1.3 + index) * 0.18);
   });
 
   return (
-    <mesh ref={mesh} geometry={geometry} rotation={setting.rotation}>
+    <mesh ref={mesh} geometry={geometry}>
       <meshBasicMaterial
         blending={THREE.AdditiveBlending}
-        color={index === 0 ? HOT_GOLD : GOLD}
+        color={PLASMA}
         depthWrite={false}
-        opacity={0.62 - index * 0.07}
         toneMapped={false}
         transparent
       />
@@ -517,57 +375,53 @@ function OuterArc({ setting, activity, index }: { setting: (typeof ARC_SETTINGS)
   );
 }
 
-function OuterArcs({ activity }: CinematicOrbProps) {
+function EnergyFilaments({ activity }: CinematicOrbProps) {
   return (
     <group>
-      {ARC_SETTINGS.map((setting, index) => (
-        <OuterArc activity={activity} index={index} key={index} setting={setting} />
+      {FILAMENTS.map((spec, index) => (
+        <EnergyFilament activity={activity} index={index} key={spec.seed} spec={spec} />
       ))}
     </group>
   );
 }
 
-function EnergyPackets({ activity }: CinematicOrbProps) {
+function FluxPackets({ activity }: CinematicOrbProps) {
   const points = useRef<THREE.Points>(null);
+  const curves = useMemo(() => FILAMENTS.map(makeFilamentCurve), []);
+  const packetData = useMemo(
+    () => Array.from({ length: 88 }, (_, index) => ({
+      curve: index % curves.length,
+      phase: ((index * 37) % 88) / 88,
+      speed: 0.045 + (index % 7) * 0.011
+    })),
+    [curves.length]
+  );
   const geometry = useMemo(() => {
-    const count = 72;
-    const positions = new Float32Array(count * 3);
-    const data = Array.from({ length: count }, (_, index) => ({
-      orbit: index % 9,
-      phase: (index / count) * Math.PI * 2 + (index % 5) * 0.41,
-      speed: 0.42 + (index % 7) * 0.08
-    }));
     const result = new THREE.BufferGeometry();
-    result.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    result.userData.packets = data;
+    result.setAttribute("position", new THREE.BufferAttribute(new Float32Array(packetData.length * 3), 3));
     return result;
-  }, []);
+  }, [packetData.length]);
+  const point = useMemo(() => new THREE.Vector3(), []);
 
   useFrame(({ clock }) => {
     if (!points.current) return;
-    const t = clock.elapsedTime;
     const attribute = geometry.getAttribute("position") as THREE.BufferAttribute;
-    const packets = geometry.userData.packets as Array<{ orbit: number; phase: number; speed: number }>;
-    const speedBoost = activitySpeed(activity);
-    packets.forEach((packet, index) => {
-      const angle = packet.phase + t * packet.speed * speedBoost;
-      const radius = 0.82 + packet.orbit * 0.16;
-      const x = Math.cos(angle) * radius;
-      const y = Math.sin(angle) * radius * (0.58 + packet.orbit * 0.025);
-      const z = Math.sin(angle * (1.6 + packet.orbit * 0.04) + packet.orbit) * (0.42 + packet.orbit * 0.09);
-      attribute.setXYZ(index, x, y, z);
+    const speed = activitySpeed(activity);
+    packetData.forEach((packet, index) => {
+      const progress = (packet.phase + clock.elapsedTime * packet.speed * speed) % 1;
+      curves[packet.curve].getPointAt(progress, point);
+      attribute.setXYZ(index, point.x, point.y, point.z);
     });
     attribute.needsUpdate = true;
-    points.current.rotation.y = t * 0.035;
   });
 
   return (
     <points ref={points} geometry={geometry}>
       <pointsMaterial
         blending={THREE.AdditiveBlending}
-        color={HOT_GOLD}
+        color={PLASMA}
         depthWrite={false}
-        opacity={0.95}
+        opacity={0.94}
         size={0.052}
         sizeAttenuation
         toneMapped={false}
@@ -577,105 +431,85 @@ function EnergyPackets({ activity }: CinematicOrbProps) {
   );
 }
 
-function OrbitalNodes({ activity }: CinematicOrbProps) {
-  const points = useRef<THREE.Points>(null);
-  const geometry = useMemo(() => {
-    const result = new THREE.BufferGeometry();
-    result.setAttribute("position", new THREE.BufferAttribute(new Float32Array(10 * 3), 3));
-    return result;
-  }, []);
-
-  useFrame(({ clock }) => {
-    if (!points.current) return;
-    const t = clock.elapsedTime * activitySpeed(activity);
-    const attribute = geometry.getAttribute("position") as THREE.BufferAttribute;
-    for (let index = 0; index < 10; index += 1) {
-      const direction = index % 3 === 0 ? -1 : 1;
-      const angle = t * (0.18 + index * 0.018) * direction + index * 0.71;
-      const radius = 1.02 + index * 0.135;
-      attribute.setXYZ(
-        index,
-        Math.cos(angle) * radius,
-        Math.sin(angle) * radius * (0.48 + (index % 4) * 0.11),
-        Math.sin(angle * (1.35 + (index % 3) * 0.22) + index) * (0.28 + index * 0.055)
-      );
-    }
-    attribute.needsUpdate = true;
-    points.current.rotation.set(Math.sin(t * 0.025) * 0.14, t * 0.018, Math.cos(t * 0.02) * 0.08);
+function FresnelVolume({ activity }: CinematicOrbProps) {
+  const material = useRef<THREE.ShaderMaterial>(null);
+  const shader = useMemo(
+    () => ({
+      uniforms: {
+        uEnergy: { value: 1 },
+        uColor: { value: PLASMA }
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vView;
+        void main() {
+          vec4 world = modelMatrix * vec4(position, 1.0);
+          vNormal = normalize(normalMatrix * normal);
+          vView = normalize(cameraPosition - world.xyz);
+          gl_Position = projectionMatrix * viewMatrix * world;
+        }
+      `,
+      fragmentShader: `
+        uniform float uEnergy;
+        uniform vec3 uColor;
+        varying vec3 vNormal;
+        varying vec3 vView;
+        void main() {
+          float fresnel = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), 4.5);
+          gl_FragColor = vec4(uColor, fresnel * 0.018 * uEnergy);
+        }
+      `
+    }),
+    []
+  );
+  useFrame(() => {
+    if (material.current) material.current.uniforms.uEnergy.value = activityEnergy(activity);
   });
-
   return (
-    <points ref={points} geometry={geometry}>
-      <pointsMaterial
+    <mesh scale={[1.04, 1.04, 1.04]}>
+      <sphereGeometry args={[2.18, 48, 48]} />
+      <shaderMaterial
+        ref={material}
+        args={[shader]}
         blending={THREE.AdditiveBlending}
-        color={HOT_GOLD}
         depthWrite={false}
-        opacity={1}
-        size={0.105}
-        sizeAttenuation
+        side={THREE.BackSide}
         toneMapped={false}
         transparent
       />
-    </points>
-  );
-}
-
-function RadarSweeps({ activity }: CinematicOrbProps) {
-  const rings = [useRef<THREE.Mesh>(null), useRef<THREE.Mesh>(null), useRef<THREE.Mesh>(null)];
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime;
-    rings.forEach((ring, index) => {
-      if (!ring.current) return;
-      const phase = (t * (activity === "listening" ? 0.72 : 0.24) + index / rings.length) % 1;
-      ring.current.scale.setScalar(0.4 + phase * 4.4);
-      const material = ring.current.material as THREE.MeshBasicMaterial;
-      material.opacity = activity === "listening" ? (1 - phase) * 0.46 : (1 - phase) * 0.07;
-    });
-  });
-  return (
-    <group rotation={[1.16, 0.22, 0.18]}>
-      {rings.map((ring, index) => (
-        <mesh ref={ring} key={index}>
-          <torusGeometry args={[0.54, 0.006, 4, 96]} />
-          <meshBasicMaterial
-            blending={THREE.AdditiveBlending}
-            color={HOT_GOLD}
-            depthWrite={false}
-            toneMapped={false}
-            transparent
-          />
-        </mesh>
-      ))}
-    </group>
+    </mesh>
   );
 }
 
 function SceneRig({ activity }: CinematicOrbProps) {
-  const group = useRef<THREE.Group>(null);
+  const root = useRef<THREE.Group>(null);
   const { camera, size } = useThree();
-  useFrame(({ clock }, delta) => {
+
+  useFrame(({ clock }) => {
     const t = clock.elapsedTime;
-    const narrowViewport = size.width / size.height < 0.72;
-    const cameraDistance = narrowViewport ? 13.2 : 7.25;
-    if (group.current) {
-      const energy = activityEnergy(activity);
-      const breath = 1 + Math.sin(t * 1.25) * 0.012 * energy;
-      group.current.scale.setScalar(breath);
-      group.current.rotation.y += delta * 0.018;
-      group.current.rotation.z = Math.sin(t * 0.23) * 0.018;
+    const narrow = size.width / size.height < 0.72;
+    const distance = narrow ? 12.9 : 7.15;
+    if (root.current) {
+      const breath = 1 + Math.sin(t * 0.88) * 0.009 * activityEnergy(activity);
+      root.current.scale.setScalar(breath);
+      root.current.rotation.z = Math.sin(t * 0.12) * 0.016;
     }
-    camera.position.x = Math.sin(t * 0.16) * (narrowViewport ? 0.05 : 0.11);
-    camera.position.y = Math.cos(t * 0.13) * (narrowViewport ? 0.04 : 0.08);
-    camera.position.z = cameraDistance + Math.sin(t * 0.21) * 0.12;
+    camera.position.set(
+      Math.sin(t * 0.11) * (narrow ? 0.035 : 0.09),
+      Math.cos(t * 0.09) * (narrow ? 0.03 : 0.07),
+      distance + Math.sin(t * 0.14) * 0.1
+    );
     camera.lookAt(0, 0, 0);
   });
+
   return (
-    <group ref={group}>
-      <ParticleShell activity={activity} />
-      <OrbitRings activity={activity} />
-      <EnergyPackets activity={activity} />
-      <OrbitalNodes activity={activity} />
-      <CoreGlow activity={activity} />
+    <group ref={root}>
+      <FresnelVolume activity={activity} />
+      <CircuitShell activity={activity} />
+      <DataFragments activity={activity} />
+      <EnergyFilaments activity={activity} />
+      <FluxPackets activity={activity} />
+      <CoreVortex activity={activity} />
     </group>
   );
 }
@@ -684,9 +518,9 @@ function PostFX({ activity }: CinematicOrbProps) {
   return (
     <EffectComposer multisampling={0}>
       <Bloom
-        intensity={activity === "speaking" ? 2.2 : activity === "thinking" ? 2 : 1.8}
-        luminanceSmoothing={0.65}
-        luminanceThreshold={0.35}
+        intensity={activity === "speaking" ? 2.05 : activity === "thinking" ? 1.88 : 1.72}
+        luminanceSmoothing={0.56}
+        luminanceThreshold={0.27}
         mipmapBlur
       />
     </EffectComposer>
@@ -697,19 +531,19 @@ export default function CinematicOrb({ activity }: CinematicOrbProps) {
   return (
     <div className="orb-webgl" aria-hidden="true">
       <Canvas
-        camera={{ fov: 42, near: 0.1, far: 30, position: [0, 0, 7.25] }}
-        dpr={[1, 1.6]}
+        camera={{ fov: 41, near: 0.1, far: 30, position: [0, 0, 7.15] }}
+        dpr={[1, 1.45]}
         gl={{
           alpha: false,
           antialias: false,
           powerPreference: "high-performance",
           stencil: false
         }}
-        onCreated={({ gl, scene }) => {
-          gl.setClearColor("#000000", 1);
+        onCreated={({ gl }) => {
+          gl.setClearColor("#010100", 1);
+          gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.08;
-          scene.fog = new THREE.FogExp2("#000000", 0.055);
+          gl.toneMappingExposure = 0.92;
         }}
       >
         <SceneRig activity={activity} />
