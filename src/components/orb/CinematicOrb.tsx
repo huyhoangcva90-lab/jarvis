@@ -8,9 +8,9 @@ type CinematicOrbProps = {
   activity: AiActivity;
 };
 
-const GOLD = new THREE.Color("#ff5a0a");
-const HOT_GOLD = new THREE.Color("#ff9318");
-const WHITE_HOT = new THREE.Color("#fffdf2");
+const GOLD = new THREE.Color("#ff7a18");
+const HOT_GOLD = new THREE.Color("#ff7a18");
+const WHITE_HOT = new THREE.Color("#ff7a18");
 
 function mulberry32(seed: number) {
   return () => {
@@ -450,7 +450,7 @@ function ParticleShell({ activity }: CinematicOrbProps) {
         void main() {
           float d = length(gl_PointCoord - 0.5);
           float alpha = smoothstep(0.5, 0.02, d) * vGlow;
-          vec3 color = mix(vec3(1.0, 0.22, 0.012), vec3(1.0, 0.56, 0.055), vGlow);
+          vec3 color = vec3(1.0, 0.478, 0.094);
           gl_FragColor = vec4(color, alpha);
         }
       `

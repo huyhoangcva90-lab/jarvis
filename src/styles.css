@@ -7,37 +7,37 @@
   -webkit-font-smoothing: antialiased;
   --accent: #ff7a18;
   --accent-rgb: 255, 122, 24;
-  --hot: #fff7ea;
+  --hot: #ff7a18;
   --panel-bg: rgba(0, 0, 0, 0.58);
 }
 
 body[data-palette="blue"] {
-  --accent: #33d7ff;
-  --accent-rgb: 51, 215, 255;
-  --hot: #e9fbff;
+  --accent: #ff7a18;
+  --accent-rgb: 255, 122, 24;
+  --hot: #ff7a18;
 }
 
 body[data-palette="green"] {
-  --accent: #6eff9a;
-  --accent-rgb: 110, 255, 154;
-  --hot: #efffed;
+  --accent: #ff7a18;
+  --accent-rgb: 255, 122, 24;
+  --hot: #ff7a18;
 }
 
 body[data-palette="red"] {
-  --accent: #ff315f;
-  --accent-rgb: 255, 49, 95;
-  --hot: #fff1f5;
+  --accent: #ff7a18;
+  --accent-rgb: 255, 122, 24;
+  --hot: #ff7a18;
 }
 
 body[data-activity="listening"],
 body[data-activity="thinking"] {
-  --accent: #ff315f;
-  --accent-rgb: 255, 49, 95;
+  --accent: #ff7a18;
+  --accent-rgb: 255, 122, 24;
 }
 
 body[data-activity="speaking"] {
-  --accent: #ffdf7a;
-  --accent-rgb: 255, 223, 122;
+  --accent: #ff7a18;
+  --accent-rgb: 255, 122, 24;
 }
 
 * {
