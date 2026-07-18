@@ -14,11 +14,11 @@ type RingObject = {
 export default function OrbitRings() {
   const refs = useRef<Array<THREE.LineSegments | null>>([]);
   const rings = useMemo<RingObject[]>(() => {
-    const count = 14;
+    const count = 11;
     return Array.from({ length: count }, (_, index) => {
-      const radius = 1.15 + index * 0.14 + seeded(index * 9) * 0.08;
-      const geometry = makeBrokenRingGeometry(radius, 72 + index * 4, 0.44);
-      const material = additiveLine(index % 5 === 0 ? HOT : GOLD, 0.14 + seeded(index * 3.1) * 0.18);
+      const radius = 1.05 + index * 0.18 + seeded(index * 9) * 0.16;
+      const geometry = makeBrokenRingGeometry(radius, 54 + index * 5, 0.27 + seeded(index * 8.2) * 0.18);
+      const material = additiveLine(index % 4 === 0 ? HOT : GOLD, 0.08 + seeded(index * 3.1) * 0.16);
       return {
         geometry,
         material,
@@ -40,7 +40,7 @@ export default function OrbitRings() {
       ring.rotation.z += spec.speed * 0.012;
       ring.rotation.x = spec.rotation[0] + Math.sin(t * 0.19 + index) * 0.035;
       ring.rotation.y = spec.rotation[1] + Math.cos(t * 0.15 + index) * 0.04;
-      spec.material.opacity = 0.12 + seeded(index * 1.8) * 0.16 + Math.sin(t * (0.7 + index * 0.03) + index) * 0.025;
+      spec.material.opacity = 0.06 + seeded(index * 1.8) * 0.14 + Math.sin(t * (0.7 + index * 0.03) + index) * 0.025;
     });
   });
 

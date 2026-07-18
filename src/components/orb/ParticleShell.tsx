@@ -4,7 +4,7 @@ import * as THREE from "three";
 import type { AiActivity } from "../../App";
 import { seeded } from "./materials";
 
-const PARTICLE_COUNT = 2100;
+const PARTICLE_COUNT = 1550;
 
 type ParticleShellProps = {
   activity: AiActivity;
@@ -25,10 +25,11 @@ export default function ParticleShell({ activity }: ParticleShellProps) {
       const b = Math.acos(seeded(i * 3.72) * 2 - 1);
       const shellBias = seeded(i * 5.19);
       const r = shellBias > 0.62 ? 1.4 + seeded(i * 6.1) * 2.2 : seeded(i * 7.7) * 2.2;
-      const densityPocket = 0.68 + Math.sin(a * 3 + i * 0.003) * 0.18;
+      const clusterPull = Math.max(0, Math.sin(a * 2.8 + i * 0.006));
+      const densityPocket = 0.52 + clusterPull * 0.42 + Math.sin(a * 7 + i * 0.01) * 0.08;
       positionData[i * 3] = Math.sin(b) * Math.cos(a) * r * densityPocket;
-      positionData[i * 3 + 1] = Math.cos(b) * r * (0.7 + seeded(i * 1.6) * 0.18);
-      positionData[i * 3 + 2] = Math.sin(b) * Math.sin(a) * r * 0.82;
+      positionData[i * 3 + 1] = Math.cos(b) * r * (0.58 + seeded(i * 1.6) * 0.24);
+      positionData[i * 3 + 2] = Math.sin(b) * Math.sin(a) * r * (0.62 + clusterPull * 0.22);
       const color = shellBias > 0.93 ? hot : shellBias > 0.68 ? amber : gold;
       colorData[i * 3] = color.r;
       colorData[i * 3 + 1] = color.g;
@@ -47,7 +48,7 @@ export default function ParticleShell({ activity }: ParticleShellProps) {
       uniforms: {
         uTime: { value: 0 },
         uActivity: { value: 0 },
-        uPixelRatio: { value: Math.min(window.devicePixelRatio, 1.75) }
+        uPixelRatio: { value: Math.min(window.devicePixelRatio, 1.25) }
       },
       vertexShader: `
         attribute float size;
@@ -62,7 +63,7 @@ export default function ParticleShell({ activity }: ParticleShellProps) {
           p.y += cos(uTime * (.14 + uActivity * .22) + position.x * 2.4) * (.028 + uActivity * .026);
           p.z += sin(uTime * (.16 + uActivity * .2) + position.x * 2.1) * (.035 + uActivity * .03);
           vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
-          gl_PointSize = size * (330.0 + uActivity * 150.0) * uPixelRatio / max(1.0, -mvPosition.z);
+          gl_PointSize = size * (360.0 + uActivity * 130.0) * uPixelRatio / max(1.0, -mvPosition.z);
           gl_Position = projectionMatrix * mvPosition;
         }
       `,

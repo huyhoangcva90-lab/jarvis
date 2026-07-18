@@ -93,7 +93,7 @@ export default function EnergyPackets({ activity }: EnergyPacketsProps) {
             }}
             material={packetMaterial}
           >
-            <sphereGeometry args={[1, 16, 16]} />
+            <sphereGeometry args={[1, 8, 8]} />
           </mesh>
         </group>
       ))}

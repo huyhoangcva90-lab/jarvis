@@ -7,11 +7,11 @@ import { AMBER, GOLD, additiveLine, seeded } from "./materials";
 export default function OuterArcs() {
   const refs = useRef<Array<THREE.LineSegments | null>>([]);
   const arcs = useMemo(() => {
-    return Array.from({ length: 4 }, (_, index) => {
-      const rot = new THREE.Euler(-0.55 + index * 0.36, 0.35 - index * 0.22, index * 0.55);
+    return Array.from({ length: 6 }, (_, index) => {
+      const rot = new THREE.Euler(-0.75 + index * 0.28, 0.45 - index * 0.16, index * 0.72);
       return {
-        geometry: makeArcGeometry(3.12 + index * 0.22, 0.42 + seeded(index * 3.2) * 0.3, seeded(index) * Math.PI * 2, Math.PI * (0.38 + seeded(index * 6.1) * 0.34), rot, 120),
-        material: additiveLine(index % 2 ? AMBER : GOLD, 0.22 + seeded(index * 2.7) * 0.2),
+        geometry: makeArcGeometry(2.62 + index * 0.24, 0.34 + seeded(index * 3.2) * 0.42, seeded(index) * Math.PI * 2, Math.PI * (0.18 + seeded(index * 6.1) * 0.48), rot, 120),
+        material: additiveLine(index % 2 ? AMBER : GOLD, 0.18 + seeded(index * 2.7) * 0.22),
         speed: (0.028 + seeded(index * 4.4) * 0.052) * (index % 2 ? -1 : 1),
         base: rot
       };
@@ -24,7 +24,7 @@ export default function OuterArcs() {
       if (!arc) return;
       arc.rotation.z += arcs[index].speed * 0.01;
       arc.rotation.x = arcs[index].base.x + Math.sin(t * 0.1 + index) * 0.05;
-      arcs[index].material.opacity = 0.18 + Math.sin(t * (0.55 + index * 0.15)) * 0.06;
+      arcs[index].material.opacity = 0.14 + Math.sin(t * (0.55 + index * 0.15)) * 0.08;
     });
   });
 

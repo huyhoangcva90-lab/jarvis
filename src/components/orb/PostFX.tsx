@@ -7,10 +7,10 @@ type PostFXProps = {
 };
 
 export default function PostFX({ activity }: PostFXProps) {
-  const intensity = activity === "speaking" ? 2.15 : activity === "thinking" ? 2 : activity === "listening" ? 1.9 : 1.65;
+  const intensity = activity === "speaking" ? 1.85 : activity === "thinking" ? 1.78 : activity === "listening" ? 1.68 : 1.45;
   return (
     <EffectComposer multisampling={0}>
-      <Bloom intensity={intensity} luminanceThreshold={0.34} luminanceSmoothing={0.68} mipmapBlur kernelSize={KernelSize.MEDIUM} />
+      <Bloom intensity={intensity} luminanceThreshold={0.38} luminanceSmoothing={0.72} mipmapBlur kernelSize={KernelSize.SMALL} />
       <Vignette eskil={false} offset={0.24} darkness={0.68} />
     </EffectComposer>
   );
