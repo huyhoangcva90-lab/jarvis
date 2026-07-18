@@ -107,21 +107,21 @@ function CoreGlow({ activity }: CinematicOrbProps) {
 function RadialSpikes({ activity }: CinematicOrbProps) {
   const material = useRef<THREE.LineBasicMaterial>(null);
   const geometry = useMemo(() => {
-    const random = mulberry32(7001);
     const positions: number[] = [];
-    for (let index = 0; index < 58; index += 1) {
-      const theta = random() * Math.PI * 2;
-      const phi = Math.acos(2 * random() - 1);
-      const direction = new THREE.Vector3(
-        Math.sin(phi) * Math.cos(theta),
-        Math.cos(phi),
-        Math.sin(phi) * Math.sin(theta)
-      );
-      const start = direction.clone().multiplyScalar(0.12 + random() * 0.34);
-      const length = index % 9 === 0 ? 4.3 + random() * 1.2 : 1.65 + random() * 2.15;
+    const directions = [
+      [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
+      [1, 1, 0.22], [-1, 1, -0.22], [1, -1, -0.18], [-1, -1, 0.18],
+      [1, 0.24, 1], [-1, -0.24, 1], [1, -0.22, -1], [-1, 0.22, -1],
+      [0.2, 1, 1], [-0.2, -1, 1], [-0.24, 1, -1], [0.24, -1, -1],
+      [1, 0.38, -0.62], [-1, -0.38, 0.62], [0.6, -0.32, 1], [-0.6, 0.32, -1]
+    ];
+    directions.forEach((values, index) => {
+      const direction = new THREE.Vector3(values[0], values[1], values[2]).normalize();
+      const start = direction.clone().multiplyScalar(index % 4 === 0 ? 0.18 : 0.42);
+      const length = index % 6 === 0 ? 4.7 : 2.35 + (index % 5) * 0.27;
       const end = direction.clone().multiplyScalar(length);
       positions.push(start.x, start.y, start.z, end.x, end.y, end.z);
-    }
+    });
     const result = new THREE.BufferGeometry();
     result.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     return result;
@@ -157,16 +157,25 @@ type OrbitDescriptor = {
   opacity: number;
 };
 
-const ORBITS: OrbitDescriptor[] = Array.from({ length: 15 }, (_, index) => {
+const ORBIT_PLANES: Array<[number, number, number]> = [
+  [1.3, 0.08, 0.02],
+  [1.08, 0.46, 0.52],
+  [0.38, 1.18, 0.22],
+  [0.82, -0.66, 1.06],
+  [-0.52, 0.94, -0.44],
+  [1.46, 0.18, 1.54]
+];
+
+const ORBITS: OrbitDescriptor[] = Array.from({ length: 12 }, (_, index) => {
   const random = mulberry32(1500 + index * 31);
   return {
-    radius: 1.05 + index * 0.12 + random() * 0.28,
-    start: random() * Math.PI * 2,
-    span: Math.PI * (1.05 + random() * 0.86),
-    rotation: [random() * Math.PI, random() * Math.PI, random() * Math.PI],
-    speed: 0.07 + random() * 0.17,
+    radius: 0.92 + index * 0.125 + (index % 3) * 0.035,
+    start: (index * Math.PI) / 6 + random() * 0.18,
+    span: Math.PI * (index < 4 ? 1.88 : 1.42 + (index % 3) * 0.18),
+    rotation: ORBIT_PLANES[index % ORBIT_PLANES.length],
+    speed: 0.065 + (index % 6) * 0.022,
     direction: index % 2 === 0 ? 1 : -1,
-    opacity: 0.25 + random() * 0.48
+    opacity: 0.28 + (index % 4) * 0.1
   };
 });
 
@@ -223,13 +232,96 @@ function OrbitRings({ activity }: CinematicOrbProps) {
   );
 }
 
+function HolographicTriangles({ activity }: CinematicOrbProps) {
+  const group = useRef<THREE.Group>(null);
+  const geometry = useMemo(() => {
+    const random = mulberry32(8137);
+    const positions: number[] = [];
+    const addEdge = (a: THREE.Vector3, b: THREE.Vector3) => {
+      positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    };
+
+    for (let index = 0; index < 42; index += 1) {
+      const theta = random() * Math.PI * 2;
+      const phi = Math.acos(2 * random() - 1);
+      const center = new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta),
+        Math.cos(phi),
+        Math.sin(phi) * Math.sin(theta)
+      ).multiplyScalar(1.05 + random() * 0.92);
+      const normal = center.clone().normalize();
+      const tangent = new THREE.Vector3(0, 1, 0).cross(normal);
+      if (tangent.lengthSq() < 0.01) tangent.set(1, 0, 0);
+      tangent.normalize();
+      const bitangent = normal.clone().cross(tangent).normalize();
+      const size = 0.12 + random() * 0.28;
+      const a = center.clone().addScaledVector(tangent, size);
+      const b = center.clone().addScaledVector(tangent, -size * 0.72).addScaledVector(bitangent, size * 0.76);
+      const c = center.clone().addScaledVector(tangent, -size * 0.72).addScaledVector(bitangent, -size * 0.76);
+      addEdge(a, b);
+      addEdge(b, c);
+      addEdge(c, a);
+    }
+
+    const result = new THREE.BufferGeometry();
+    result.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    return result;
+  }, []);
+
+  const polyhedron = useMemo(() => new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1.18, 1), 8), []);
+  const innerPolyhedron = useMemo(() => new THREE.EdgesGeometry(new THREE.TetrahedronGeometry(0.72, 1), 5), []);
+
+  useFrame(({ clock }, delta) => {
+    if (!group.current) return;
+    const speed = activitySpeed(activity);
+    group.current.rotation.y += delta * 0.075 * speed;
+    group.current.rotation.x = Math.sin(clock.elapsedTime * 0.24) * 0.18;
+    group.current.rotation.z -= delta * 0.026 * speed;
+  });
+
+  return (
+    <group ref={group}>
+      <lineSegments geometry={polyhedron}>
+        <lineBasicMaterial
+          blending={THREE.AdditiveBlending}
+          color={HOT_GOLD}
+          depthWrite={false}
+          opacity={0.5}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+      <lineSegments geometry={innerPolyhedron} rotation={[0.4, 0.22, 0.7]}>
+        <lineBasicMaterial
+          blending={THREE.AdditiveBlending}
+          color={WHITE_HOT}
+          depthWrite={false}
+          opacity={0.72}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+      <lineSegments geometry={geometry}>
+        <lineBasicMaterial
+          blending={THREE.AdditiveBlending}
+          color={GOLD}
+          depthWrite={false}
+          opacity={0.36}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+    </group>
+  );
+}
+
 function InnerGrid({ activity }: CinematicOrbProps) {
   const geometry = useMemo(() => {
     const random = mulberry32(9842);
     const positions: number[] = [];
     const colors: number[] = [];
     const phases: number[] = [];
-    for (let index = 0; index < 340; index += 1) {
+    for (let index = 0; index < 230; index += 1) {
       const radius = 0.58 + random() * 1.52;
       const theta = random() * Math.PI * 2;
       const phi = Math.acos(2 * random() - 1);
@@ -302,7 +394,7 @@ function ParticleShell({ activity }: CinematicOrbProps) {
   const material = useRef<THREE.ShaderMaterial>(null);
   const geometry = useMemo(() => {
     const random = mulberry32(42069);
-    const count = 2200;
+    const count = 1900;
     const positions = new Float32Array(count * 3);
     const phases = new Float32Array(count);
     const sizes = new Float32Array(count);
@@ -415,7 +507,7 @@ function OuterArc({ setting, activity, index }: { setting: (typeof ARC_SETTINGS)
     <mesh ref={mesh} geometry={geometry} rotation={setting.rotation}>
       <meshBasicMaterial
         blending={THREE.AdditiveBlending}
-        color={index === 0 ? WHITE_HOT : GOLD}
+        color={index === 0 ? HOT_GOLD : GOLD}
         depthWrite={false}
         opacity={0.62 - index * 0.07}
         toneMapped={false}
@@ -438,7 +530,7 @@ function OuterArcs({ activity }: CinematicOrbProps) {
 function EnergyPackets({ activity }: CinematicOrbProps) {
   const points = useRef<THREE.Points>(null);
   const geometry = useMemo(() => {
-    const count = 86;
+    const count = 72;
     const positions = new Float32Array(count * 3);
     const data = Array.from({ length: count }, (_, index) => ({
       orbit: index % 9,
@@ -477,6 +569,49 @@ function EnergyPackets({ activity }: CinematicOrbProps) {
         depthWrite={false}
         opacity={0.95}
         size={0.052}
+        sizeAttenuation
+        toneMapped={false}
+        transparent
+      />
+    </points>
+  );
+}
+
+function OrbitalNodes({ activity }: CinematicOrbProps) {
+  const points = useRef<THREE.Points>(null);
+  const geometry = useMemo(() => {
+    const result = new THREE.BufferGeometry();
+    result.setAttribute("position", new THREE.BufferAttribute(new Float32Array(10 * 3), 3));
+    return result;
+  }, []);
+
+  useFrame(({ clock }) => {
+    if (!points.current) return;
+    const t = clock.elapsedTime * activitySpeed(activity);
+    const attribute = geometry.getAttribute("position") as THREE.BufferAttribute;
+    for (let index = 0; index < 10; index += 1) {
+      const direction = index % 3 === 0 ? -1 : 1;
+      const angle = t * (0.18 + index * 0.018) * direction + index * 0.71;
+      const radius = 1.02 + index * 0.135;
+      attribute.setXYZ(
+        index,
+        Math.cos(angle) * radius,
+        Math.sin(angle) * radius * (0.48 + (index % 4) * 0.11),
+        Math.sin(angle * (1.35 + (index % 3) * 0.22) + index) * (0.28 + index * 0.055)
+      );
+    }
+    attribute.needsUpdate = true;
+    points.current.rotation.set(Math.sin(t * 0.025) * 0.14, t * 0.018, Math.cos(t * 0.02) * 0.08);
+  });
+
+  return (
+    <points ref={points} geometry={geometry}>
+      <pointsMaterial
+        blending={THREE.AdditiveBlending}
+        color={WHITE_HOT}
+        depthWrite={false}
+        opacity={1}
+        size={0.105}
         sizeAttenuation
         toneMapped={false}
         transparent
@@ -538,10 +673,12 @@ function SceneRig({ activity }: CinematicOrbProps) {
     <group ref={group}>
       <ParticleShell activity={activity} />
       <InnerGrid activity={activity} />
+      <HolographicTriangles activity={activity} />
       <OrbitRings activity={activity} />
       <OuterArcs activity={activity} />
       <RadialSpikes activity={activity} />
       <EnergyPackets activity={activity} />
+      <OrbitalNodes activity={activity} />
       <RadarSweeps activity={activity} />
       <CoreGlow activity={activity} />
     </group>

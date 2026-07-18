@@ -6,7 +6,7 @@ export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
 
 export default function App() {
   const [activity, setActivity] = useState<AiActivity>("idle");
-  const [hudVisible, setHudVisible] = useState(false);
+  const [hudVisible, setHudVisible] = useState(true);
 
   useEffect(() => {
     document.body.dataset.activity = activity;
