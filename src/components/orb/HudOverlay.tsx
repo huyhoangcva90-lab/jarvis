@@ -147,7 +147,7 @@ export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
   const sendMessage = (value = input) => {
     const trimmed = value.trim();
     if (!trimmed) return;
-    setMessages((current) => [...current, { id: createId(), role: "user", text: trimmed, at: Date.now() }].slice(-80));
+    setMessages((current) => [...current, { id: createId(), role: "user" as const, text: trimmed, at: Date.now() }].slice(-80));
     setInput("");
     setHistoryOpen(true);
     setActivity("thinking");
