@@ -23,7 +23,7 @@ type EnergyPacketsProps = {
 export default function EnergyPackets({ activity }: EnergyPacketsProps) {
   const packets = useRef<Packet[]>([]);
   const specs = useMemo(() => {
-    return Array.from({ length: 11 }, (_, index) => ({
+    return Array.from({ length: 15 }, (_, index) => ({
       radius: 1.18 + seeded(index * 3.17) * 2.45,
       tilt: 0.28 + seeded(index * 4.27) * 0.55,
       rotation: new THREE.Euler(-0.85 + seeded(index) * 1.7, -0.6 + seeded(index * 2) * 1.2, seeded(index * 3) * Math.PI),
@@ -47,7 +47,7 @@ export default function EnergyPackets({ activity }: EnergyPacketsProps) {
   const trailMaterial = useMemo(() => additiveLine(GOLD, 0.32), []);
 
   const trailGeometries = useMemo(() => {
-    return specs.map(() => new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(18), 3)));
+    return specs.map(() => new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(36), 3)));
   }, [specs]);
 
   useFrame(({ clock }) => {
@@ -60,14 +60,16 @@ export default function EnergyPackets({ activity }: EnergyPacketsProps) {
       if (!packet?.mesh || !packet.trail) return;
       const angle = spec.phase + t * spec.speed * speedBoost;
       const position = ellipsePoint(spec.radius, spec.tilt, angle, spec.rotation);
-      const pulse = 1 + Math.sin(t * 5.8 + index) * 0.22;
+      const voicePulse = activity === "speaking" ? Math.max(0, Math.sin(t * 7.2 - index * 0.36)) : 0;
+      const pulse = 1 + Math.sin(t * 5.8 + index) * 0.22 + voicePulse * 0.72;
       packet.mesh.position.copy(position);
       packet.mesh.scale.setScalar(spec.size * pulse * (activity === "speaking" ? 1.45 : activity === "thinking" ? 1.25 : 1));
 
       const positions = packet.trail.geometry.attributes.position.array as Float32Array;
-      for (let i = 0; i < 3; i += 1) {
-        const a = angle - (i + 1) * 0.055 * Math.sign(spec.speed);
-        const b = angle - i * 0.055 * Math.sign(spec.speed);
+      for (let i = 0; i < 6; i += 1) {
+        const step = 0.052 + speedBoost * 0.009;
+        const a = angle - (i + 1) * step * Math.sign(spec.speed);
+        const b = angle - i * step * Math.sign(spec.speed);
         const p1 = ellipsePoint(spec.radius, spec.tilt, a, spec.rotation);
         const p2 = ellipsePoint(spec.radius, spec.tilt, b, spec.rotation);
         positions.set([p1.x, p1.y, p1.z, p2.x, p2.y, p2.z], i * 6);

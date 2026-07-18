@@ -12,6 +12,7 @@ import ParticleShell from "./components/orb/ParticleShell";
 import PostFX from "./components/orb/PostFX";
 import RadialSpikes from "./components/orb/RadialSpikes";
 import SceneRig from "./components/orb/SceneRig";
+import SignalSweeps from "./components/orb/SignalSweeps";
 
 export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
 
@@ -41,6 +42,7 @@ export default function App() {
               <OuterArcs activity={activity} />
               <RadialSpikes activity={activity} />
               <EnergyPackets activity={activity} />
+              <SignalSweeps activity={activity} />
               <ApertureCore activity={activity} />
               <CoreGlow activity={activity} />
             </SceneRig>

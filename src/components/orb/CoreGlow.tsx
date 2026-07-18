@@ -45,13 +45,14 @@ export default function CoreGlow({ activity }: CoreGlowProps) {
     const t = clock.elapsedTime;
     const activityBoost = activity === "speaking" ? 1.9 : activity === "thinking" ? 1.45 : activity === "listening" ? 1.25 : 1;
     const pulseRate = activity === "speaking" ? 7.8 : activity === "thinking" ? 5.2 : activity === "listening" ? 2.4 : 3.1;
-    const pulse = 1 + Math.sin(t * pulseRate) * 0.07 * activityBoost + Math.sin(t * 13.4) * 0.018 * activityBoost;
+    const speechEnvelope = activity === "speaking" ? Math.max(0, Math.sin(t * 5.8)) * 0.2 + Math.max(0, Math.sin(t * 9.6 + 0.8)) * 0.08 : 0;
+    const pulse = 1 + Math.sin(t * pulseRate) * 0.07 * activityBoost + Math.sin(t * 13.4) * 0.018 * activityBoost + speechEnvelope;
     if (hotCore.current) {
       hotCore.current.scale.setScalar(0.34 * pulse * (activity === "speaking" ? 1.22 : activity === "thinking" ? 1.12 : 1));
       materials.hot.opacity = Math.min(1, 0.94 + Math.sin(t * 5.7) * 0.05 + (activityBoost - 1) * 0.1);
     }
     if (halo.current) {
-      const wide = activity === "listening" ? 1.18 : activity === "speaking" ? 1.28 : activity === "thinking" ? 1.12 : 1;
+      const wide = activity === "listening" ? 1.18 : activity === "speaking" ? 1.36 + speechEnvelope * 0.6 : activity === "thinking" ? 1.12 : 1;
       halo.current.scale.set((0.82 + Math.sin(t * 1.7) * 0.075) * wide, 0.44 + Math.cos(t * 1.5) * 0.035, 0.82 * wide);
       halo.current.rotation.z = t * (activity === "thinking" ? 0.58 : 0.28);
       materials.amber.opacity = 0.16 + Math.sin(t * 2.4) * 0.04 + (activityBoost - 1) * 0.07;
