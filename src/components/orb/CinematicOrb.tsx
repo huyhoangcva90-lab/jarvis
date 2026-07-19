@@ -3,10 +3,11 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as THREE from "three";
-import type { AiActivity } from "../../App";
+import type { AiActivity, EnergyPalette } from "../../App";
 
 type CinematicOrbProps = {
   activity: AiActivity;
+  palette?: EnergyPalette;
   resetSignal?: number;
 };
 
@@ -34,6 +35,55 @@ const HOT_PLASMA = new THREE.Color("#ffd15c");
 const WHITE_HOT = new THREE.Color("#fff8d6");
 const DEEP_AMBER = new THREE.Color("#b8490b");
 const COPPER_GLOW = new THREE.Color("#d65f10");
+let BACKGROUND_CLEAR = "#020100";
+
+const ORB_PALETTES: Record<
+  EnergyPalette,
+  { plasma: string; hot: string; white: string; deep: string; copper: string; clear: string }
+> = {
+  gold: {
+    plasma: "#ff8a18",
+    hot: "#ffd15c",
+    white: "#fff8d6",
+    deep: "#b8490b",
+    copper: "#d65f10",
+    clear: "#020100"
+  },
+  blue: {
+    plasma: "#25caff",
+    hot: "#8df0ff",
+    white: "#f2fdff",
+    deep: "#06465c",
+    copper: "#0d8fc0",
+    clear: "#00040a"
+  },
+  green: {
+    plasma: "#4cff85",
+    hot: "#b9ffc9",
+    white: "#f5fff6",
+    deep: "#0b4f24",
+    copper: "#18bd58",
+    clear: "#000704"
+  },
+  red: {
+    plasma: "#ff315f",
+    hot: "#ff9aac",
+    white: "#fff4f6",
+    deep: "#68101f",
+    copper: "#d81742",
+    clear: "#080002"
+  }
+};
+
+function applyOrbPalette(palette: EnergyPalette) {
+  const colors = ORB_PALETTES[palette] ?? ORB_PALETTES.gold;
+  PLASMA.set(colors.plasma);
+  HOT_PLASMA.set(colors.hot);
+  WHITE_HOT.set(colors.white);
+  DEEP_AMBER.set(colors.deep);
+  COPPER_GLOW.set(colors.copper);
+  BACKGROUND_CLEAR = colors.clear;
+}
 const FILAMENTS: FilamentSpec[] = [
   { radius: 0.72, seed: 1, span: 5.2, speed: 0.21, tilt: [0.2, 0.4, 0.1] },
   { radius: 0.86, seed: 2, span: 4.6, speed: -0.17, tilt: [1.1, 0.2, 0.6] },
@@ -1140,6 +1190,17 @@ function CameraOrbitController({ resetSignal = 0 }: Pick<CinematicOrbProps, "res
   return null;
 }
 
+function CanvasPaletteBackground({ palette = "gold" }: Pick<CinematicOrbProps, "palette">) {
+  const { gl } = useThree();
+
+  useEffect(() => {
+    applyOrbPalette(palette);
+    gl.setClearColor(BACKGROUND_CLEAR, 1);
+  }, [gl, palette]);
+
+  return null;
+}
+
 function ResponsePulseRings({ activity }: CinematicOrbProps) {
   const group = useRef<THREE.Group>(null);
   const meshes = useRef<THREE.Mesh[]>([]);
@@ -1257,7 +1318,9 @@ function PostFX({ activity }: CinematicOrbProps) {
   );
 }
 
-export default function CinematicOrb({ activity, resetSignal = 0 }: CinematicOrbProps) {
+export default function CinematicOrb({ activity, palette = "gold", resetSignal = 0 }: CinematicOrbProps) {
+  applyOrbPalette(palette);
+
   return (
     <div className="orb-webgl" aria-hidden="true">
       <Canvas
@@ -1270,14 +1333,15 @@ export default function CinematicOrb({ activity, resetSignal = 0 }: CinematicOrb
           stencil: false
         }}
         onCreated={({ gl }) => {
-          gl.setClearColor("#020100", 1);
+          gl.setClearColor(BACKGROUND_CLEAR, 1);
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.toneMappingExposure = 0.98;
         }}
       >
+        <CanvasPaletteBackground palette={palette} />
         <CameraOrbitController resetSignal={resetSignal} />
-        <SceneRig activity={activity} />
+        <SceneRig activity={activity} key={palette} palette={palette} />
         <PostFX activity={activity} />
       </Canvas>
     </div>

@@ -1,5 +1,5 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import type { AiActivity } from "../../App";
+import type { AiActivity, EnergyPalette } from "../../App";
 
 type Message = {
   id: string;
@@ -8,7 +8,7 @@ type Message = {
   at: number;
 };
 
-type Palette = "gold" | "blue" | "green" | "red";
+type Palette = EnergyPalette;
 type IconName = "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "mic" | "send";
 
 const STORAGE_KEY = "jarvis.commandOrb.v2";
@@ -75,10 +75,11 @@ function loadState() {
 
 type HudOverlayProps = {
   onActivityChange: (activity: AiActivity) => void;
+  onPaletteChange: (palette: EnergyPalette) => void;
   onResetView: () => void;
 };
 
-export default function HudOverlay({ onActivityChange, onResetView }: HudOverlayProps) {
+export default function HudOverlay({ onActivityChange, onPaletteChange, onResetView }: HudOverlayProps) {
   const initial = useMemo(() => (typeof window === "undefined" ? null : loadState()), []);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>(
@@ -105,8 +106,9 @@ export default function HudOverlay({ onActivityChange, onResetView }: HudOverlay
 
   useEffect(() => {
     document.body.dataset.palette = palette;
+    onPaletteChange(palette);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, handsFree }));
-  }, [handsFree, messages, palette, voiceReply]);
+  }, [handsFree, messages, onPaletteChange, palette, voiceReply]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);

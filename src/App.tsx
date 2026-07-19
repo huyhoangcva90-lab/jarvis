@@ -3,11 +3,13 @@ import CinematicOrb from "./components/orb/CinematicOrb";
 import HudOverlay from "./components/orb/HudOverlay";
 
 export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
+export type EnergyPalette = "gold" | "blue" | "green" | "red";
 
 export default function App() {
   const [activity, setActivity] = useState<AiActivity>("idle");
   const [hudVisible, setHudVisible] = useState(true);
   const [resetViewSignal, setResetViewSignal] = useState(0);
+  const [energyPalette, setEnergyPalette] = useState<EnergyPalette>("gold");
 
   useEffect(() => {
     document.body.dataset.activity = activity;
@@ -30,10 +32,14 @@ export default function App() {
   return (
     <main className="jarvis-shell">
       <div className="orb-stage">
-        <CinematicOrb activity={activity} resetSignal={resetViewSignal} />
+        <CinematicOrb activity={activity} palette={energyPalette} resetSignal={resetViewSignal} />
       </div>
       <div className={`hud-layer ${hudVisible ? "is-visible" : ""}`}>
-        <HudOverlay onActivityChange={setActivity} onResetView={() => setResetViewSignal((signal) => signal + 1)} />
+        <HudOverlay
+          onActivityChange={setActivity}
+          onPaletteChange={setEnergyPalette}
+          onResetView={() => setResetViewSignal((signal) => signal + 1)}
+        />
       </div>
     </main>
   );
