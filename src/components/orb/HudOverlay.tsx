@@ -9,7 +9,7 @@ type Message = {
 };
 
 type Palette = EnergyPalette;
-type IconName = "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "mic" | "send";
+type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "mic" | "send";
 
 const STORAGE_KEY = "jarvis.commandOrb.v2";
 const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
@@ -34,10 +34,11 @@ const BACKCHANNELS = new Set([
 ]);
 
 const paletteLabels: Record<Palette, string> = {
-  gold: "Gold",
-  blue: "Blue",
-  green: "Green",
-  red: "Red"
+  gold: "Gold Core",
+  blue: "Stark Tech",
+  green: "Alien Grid",
+  red: "Transfer",
+  violet: "Neon Violet"
 };
 
 const activityLabels: Record<AiActivity, string> = {
@@ -49,6 +50,7 @@ const activityLabels: Record<AiActivity, string> = {
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, ReactNode> = {
+    hub: <><path d="M4 4h7v7H4ZM13 4h7v4h-7ZM13 10h7v10h-7ZM4 13h7v7H4Z" /><path d="M7.5 11v2M11 7.5h2M11 16.5h2" /></>,
     chat: <><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" /><path d="M8 9h8M8 13h5" /></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3V9.6h.09A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.16.37.37.72.6 1 .3.3.69.44 1.1.4h.1v4h-.1A1.7 1.7 0 0 0 19.4 15Z" /></>,
     reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v6h6" /><path d="M12 8v4l3 2" /></>,
@@ -140,6 +142,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   const [voiceMode, setVoiceMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 760);
+  const [hubOpen, setHubOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 980);
   const [listening, setListening] = useState(false);
   const [activity, setActivity] = useState<AiActivity>("idle");
   const [toast, setToast] = useState("");
@@ -284,6 +287,22 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
     setMessages([{ id: createId(), role: "assistant", text: "Lịch sử đã được xóa. Kết nối vẫn hoạt động.", at: Date.now() }]);
   };
 
+  const localNow = useMemo(() => new Date(), [activity, messages.length, palette]);
+  const moduleStatus = useMemo(
+    () => [
+      { label: "WEATHER", value: "LOCAL READY", detail: "Module san, chua noi API" },
+      {
+        label: "CALENDAR",
+        value: localNow.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" }),
+        detail: "Nhac viec thu cong qua chat"
+      },
+      { label: "VOICE", value: voiceMode ? "OPEN CHANNEL" : "STANDBY", detail: advisorMode ? "Co van, loc cau vu vo" : "Phan hoi moi cau nghe duoc" },
+      { label: "MODE", value: paletteLabels[palette].toUpperCase(), detail: "Orb doi mau va cau truc" },
+      { label: "MEMORY", value: `${messages.length} LOGS`, detail: "Luu cuc bo trong trinh duyet" }
+    ],
+    [advisorMode, localNow, messages.length, palette, voiceMode]
+  );
+
   const toggleHistory = () => {
     setHistoryOpen((current) => {
       const next = !current;
@@ -303,10 +322,35 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   return (
     <div className="hud-overlay" aria-label="J-Core AI interface">
       <nav className="hud-dock" aria-label="Điều khiển giao diện">
+        <button className={hubOpen ? "active" : ""} type="button" aria-label="Mo activity hub" onClick={() => setHubOpen((current) => !current)}><Icon name="hub" /></button>
         <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở lịch sử chat" onClick={toggleHistory}><Icon name="chat" /></button>
         <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở cài đặt" onClick={toggleSettings}><Icon name="settings" /></button>
         <button type="button" aria-label="Reset góc nhìn" onClick={onResetView}><Icon name="reset" /></button>
       </nav>
+
+      {hubOpen && (
+        <aside className="activity-hub" aria-label="Activity hub">
+          <div className="hub-title">
+            <span>OPERATOR HUB</span>
+            <b>{activity === "speaking" ? "RESPONDING" : activity === "thinking" ? "ANALYZING" : activity === "listening" ? "LISTENING" : "STANDBY"}</b>
+          </div>
+          <div className="hub-orbit-map" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <b />
+          </div>
+          <div className="hub-modules">
+            {moduleStatus.map((item) => (
+              <section className="hub-module" key={item.label}>
+                <span>{item.label}</span>
+                <b>{item.value}</b>
+                <p>{item.detail}</p>
+              </section>
+            ))}
+          </div>
+        </aside>
+      )}
 
       {historyOpen && (
         <aside className="history-panel" aria-label="Lịch sử chat">

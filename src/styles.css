@@ -29,6 +29,12 @@ body[data-palette="red"] {
   --hot: #ffb1c0;
 }
 
+body[data-palette="violet"] {
+  --accent: #b35cff;
+  --accent-rgb: 179, 92, 255;
+  --hot: #f0b8ff;
+}
+
 body[data-activity="listening"],
 body[data-activity="thinking"] {
   --panel-bg: rgba(0, 0, 0, 0.64);
@@ -142,6 +148,132 @@ button {
   width: 100% !important;
   height: 100% !important;
   background: #000;
+}
+
+.boot-sequence {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  gap: 26px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at center, rgba(var(--accent-rgb), 0.11), transparent 35%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.96), rgba(0, 0, 0, 0.82));
+  animation: bootExit 2850ms ease forwards;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.boot-reactor {
+  position: relative;
+  width: min(330px, 48vw);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 0 34px rgba(var(--accent-rgb), 0.42));
+}
+
+.boot-reactor i,
+.boot-reactor b {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.boot-reactor i {
+  inset: var(--inset, 15%);
+  border: 1px solid rgba(var(--accent-rgb), 0.7);
+  border-left-color: transparent;
+  border-bottom-color: rgba(var(--accent-rgb), 0.1);
+  mask-image: conic-gradient(#000 0 58deg, transparent 60deg 82deg, #000 84deg 178deg, transparent 180deg 232deg, #000 235deg 360deg);
+  animation: bootRing 1100ms linear infinite;
+}
+
+.boot-reactor i:nth-child(2) {
+  --inset: 27%;
+  animation-duration: 780ms;
+  animation-direction: reverse;
+  transform: rotateX(64deg) rotateZ(18deg);
+}
+
+.boot-reactor i:nth-child(3) {
+  --inset: 39%;
+  animation-duration: 1350ms;
+  transform: rotateY(58deg) rotateZ(-28deg);
+}
+
+.boot-reactor b {
+  width: 16%;
+  aspect-ratio: 1;
+  background: radial-gradient(circle, #fff 0 24%, var(--hot) 30% 58%, transparent 70%);
+  box-shadow: 0 0 28px #fff, 0 0 86px rgba(var(--accent-rgb), 0.86), 0 0 160px rgba(var(--accent-rgb), 0.34);
+  animation: bootCore 720ms ease-in-out infinite;
+}
+
+.boot-copy {
+  position: absolute;
+  bottom: clamp(86px, 12vh, 132px);
+  left: 50%;
+  width: min(480px, calc(100vw - 36px));
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.boot-copy span {
+  display: block;
+  color: rgba(255, 245, 225, 0.54);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+}
+
+.boot-copy strong {
+  display: block;
+  margin-top: 9px;
+  color: var(--hot);
+  font-size: clamp(13px, 1.5vw, 18px);
+  letter-spacing: 0.16em;
+  text-shadow: 0 0 26px rgba(var(--accent-rgb), 0.46);
+}
+
+.boot-lines {
+  display: grid;
+  gap: 6px;
+  margin-top: 18px;
+}
+
+.boot-lines i {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  transform-origin: left;
+  animation: bootLine 850ms ease-in-out infinite;
+}
+
+.boot-lines i:nth-child(2) {
+  animation-delay: 130ms;
+}
+
+.boot-lines i:nth-child(3) {
+  animation-delay: 260ms;
+}
+
+@keyframes bootRing {
+  to { rotate: 360deg; }
+}
+
+@keyframes bootCore {
+  0%, 100% { transform: scale(0.86); opacity: 0.78; }
+  44% { transform: scale(1.26); opacity: 1; }
+}
+
+@keyframes bootLine {
+  0% { transform: scaleX(0.12); opacity: 0.28; }
+  55% { transform: scaleX(1); opacity: 0.95; }
+  100% { transform: scaleX(0.2); opacity: 0.18; }
+}
+
+@keyframes bootExit {
+  0%, 78% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
 }
 
 .orb-webgl canvas.is-orbit-enabled {
@@ -885,7 +1017,7 @@ body.is-reactor-dragging .orb-webgl canvas {
 
 .palette-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
 }
 
@@ -919,6 +1051,11 @@ body.is-reactor-dragging .orb-webgl canvas {
 .palette-grid button:nth-child(4) i {
   background: #ff315f;
   box-shadow: 0 0 16px rgba(255, 49, 95, 0.55);
+}
+
+.palette-grid button:nth-child(5) i {
+  background: #b35cff;
+  box-shadow: 0 0 16px rgba(179, 92, 255, 0.55);
 }
 
 .toggle-row {
@@ -1309,6 +1446,163 @@ body[data-activity="speaking"] .prompt-shell {
   stroke-linejoin: round;
 }
 
+.activity-hub {
+  pointer-events: auto;
+  position: absolute;
+  left: 22px;
+  top: 80px;
+  bottom: 126px;
+  z-index: 5;
+  width: min(292px, 25vw);
+  min-width: 252px;
+  display: grid;
+  grid-template-rows: auto 150px 1fr;
+  border: 1px solid rgba(var(--accent-rgb), 0.18);
+  border-radius: 4px;
+  background:
+    linear-gradient(270deg, rgba(var(--accent-rgb), 0.05), transparent 22%),
+    rgba(2, 2, 2, 0.68);
+  box-shadow: 18px 0 55px rgba(0, 0, 0, 0.38), inset 0 0 38px rgba(var(--accent-rgb), 0.025);
+  backdrop-filter: blur(14px);
+  overflow: hidden;
+}
+
+.activity-hub::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 72px;
+  height: 1px;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.5);
+}
+
+.hub-title {
+  min-height: 58px;
+  display: grid;
+  gap: 5px;
+  padding: 13px 14px;
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.14);
+}
+
+.hub-title span,
+.hub-module span {
+  color: rgba(255, 245, 225, 0.48);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.hub-title b {
+  color: var(--accent);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-shadow: 0 0 22px rgba(var(--accent-rgb), 0.42);
+}
+
+.hub-orbit-map {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin: 12px;
+  border: 1px solid rgba(var(--accent-rgb), 0.1);
+  background:
+    linear-gradient(90deg, transparent 49%, rgba(var(--accent-rgb), 0.12) 50%, transparent 51%),
+    linear-gradient(180deg, transparent 49%, rgba(var(--accent-rgb), 0.1) 50%, transparent 51%),
+    radial-gradient(circle, rgba(var(--accent-rgb), 0.12), transparent 58%);
+}
+
+.hub-orbit-map i,
+.hub-orbit-map b {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.hub-orbit-map i {
+  width: var(--size, 72px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  border-left-color: transparent;
+  border-bottom-color: rgba(var(--accent-rgb), 0.08);
+  animation: hubMapSpin var(--time, 6s) linear infinite;
+}
+
+.hub-orbit-map i:nth-child(2) {
+  --size: 104px;
+  --time: 9s;
+  transform: rotateX(64deg) rotateZ(30deg);
+  animation-direction: reverse;
+}
+
+.hub-orbit-map i:nth-child(3) {
+  --size: 132px;
+  --time: 13s;
+  border-style: dashed;
+  opacity: 0.58;
+}
+
+.hub-orbit-map b {
+  width: 13px;
+  aspect-ratio: 1;
+  background: var(--hot);
+  box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.85);
+  animation: hubCorePulse 1300ms ease-in-out infinite;
+}
+
+.hub-modules {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 12px;
+  scrollbar-color: var(--accent) transparent;
+}
+
+.hub-module {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  padding: 10px 11px;
+  border: 1px solid rgba(var(--accent-rgb), 0.12);
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.hub-module::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 2px;
+  height: 18px;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.48);
+}
+
+.hub-module b {
+  color: var(--hot);
+  font-size: 12px;
+  letter-spacing: 0.11em;
+}
+
+.hub-module p {
+  margin: 0;
+  color: rgba(255, 245, 225, 0.56);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+@keyframes hubMapSpin {
+  to { rotate: 360deg; }
+}
+
+@keyframes hubCorePulse {
+  0%, 100% { transform: scale(0.8); opacity: 0.72; }
+  45% { transform: scale(1.25); opacity: 1; }
+}
+
 .history-panel {
   top: 80px;
   right: 22px;
@@ -1575,6 +1869,10 @@ body[data-activity="speaking"] .prompt-shell {
   .hud-dock {
     top: max(12px, env(safe-area-inset-top));
     right: 12px;
+  }
+
+  .activity-hub {
+    display: none;
   }
 
   .history-panel {
