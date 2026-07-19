@@ -306,7 +306,10 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   const toggleHistory = () => {
     setHistoryOpen((current) => {
       const next = !current;
-      if (next) setSettingsOpen(false);
+      if (next) {
+        setSettingsOpen(false);
+        setHubOpen(false);
+      }
       return next;
     });
   };
@@ -314,7 +317,21 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   const toggleSettings = () => {
     setSettingsOpen((current) => {
       const next = !current;
-      if (next) setHistoryOpen(false);
+      if (next) {
+        setHistoryOpen(false);
+        setHubOpen(false);
+      }
+      return next;
+    });
+  };
+
+  const toggleHub = () => {
+    setHubOpen((current) => {
+      const next = !current;
+      if (next) {
+        setHistoryOpen(false);
+        setSettingsOpen(false);
+      }
       return next;
     });
   };
@@ -322,7 +339,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   return (
     <div className="hud-overlay" aria-label="J-Core AI interface">
       <nav className="hud-dock" aria-label="Điều khiển giao diện">
-        <button className={hubOpen ? "active" : ""} type="button" aria-label="Mo activity hub" onClick={() => setHubOpen((current) => !current)}><Icon name="hub" /></button>
+        <button className={hubOpen ? "active" : ""} type="button" aria-label="Mo activity hub" onClick={toggleHub}><Icon name="hub" /></button>
         <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở lịch sử chat" onClick={toggleHistory}><Icon name="chat" /></button>
         <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở cài đặt" onClick={toggleSettings}><Icon name="settings" /></button>
         <button type="button" aria-label="Reset góc nhìn" onClick={onResetView}><Icon name="reset" /></button>
