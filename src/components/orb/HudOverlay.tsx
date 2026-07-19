@@ -12,6 +12,26 @@ type Palette = EnergyPalette;
 type IconName = "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "mic" | "send";
 
 const STORAGE_KEY = "jarvis.commandOrb.v2";
+const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
+const REQUEST_INTENTS =
+  /\b(giup|hoi|tu van|phan tich|lam sao|nen|co nen|hay|cho t|cho tao|cho minh|debug|sua|mo|tim|nhac|ghi nho|ke hoach|y kien|danh gia)\b/;
+const BACKCHANNELS = new Set([
+  "uh",
+  "uh huh",
+  "um",
+  "uhm",
+  "hmm",
+  "hm",
+  "ok",
+  "okay",
+  "oke",
+  "u",
+  "um dung",
+  "thoi",
+  "khong sao",
+  "duoc roi",
+  "de xem"
+]);
 
 const paletteLabels: Record<Palette, string> = {
   gold: "Gold",
@@ -63,11 +83,39 @@ function createReply(input: string) {
   return "Đã nhận lệnh. T đang lưu lịch sử, nhận giọng nói, đọc phản hồi và điều khiển trạng thái lõi AI ngay trên thiết bị này.";
 }
 
+function normalizeIntentText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9?\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function shouldAnswerVoice(transcript: string) {
+  const raw = transcript.trim();
+  const normalized = normalizeIntentText(raw);
+  const words = normalized ? normalized.split(" ") : [];
+
+  if (!normalized) return false;
+  if (WAKE_WORDS.test(normalized)) return true;
+  if (REQUEST_INTENTS.test(normalized)) return true;
+  if (raw.includes("?") && words.length >= 4) return true;
+  if (BACKCHANNELS.has(normalized)) return false;
+  if (words.length <= 3) return false;
+  if (/^(troi oi|haiz|haz|met nhi|chan nhi|thoi ke|sao cung duoc|biet the nao|khong biet nua)\b/.test(normalized)) return false;
+  if (/\b(sao minh|sao toi|sao t|tai sao minh|tai sao toi)\b.*\b(the|vay|nhi|ha)\b/.test(normalized)) return false;
+
+  return words.length >= 9 && /\b(can|muon|phai|nen|lam|xem|kiem|tim|sua|hoc|viet)\b/.test(normalized);
+}
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as { messages?: Message[]; palette?: Palette; voiceReply?: boolean; handsFree?: boolean };
+    return JSON.parse(raw) as { messages?: Message[]; palette?: Palette; voiceReply?: boolean; handsFree?: boolean; advisorMode?: boolean };
   } catch {
     return null;
   }
@@ -87,7 +135,8 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   );
   const [palette, setPalette] = useState<Palette>(initial?.palette ?? "gold");
   const [voiceReply, setVoiceReply] = useState(initial?.voiceReply ?? true);
-  const [handsFree, setHandsFree] = useState(initial?.handsFree ?? true);
+  const [handsFree, setHandsFree] = useState(initial?.handsFree ?? false);
+  const [advisorMode, setAdvisorMode] = useState(initial?.advisorMode ?? true);
   const [voiceMode, setVoiceMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 760);
@@ -107,8 +156,8 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   useEffect(() => {
     document.body.dataset.palette = palette;
     onPaletteChange(palette);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, handsFree }));
-  }, [handsFree, messages, onPaletteChange, palette, voiceReply]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, handsFree, advisorMode }));
+  }, [advisorMode, handsFree, messages, onPaletteChange, palette, voiceReply]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
@@ -129,7 +178,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   const scheduleVoiceRestart = (delay = 520) => {
     if (!voiceModeRef.current || !handsFree) return;
     if (restartTimer.current) window.clearTimeout(restartTimer.current);
-    restartTimer.current = window.setTimeout(() => startRecognition(), delay);
+    restartTimer.current = window.setTimeout(() => startRecognition(), advisorMode ? Math.max(delay, 1700) : delay);
   };
 
   const speak = (text: string) => {
@@ -155,9 +204,16 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
     window.speechSynthesis.speak(utterance);
   };
 
-  const sendMessage = (value = input) => {
+  const sendMessage = (value = input, source: "text" | "voice" = "text") => {
     const trimmed = value.trim();
     if (!trimmed) return;
+    if (source === "voice" && advisorMode && !shouldAnswerVoice(trimmed)) {
+      setInput("");
+      setActivity("idle");
+      setToast("Đã nghe, chưa cần phản hồi.");
+      scheduleVoiceRestart(1500);
+      return;
+    }
     setMessages((current) => [...current, { id: createId(), role: "user" as const, text: trimmed, at: Date.now() }].slice(-80));
     setInput("");
     setHistoryOpen(true);
@@ -194,7 +250,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
       const transcript = event.results?.[0]?.[0]?.transcript || "";
       resultHandledRef.current = true;
       setInput(transcript);
-      if (transcript) sendMessage(transcript);
+      if (transcript) sendMessage(transcript, "voice");
     };
     recognitionRef.current = recognition;
     try { recognition.start(); } catch { recognitionActiveRef.current = false; }
@@ -282,6 +338,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
           </div>
           <section className="settings-block">
             <div className="settings-block-head"><span>Voice link</span><button className={voiceMode ? "danger" : "primary"} type="button" onClick={toggleVoiceMode}>{voiceMode ? "Tắt" : "Bật"}</button></div>
+            <label className="toggle-row"><span>Chế độ cố vấn</span><input checked={advisorMode} type="checkbox" onChange={(event) => setAdvisorMode(event.target.checked)} /></label>
             <label className="toggle-row"><span>Tự nghe tiếp</span><input checked={handsFree} type="checkbox" onChange={(event) => setHandsFree(event.target.checked)} /></label>
             <label className="toggle-row"><span>Đọc phản hồi</span><input checked={voiceReply} type="checkbox" onChange={(event) => setVoiceReply(event.target.checked)} /></label>
           </section>
