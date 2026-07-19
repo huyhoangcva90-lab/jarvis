@@ -7,6 +7,7 @@ export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
 export default function App() {
   const [activity, setActivity] = useState<AiActivity>("idle");
   const [hudVisible, setHudVisible] = useState(true);
+  const [resetViewSignal, setResetViewSignal] = useState(0);
 
   useEffect(() => {
     document.body.dataset.activity = activity;
@@ -20,6 +21,7 @@ export default function App() {
       if (event.key === "2") setActivity("listening");
       if (event.key === "3") setActivity("thinking");
       if (event.key === "4") setActivity("speaking");
+      if (event.key.toLowerCase() === "r") setResetViewSignal((signal) => signal + 1);
     };
     window.addEventListener("keydown", toggleHud);
     return () => window.removeEventListener("keydown", toggleHud);
@@ -28,10 +30,10 @@ export default function App() {
   return (
     <main className="jarvis-shell">
       <div className="orb-stage">
-        <CinematicOrb activity={activity} />
+        <CinematicOrb activity={activity} resetSignal={resetViewSignal} />
       </div>
       <div className={`hud-layer ${hudVisible ? "is-visible" : ""}`}>
-        <HudOverlay onActivityChange={setActivity} />
+        <HudOverlay onActivityChange={setActivity} onResetView={() => setResetViewSignal((signal) => signal + 1)} />
       </div>
     </main>
   );

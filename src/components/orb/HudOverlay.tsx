@@ -9,7 +9,7 @@ type Message = {
 };
 
 type Palette = "gold" | "blue" | "green" | "red";
-type IconName = "chat" | "settings" | "external" | "copy" | "trash" | "close" | "mic" | "send";
+type IconName = "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "mic" | "send";
 
 const STORAGE_KEY = "jarvis.commandOrb.v2";
 
@@ -31,6 +31,7 @@ function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, ReactNode> = {
     chat: <><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" /><path d="M8 9h8M8 13h5" /></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3V9.6h.09A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.16.37.37.72.6 1 .3.3.69.44 1.1.4h.1v4h-.1A1.7 1.7 0 0 0 19.4 15Z" /></>,
+    reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v6h6" /><path d="M12 8v4l3 2" /></>,
     external: <><path d="M14 3h7v7M10 14 21 3" /><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" /></>,
     copy: <><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>,
     trash: <><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6" /></>,
@@ -74,9 +75,10 @@ function loadState() {
 
 type HudOverlayProps = {
   onActivityChange: (activity: AiActivity) => void;
+  onResetView: () => void;
 };
 
-export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
+export default function HudOverlay({ onActivityChange, onResetView }: HudOverlayProps) {
   const initial = useMemo(() => (typeof window === "undefined" ? null : loadState()), []);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>(
@@ -129,9 +131,16 @@ export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
   };
 
   const speak = (text: string) => {
+    if (idleTimer.current) window.clearTimeout(idleTimer.current);
     setActivity("speaking");
+    const startedAt = Date.now();
+    const minimumSpeakingMs = Math.min(5600, Math.max(2400, text.length * 42));
+    const finishSpeaking = () => {
+      const remaining = Math.max(300, minimumSpeakingMs - (Date.now() - startedAt));
+      idleTimer.current = window.setTimeout(() => { setActivity("idle"); scheduleVoiceRestart(); }, remaining);
+    };
     if (!voiceReply || !("speechSynthesis" in window)) {
-      idleTimer.current = window.setTimeout(() => { setActivity("idle"); scheduleVoiceRestart(); }, 900);
+      finishSpeaking();
       return;
     }
     window.speechSynthesis.cancel();
@@ -139,8 +148,8 @@ export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
     utterance.lang = "vi-VN";
     utterance.rate = 1;
     utterance.pitch = 0.92;
-    utterance.onend = () => { idleTimer.current = window.setTimeout(() => { setActivity("idle"); scheduleVoiceRestart(); }, 350); };
-    utterance.onerror = () => { setActivity("idle"); scheduleVoiceRestart(); };
+    utterance.onend = finishSpeaking;
+    utterance.onerror = finishSpeaking;
     window.speechSynthesis.speak(utterance);
   };
 
@@ -238,6 +247,7 @@ export default function HudOverlay({ onActivityChange }: HudOverlayProps) {
       <nav className="hud-dock" aria-label="Điều khiển giao diện">
         <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở lịch sử chat" onClick={toggleHistory}><Icon name="chat" /></button>
         <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở cài đặt" onClick={toggleSettings}><Icon name="settings" /></button>
+        <button type="button" aria-label="Reset góc nhìn" onClick={onResetView}><Icon name="reset" /></button>
       </nav>
 
       {historyOpen && (

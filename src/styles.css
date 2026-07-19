@@ -116,6 +116,14 @@ button {
   background: #000;
 }
 
+.orb-webgl canvas.is-orbit-enabled {
+  cursor: grab;
+}
+
+.orb-webgl canvas.is-orbit-enabled:active {
+  cursor: grabbing;
+}
+
 .hud-layer {
   position: absolute;
   inset: 0;
@@ -1002,6 +1010,16 @@ button {
 .ai-state-readout.speaking .voice-wave i {
   animation-name: waveSpeak;
   animation-duration: 420ms;
+}
+
+.ai-state-readout.speaking {
+  color: #fff8d6;
+  text-shadow: 0 0 22px rgba(255, 209, 92, 0.72);
+}
+
+.ai-state-readout.speaking > span::after {
+  content: " / RESPONDING";
+  color: var(--hot);
 }
 
 @keyframes waveIdle {

@@ -1,11 +1,13 @@
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as THREE from "three";
 import type { AiActivity } from "../../App";
 
 type CinematicOrbProps = {
   activity: AiActivity;
+  resetSignal?: number;
 };
 
 type FilamentSpec = {
@@ -1105,25 +1107,123 @@ function FresnelVolume({ activity }: CinematicOrbProps) {
   );
 }
 
+function CameraOrbitController({ resetSignal = 0 }: Pick<CinematicOrbProps, "resetSignal">) {
+  const { camera, gl, size } = useThree();
+  const controls = useMemo(() => new OrbitControls(camera, gl.domElement), [camera, gl]);
+
+  useEffect(() => {
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.075;
+    controls.enablePan = false;
+    controls.enableZoom = true;
+    controls.rotateSpeed = 0.62;
+    controls.zoomSpeed = 0.48;
+    controls.minDistance = 5.25;
+    controls.maxDistance = size.width / size.height < 0.72 ? 15 : 8.6;
+    controls.target.set(0, 0, 0);
+    gl.domElement.classList.add("is-orbit-enabled");
+    return () => {
+      gl.domElement.classList.remove("is-orbit-enabled");
+      controls.dispose();
+    };
+  }, [controls, gl.domElement, size]);
+
+  useEffect(() => {
+    const narrow = size.width / size.height < 0.72;
+    const distance = narrow ? 12.9 : 7.15;
+    camera.position.set(0, 0, distance);
+    controls.target.set(0, 0, 0);
+    controls.update();
+  }, [camera, controls, resetSignal, size.height, size.width]);
+
+  useFrame(() => controls.update());
+  return null;
+}
+
+function ResponsePulseRings({ activity }: CinematicOrbProps) {
+  const group = useRef<THREE.Group>(null);
+  const meshes = useRef<THREE.Mesh[]>([]);
+  const rings = useMemo(
+    () => [
+      { rotation: [Math.PI * 0.5, 0, 0.1], radius: 0.34, speed: 0.72 },
+      { rotation: [0.55, 0.18, 1.12], radius: 0.43, speed: 0.62 },
+      { rotation: [1.18, -0.35, 0.42], radius: 0.52, speed: 0.58 },
+      { rotation: [0.2, 0.82, 1.62], radius: 0.62, speed: 0.48 },
+      { rotation: [1.34, 0.32, -0.74], radius: 0.73, speed: 0.42 },
+      { rotation: [0.72, -0.9, 0.08], radius: 0.86, speed: 0.36 }
+    ],
+    []
+  );
+
+  useFrame(({ clock }, delta) => {
+    const t = clock.elapsedTime;
+    const active = activity === "speaking";
+    const thinking = activity === "thinking";
+    const level = active ? 1 : thinking ? 0.46 : 0.18;
+
+    if (group.current) {
+      const voiceScale = active ? 1 + Math.sin(t * 9.6) * 0.07 : 1 + Math.sin(t * 2.1) * 0.012;
+      group.current.scale.setScalar(voiceScale);
+      group.current.rotation.y += delta * (active ? 0.38 : 0.1);
+      group.current.rotation.x = Math.sin(t * 0.32) * 0.06;
+    }
+
+    meshes.current.forEach((mesh, index) => {
+      const material = mesh.material as THREE.MeshBasicMaterial;
+      const progress = (t * rings[index].speed + index * 0.17) % 1;
+      const responseBurst = active ? Math.pow(1 - progress, 1.8) : 0;
+      const idleFlicker = Math.pow(0.5 + 0.5 * Math.sin(t * (1.5 + index * 0.21) + index), 4);
+      mesh.scale.setScalar(1 + (active ? progress * 1.45 : thinking ? idleFlicker * 0.12 : 0));
+      mesh.rotation.z += delta * (active ? 0.42 + index * 0.04 : 0.08);
+      material.color.copy(index % 2 === 0 ? WHITE_HOT : HOT_PLASMA);
+      material.opacity = (0.045 + level * 0.16 + responseBurst * 0.62) * (0.78 + idleFlicker * 0.22);
+    });
+  });
+
+  return (
+    <group ref={group}>
+      {rings.map((ring, index) => (
+        <mesh
+          key={`${ring.radius}-${index}`}
+          ref={(node) => {
+            if (node) meshes.current[index] = node;
+          }}
+          rotation={ring.rotation as [number, number, number]}
+        >
+          <torusGeometry args={[ring.radius, 0.004 + index * 0.0008, 4, 180]} />
+          <meshBasicMaterial
+            blending={THREE.AdditiveBlending}
+            color={HOT_PLASMA}
+            depthWrite={false}
+            opacity={0.08}
+            toneMapped={false}
+            transparent
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
 function SceneRig({ activity }: CinematicOrbProps) {
   const root = useRef<THREE.Group>(null);
-  const { camera, size } = useThree();
+  const { pointer, size } = useThree();
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
     const narrow = size.width / size.height < 0.72;
-    const distance = narrow ? 12.9 : 7.15;
     if (root.current) {
-      const breath = 1 + Math.sin(t * 0.88) * 0.009 * activityEnergy(activity);
+      const breath =
+        1 +
+        Math.sin(t * (activity === "speaking" ? 5.8 : 0.88)) *
+          (activity === "speaking" ? 0.026 : 0.009) *
+          activityEnergy(activity);
       root.current.scale.setScalar(breath);
+      const hoverLean = narrow ? 0 : 0.08;
+      root.current.rotation.x = THREE.MathUtils.lerp(root.current.rotation.x, -pointer.y * hoverLean, 0.045);
+      root.current.rotation.y = THREE.MathUtils.lerp(root.current.rotation.y, pointer.x * hoverLean, 0.045);
       root.current.rotation.z = Math.sin(t * 0.12) * 0.016;
     }
-    camera.position.set(
-      Math.sin(t * 0.11) * (narrow ? 0.035 : 0.09),
-      Math.cos(t * 0.09) * (narrow ? 0.03 : 0.07),
-      distance + Math.sin(t * 0.14) * 0.1
-    );
-    camera.lookAt(0, 0, 0);
   });
 
   return (
@@ -1138,6 +1238,7 @@ function SceneRig({ activity }: CinematicOrbProps) {
       <FluxPackets activity={activity} />
       <AxisBeams activity={activity} />
       <CoreSpokes activity={activity} />
+      <ResponsePulseRings activity={activity} />
       <CoreVortex activity={activity} />
     </group>
   );
@@ -1147,7 +1248,7 @@ function PostFX({ activity }: CinematicOrbProps) {
   return (
     <EffectComposer multisampling={0}>
       <Bloom
-        intensity={activity === "speaking" ? 2.28 : activity === "thinking" ? 2.02 : 1.84}
+        intensity={activity === "speaking" ? 2.55 : activity === "thinking" ? 2.08 : 1.84}
         luminanceSmoothing={0.64}
         luminanceThreshold={0.22}
         mipmapBlur
@@ -1156,7 +1257,7 @@ function PostFX({ activity }: CinematicOrbProps) {
   );
 }
 
-export default function CinematicOrb({ activity }: CinematicOrbProps) {
+export default function CinematicOrb({ activity, resetSignal = 0 }: CinematicOrbProps) {
   return (
     <div className="orb-webgl" aria-hidden="true">
       <Canvas
@@ -1175,6 +1276,7 @@ export default function CinematicOrb({ activity }: CinematicOrbProps) {
           gl.toneMappingExposure = 0.98;
         }}
       >
+        <CameraOrbitController resetSignal={resetSignal} />
         <SceneRig activity={activity} />
         <PostFX activity={activity} />
       </Canvas>
