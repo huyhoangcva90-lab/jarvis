@@ -1488,6 +1488,178 @@ function ModeConduits({ activity, palette = "gold" }: CinematicOrbProps) {
   );
 }
 
+function buildPaletteArchitectureGeometry(palette: EnergyPalette) {
+  const random = seededRandom((palette === "blue" ? 321 : palette === "green" ? 654 : palette === "violet" ? 987 : palette === "gold" ? 123 : 432) * 7919);
+  const positions: number[] = [];
+  const phases: number[] = [];
+  const intensities: number[] = [];
+
+  const pushLine = (a: THREE.Vector3, b: THREE.Vector3, phase = random() * Math.PI * 2, intensity = 0.42 + random() * 0.48) => {
+    positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    phases.push(phase, phase + 0.16);
+    intensities.push(intensity, intensity);
+  };
+
+  const pushBrokenRing = (radius: number, tilt: THREE.Euler, startOffset: number, breaks: number, zScale = 0.72) => {
+    const segments = 118;
+    let previous: THREE.Vector3 | null = null;
+    for (let index = 0; index <= segments; index += 1) {
+      const t = index / segments;
+      const angle = startOffset + t * Math.PI * 2;
+      const gap = Math.sin(angle * breaks + radius) > 0.72 || Math.sin(angle * (breaks + 2.0) - radius) < -0.86;
+      const point = new THREE.Vector3(
+        Math.cos(angle) * radius,
+        Math.sin(angle * 2.0 + radius) * 0.022,
+        Math.sin(angle) * radius * zScale
+      );
+      point.applyEuler(tilt);
+      if (!gap && previous) pushLine(previous, point, angle, 0.36 + radius * 0.18);
+      previous = gap ? null : point;
+    }
+  };
+
+  if (palette === "blue") {
+    const layers = [-0.46, -0.18, 0.16, 0.42];
+    layers.forEach((z, layer) => {
+      const w = 1.18 + layer * 0.26;
+      const h = 0.82 + layer * 0.18;
+      const corners = [
+        new THREE.Vector3(-w, -h, z),
+        new THREE.Vector3(w, -h, z),
+        new THREE.Vector3(w, h, z),
+        new THREE.Vector3(-w, h, z)
+      ];
+      corners.forEach((corner, index) => pushLine(corner, corners[(index + 1) % corners.length], layer + index * 0.4, 0.54));
+      for (let bus = 0; bus < 16; bus += 1) {
+        const y = -h + (bus / 15) * h * 2;
+        const left = new THREE.Vector3(-w, y, z + (random() - 0.5) * 0.04);
+        const right = new THREE.Vector3(w, y + (random() - 0.5) * 0.05, z);
+        if (bus % 3 !== 0) pushLine(left, right, bus * 0.27, 0.26 + layer * 0.1);
+      }
+    });
+    for (let spoke = 0; spoke < 18; spoke += 1) {
+      const angle = (spoke / 18) * Math.PI * 2;
+      const inner = new THREE.Vector3(Math.cos(angle) * 0.44, Math.sin(angle) * 0.32, -0.18);
+      const outer = new THREE.Vector3(Math.cos(angle) * 2.15, Math.sin(angle) * 1.48, 0.24);
+      if (spoke % 4 !== 0) pushLine(inner, outer, spoke * 0.36, 0.34);
+    }
+  } else if (palette === "green") {
+    for (let vine = 0; vine < 120; vine += 1) {
+      const theta = random() * Math.PI * 2;
+      const phi = Math.acos(2 * random() - 1);
+      const normal = new THREE.Vector3(Math.sin(phi) * Math.cos(theta), Math.cos(phi), Math.sin(phi) * Math.sin(theta)).normalize();
+      const tangent = new THREE.Vector3(normal.z, -normal.x, normal.y).normalize();
+      let current = normal.clone().multiplyScalar(0.55 + random() * 1.28);
+      const steps = 2 + Math.floor(random() * 4);
+      for (let step = 0; step < steps; step += 1) {
+        const curl = tangent.clone().multiplyScalar((0.08 + random() * 0.18) * (step % 2 === 0 ? 1 : -1));
+        const next = current.clone().add(curl).addScaledVector(normal, 0.06 + random() * 0.16);
+        if (random() > 0.2) pushLine(current, next, vine * 0.19 + step, 0.24 + random() * 0.52);
+        current = next;
+      }
+    }
+    for (let ring = 0; ring < 7; ring += 1) {
+      pushBrokenRing(0.55 + ring * 0.21, new THREE.Euler(0.22 + ring * 0.13, 0.75, ring * 0.44), ring * 0.5, 5 + ring, 0.54);
+    }
+  } else if (palette === "violet") {
+    for (let diamond = 0; diamond < 5; diamond += 1) {
+      const scale = 0.48 + diamond * 0.32;
+      const tilt = new THREE.Euler(0.86, diamond * 0.32, 0.62 + diamond * 0.22);
+      const vertices = [
+        new THREE.Vector3(0, scale, 0),
+        new THREE.Vector3(scale * 1.28, 0, scale * 0.28),
+        new THREE.Vector3(0, -scale, 0),
+        new THREE.Vector3(-scale * 1.28, 0, -scale * 0.28)
+      ].map((point) => point.applyEuler(tilt));
+      vertices.forEach((point, index) => pushLine(point, vertices[(index + 1) % vertices.length], diamond + index, 0.58));
+    }
+    for (let helix = 0; helix < 6; helix += 1) {
+      let previous: THREE.Vector3 | null = null;
+      const tilt = new THREE.Euler(0.38 + helix * 0.14, 0.9, helix * 0.52);
+      for (let step = 0; step < 96; step += 1) {
+        const t = step / 95;
+        const angle = t * Math.PI * 5 + helix * 0.75;
+        const radius = 0.28 + t * 1.7;
+        const point = new THREE.Vector3(Math.cos(angle) * radius, (t - 0.5) * 1.7, Math.sin(angle) * radius * 0.48).applyEuler(tilt);
+        if (previous && step % 8 !== 0) pushLine(previous, point, angle, 0.36 + t * 0.42);
+        previous = point;
+      }
+    }
+  } else {
+    for (let ring = 0; ring < 12; ring += 1) {
+      pushBrokenRing(0.42 + ring * 0.14, new THREE.Euler(0.26 + ring * 0.07, ring * 0.09, ring * 0.28), ring * 0.38, 7, 0.78);
+    }
+    const triads = [
+      [0, 2.09, 4.18],
+      [0.72, 2.82, 4.91],
+      [1.36, 3.45, 5.55]
+    ];
+    triads.forEach((triad, triIndex) => {
+      const radius = 0.58 + triIndex * 0.38;
+      const points = triad.map((angle) => new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle * 1.4) * 0.18, Math.sin(angle) * radius * 0.72));
+      points.forEach((point, index) => pushLine(point, points[(index + 1) % points.length], triIndex + index * 0.24, 0.62));
+    });
+    for (let ray = 0; ray < 28; ray += 1) {
+      const angle = (ray / 28) * Math.PI * 2;
+      const inner = 0.34 + random() * 0.24;
+      const outer = 1.26 + random() * 0.56;
+      if (ray % 5 !== 0) {
+        pushLine(
+          new THREE.Vector3(Math.cos(angle) * inner, Math.sin(angle * 2.0) * 0.08, Math.sin(angle) * inner * 0.7),
+          new THREE.Vector3(Math.cos(angle) * outer, Math.sin(angle * 2.0) * 0.18, Math.sin(angle) * outer * 0.7),
+          ray,
+          0.42
+        );
+      }
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("aPhase", new THREE.Float32BufferAttribute(phases, 1));
+  geometry.setAttribute("aIntensity", new THREE.Float32BufferAttribute(intensities, 1));
+  return geometry;
+}
+
+function PaletteArchitecture({ activity, palette = "gold" }: CinematicOrbProps) {
+  const group = useRef<THREE.Group>(null);
+  const material = useRef<THREE.ShaderMaterial>(null);
+  const geometry = useMemo(() => buildPaletteArchitectureGeometry(palette), [palette]);
+  const shader = useMemo(makeLineShader, []);
+
+  useFrame(({ clock }, delta) => {
+    const mode = modeFor(palette);
+    if (material.current) {
+      material.current.uniforms.uTime.value = clock.elapsedTime * (palette === "blue" ? 0.7 : palette === "green" ? 0.5 : palette === "violet" ? 1.18 : 0.86);
+      material.current.uniforms.uEnergy.value = activityEnergy(activity) * (palette === "red" ? 1 : mode.pulse);
+      material.current.uniforms.uOpacity.value =
+        (palette === "blue" ? 0.42 : palette === "green" ? 0.34 : palette === "violet" ? 0.5 : 0.38) *
+        (activity === "speaking" ? 1.22 : 1);
+      material.current.uniforms.uColor.value.copy(palette === "gold" ? HOT_PLASMA : PLASMA);
+    }
+    if (group.current) {
+      group.current.rotation.y += delta * (palette === "blue" ? 0.018 : palette === "green" ? -0.011 : palette === "violet" ? 0.052 : 0.026) * activitySpeed(activity);
+      group.current.rotation.z += delta * (palette === "violet" ? -0.032 : 0.009) * mode.speed;
+      group.current.scale.setScalar(1 + Math.sin(clock.elapsedTime * (palette === "green" ? 0.74 : 0.42)) * 0.012 * activityEnergy(activity));
+    }
+  });
+
+  return (
+    <group ref={group}>
+      <lineSegments geometry={geometry}>
+        <shaderMaterial
+          ref={material}
+          args={[shader]}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+    </group>
+  );
+}
+
 function TechScaffold({ activity, palette = "gold" }: CinematicOrbProps) {
   const group = useRef<THREE.Group>(null);
   const material = useRef<THREE.ShaderMaterial>(null);
@@ -1714,21 +1886,89 @@ function SceneRig({ activity, palette = "gold", resetSignal = 0 }: CinematicOrbP
 
   return (
     <group ref={root}>
-      <TechScaffold activity={activity} palette={palette} />
-      <FresnelVolume activity={activity} />
-      <OuterHaloFragments activity={activity} />
-      <CircuitShell activity={activity} />
-      <DataFragments activity={activity} />
-      <ModeSignature activity={activity} palette={palette} />
-      <PlanetaryOrbitField activity={activity} />
-      <ModeConduits activity={activity} palette={palette} />
-      <EnergyFilaments activity={activity} />
-      <AccretionBelt activity={activity} />
-      <FluxPackets activity={activity} />
-      <AxisBeams activity={activity} />
-      <CoreSpokes activity={activity} />
-      <ResponsePulseRings activity={activity} />
-      <CoreVortex activity={activity} />
+      {palette === "red" && (
+        <>
+          <TechScaffold activity={activity} palette={palette} />
+          <FresnelVolume activity={activity} />
+          <OuterHaloFragments activity={activity} />
+          <CircuitShell activity={activity} />
+          <DataFragments activity={activity} />
+          <ModeSignature activity={activity} palette={palette} />
+          <PlanetaryOrbitField activity={activity} />
+          <ModeConduits activity={activity} palette={palette} />
+          <EnergyFilaments activity={activity} />
+          <AccretionBelt activity={activity} />
+          <FluxPackets activity={activity} />
+          <AxisBeams activity={activity} />
+          <CoreSpokes activity={activity} />
+          <ResponsePulseRings activity={activity} />
+          <CoreVortex activity={activity} />
+        </>
+      )}
+
+      {palette === "gold" && (
+        <>
+          <FresnelVolume activity={activity} />
+          <OuterHaloFragments activity={activity} />
+          <group scale={[1.05, 0.92, 1.05]}>
+            <PaletteArchitecture activity={activity} palette={palette} />
+            <PlanetaryOrbitField activity={activity} />
+            <AccretionBelt activity={activity} />
+          </group>
+          <ModeConduits activity={activity} palette={palette} />
+          <AxisBeams activity={activity} />
+          <CoreSpokes activity={activity} />
+          <ResponsePulseRings activity={activity} />
+          <CoreVortex activity={activity} />
+        </>
+      )}
+
+      {palette === "blue" && (
+        <>
+          <group scale={[1.14, 0.78, 0.92]} rotation={[0.08, -0.18, 0.02]}>
+            <TechScaffold activity={activity} palette={palette} />
+            <PaletteArchitecture activity={activity} palette={palette} />
+            <CircuitShell activity={activity} />
+          </group>
+          <DataFragments activity={activity} />
+          <ModeSignature activity={activity} palette={palette} />
+          <ModeConduits activity={activity} palette={palette} />
+          <FluxPackets activity={activity} />
+          <CoreSpokes activity={activity} />
+          <CoreVortex activity={activity} />
+        </>
+      )}
+
+      {palette === "green" && (
+        <>
+          <FresnelVolume activity={activity} />
+          <group scale={[0.9, 1.16, 1.06]} rotation={[0.14, 0.22, -0.16]}>
+            <PaletteArchitecture activity={activity} palette={palette} />
+            <EnergyFilaments activity={activity} />
+            <ModeSignature activity={activity} palette={palette} />
+          </group>
+          <DataFragments activity={activity} />
+          <ModeConduits activity={activity} palette={palette} />
+          <FluxPackets activity={activity} />
+          <CoreSpokes activity={activity} />
+          <CoreVortex activity={activity} />
+        </>
+      )}
+
+      {palette === "violet" && (
+        <>
+          <group scale={[0.86, 1.22, 0.88]} rotation={[0.08, -0.14, 0.24]}>
+            <PaletteArchitecture activity={activity} palette={palette} />
+            <ModeSignature activity={activity} palette={palette} />
+            <ModeConduits activity={activity} palette={palette} />
+          </group>
+          <DataFragments activity={activity} />
+          <ResponsePulseRings activity={activity} />
+          <FluxPackets activity={activity} />
+          <CoreSpokes activity={activity} />
+          <CoreVortex activity={activity} />
+        </>
+      )}
     </group>
   );
 }
