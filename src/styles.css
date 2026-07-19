@@ -12,32 +12,30 @@
 }
 
 body[data-palette="blue"] {
-  --accent: #ff7a18;
-  --accent-rgb: 255, 122, 24;
-  --hot: #ff7a18;
+  --accent: #33d7ff;
+  --accent-rgb: 51, 215, 255;
+  --hot: #9beeff;
 }
 
 body[data-palette="green"] {
-  --accent: #ff7a18;
-  --accent-rgb: 255, 122, 24;
-  --hot: #ff7a18;
+  --accent: #6eff9a;
+  --accent-rgb: 110, 255, 154;
+  --hot: #c3ffd4;
 }
 
 body[data-palette="red"] {
-  --accent: #ff7a18;
-  --accent-rgb: 255, 122, 24;
-  --hot: #ff7a18;
+  --accent: #ff315f;
+  --accent-rgb: 255, 49, 95;
+  --hot: #ffb1c0;
 }
 
 body[data-activity="listening"],
 body[data-activity="thinking"] {
-  --accent: #ff7a18;
-  --accent-rgb: 255, 122, 24;
+  --panel-bg: rgba(0, 0, 0, 0.64);
 }
 
 body[data-activity="speaking"] {
-  --accent: #ff7a18;
-  --accent-rgb: 255, 122, 24;
+  --panel-bg: rgba(0, 0, 0, 0.68);
 }
 
 * {

@@ -27,9 +27,11 @@ type OrbitSpec = {
   packets: number;
 };
 
-const PLASMA = new THREE.Color("#ff7a18");
-const HOT_PLASMA = new THREE.Color("#ffb13d");
-const WHITE_HOT = new THREE.Color("#fff2af");
+const PLASMA = new THREE.Color("#ff8a18");
+const HOT_PLASMA = new THREE.Color("#ffd15c");
+const WHITE_HOT = new THREE.Color("#fff8d6");
+const DEEP_AMBER = new THREE.Color("#b8490b");
+const COPPER_GLOW = new THREE.Color("#d65f10");
 const FILAMENTS: FilamentSpec[] = [
   { radius: 0.72, seed: 1, span: 5.2, speed: 0.21, tilt: [0.2, 0.4, 0.1] },
   { radius: 0.86, seed: 2, span: 4.6, speed: -0.17, tilt: [1.1, 0.2, 0.6] },
@@ -330,34 +332,34 @@ function CoreVortex({ activity }: CinematicOrbProps) {
   return (
     <group ref={group}>
       <mesh>
-        <sphereGeometry args={[0.13, 32, 32]} />
+        <sphereGeometry args={[0.105, 32, 32]} />
         <meshBasicMaterial color={WHITE_HOT} toneMapped={false} />
       </mesh>
       <mesh scale={1 + activityEnergy(activity) * 0.075}>
-        <sphereGeometry args={[0.34, 32, 32]} />
+        <sphereGeometry args={[0.31, 32, 32]} />
         <meshBasicMaterial
           blending={THREE.AdditiveBlending}
           color={HOT_PLASMA}
           depthWrite={false}
-          opacity={0.26}
+          opacity={0.32}
           toneMapped={false}
           transparent
         />
       </mesh>
       <mesh scale={1.72}>
-        <sphereGeometry args={[0.46, 32, 32]} />
+        <sphereGeometry args={[0.42, 32, 32]} />
         <meshBasicMaterial
           blending={THREE.AdditiveBlending}
           color={PLASMA}
           depthWrite={false}
-          opacity={0.075}
+          opacity={0.092}
           toneMapped={false}
           transparent
         />
       </mesh>
       <mesh ref={knotA} rotation={[0.3, 0.2, 0.1]}>
         <torusKnotGeometry args={[0.34, 0.018, 180, 5, 2, 3]} />
-        <meshBasicMaterial blending={THREE.AdditiveBlending} color={PLASMA} depthWrite={false} toneMapped={false} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={HOT_PLASMA} depthWrite={false} toneMapped={false} />
       </mesh>
       <mesh ref={knotB} rotation={[1.1, 0.4, 0.8]} scale={1.18}>
         <torusKnotGeometry args={[0.34, 0.011, 180, 4, 3, 5]} />
@@ -365,7 +367,7 @@ function CoreVortex({ activity }: CinematicOrbProps) {
       </mesh>
       <mesh ref={knotC} rotation={[0.2, 1.2, 0.5]} scale={1.42}>
         <torusKnotGeometry args={[0.34, 0.008, 180, 4, 2, 5]} />
-        <meshBasicMaterial blending={THREE.AdditiveBlending} color={PLASMA} depthWrite={false} opacity={0.48} toneMapped={false} transparent />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={COPPER_GLOW} depthWrite={false} opacity={0.48} toneMapped={false} transparent />
       </mesh>
     </group>
   );
@@ -381,7 +383,8 @@ function AxisBeams({ activity }: CinematicOrbProps) {
     if (material.current) {
       material.current.uniforms.uTime.value = clock.elapsedTime * 1.28;
       material.current.uniforms.uEnergy.value = activityEnergy(activity) * (activity === "speaking" ? 1.34 : 0.96);
-      material.current.uniforms.uOpacity.value = activity === "listening" ? 0.18 : 0.31;
+      material.current.uniforms.uOpacity.value = activity === "listening" ? 0.26 : activity === "speaking" ? 0.48 : 0.38;
+      material.current.uniforms.uColor.value.copy(HOT_PLASMA);
     }
     if (group.current) {
       group.current.rotation.y += delta * 0.035 * activitySpeed(activity);
@@ -416,7 +419,8 @@ function CoreSpokes({ activity }: CinematicOrbProps) {
     if (material.current) {
       material.current.uniforms.uTime.value = clock.elapsedTime;
       material.current.uniforms.uEnergy.value = energy * (activity === "speaking" ? 1.22 : 1);
-      material.current.uniforms.uOpacity.value = 0.64;
+      material.current.uniforms.uOpacity.value = activity === "speaking" ? 0.82 : 0.7;
+      material.current.uniforms.uColor.value.copy(WHITE_HOT);
     }
     if (group.current) {
       group.current.rotation.y += delta * 0.055 * activitySpeed(activity);
@@ -450,7 +454,8 @@ function OuterHaloFragments({ activity }: CinematicOrbProps) {
     if (material.current) {
       material.current.uniforms.uTime.value = clock.elapsedTime * 0.82;
       material.current.uniforms.uEnergy.value = activityEnergy(activity);
-      material.current.uniforms.uOpacity.value = 0.56;
+      material.current.uniforms.uOpacity.value = 0.5;
+      material.current.uniforms.uColor.value.copy(COPPER_GLOW);
     }
     if (group.current) {
       group.current.rotation.y += delta * 0.024 * activitySpeed(activity);
@@ -493,6 +498,7 @@ function PlanetaryOrbit({ activity, index, spec }: CinematicOrbProps & { index: 
       material.current.uniforms.uTime.value = clock.elapsedTime + index * 0.71;
       material.current.uniforms.uEnergy.value = activityEnergy(activity);
       material.current.uniforms.uOpacity.value = spec.opacity;
+      material.current.uniforms.uColor.value.copy(index < 3 ? HOT_PLASMA : index > 6 ? COPPER_GLOW : PLASMA);
     }
   });
 
@@ -522,8 +528,9 @@ function MajorOrbitBand({ activity, index, spec }: CinematicOrbProps & { index: 
     mesh.current.rotation.y += delta * spec.speed * 0.72 * speed;
     mesh.current.rotation.z += delta * spec.speed * 0.18 * speed;
     const material = mesh.current.material as THREE.MeshBasicMaterial;
+    material.color.copy(index % 2 === 0 ? HOT_PLASMA : PLASMA);
     material.opacity =
-      (0.42 + spec.opacity * 0.68) *
+      (0.32 + spec.opacity * 0.58) *
       (0.82 + Math.sin(clock.elapsedTime * (0.95 + index * 0.14) + spec.seed) * 0.18) *
       activityEnergy(activity);
   });
@@ -533,9 +540,9 @@ function MajorOrbitBand({ activity, index, spec }: CinematicOrbProps & { index: 
       <mesh ref={mesh} geometry={geometry}>
         <meshBasicMaterial
           blending={THREE.AdditiveBlending}
-          color={PLASMA}
+          color={HOT_PLASMA}
           depthWrite={false}
-          opacity={0.86}
+          opacity={0.74}
           toneMapped={false}
           transparent
         />
@@ -675,7 +682,7 @@ function AccretionBelt({ activity }: CinematicOrbProps) {
       uniforms: {
         uTime: { value: 0 },
         uEnergy: { value: 1 },
-        uColor: { value: PLASMA }
+        uColor: { value: HOT_PLASMA }
       },
       vertexShader: `
         attribute float aPhase;
@@ -712,6 +719,7 @@ function AccretionBelt({ activity }: CinematicOrbProps) {
     if (material.current) {
       material.current.uniforms.uTime.value = clock.elapsedTime;
       material.current.uniforms.uEnergy.value = activityEnergy(activity);
+      material.current.uniforms.uColor.value.copy(HOT_PLASMA);
     }
     if (points.current) {
       points.current.rotation.x = 0.58 + Math.sin(clock.elapsedTime * 0.12) * 0.035;
@@ -789,7 +797,7 @@ function CircuitShell({ activity }: CinematicOrbProps) {
       uniforms: {
         uTime: { value: 0 },
         uEnergy: { value: 1 },
-        uColor: { value: PLASMA }
+        uColor: { value: DEEP_AMBER }
       },
       vertexShader: `
         attribute float aPhase;
@@ -814,7 +822,7 @@ function CircuitShell({ activity }: CinematicOrbProps) {
         varying float vIntensity;
         void main() {
           float flicker = 0.48 + 0.52 * pow(0.5 + 0.5 * sin(uTime * (1.2 + vIntensity * 2.8) + vPhase), 4.0);
-          float alpha = (0.008 + vIntensity * 0.09) * mix(0.08, 0.52, vFront) * mix(0.7, flicker, 0.5) * uEnergy;
+          float alpha = (0.008 + vIntensity * 0.085) * mix(0.08, 0.46, vFront) * mix(0.7, flicker, 0.5) * uEnergy;
           gl_FragColor = vec4(uColor, alpha);
         }
       `
@@ -826,6 +834,7 @@ function CircuitShell({ activity }: CinematicOrbProps) {
     if (material.current) {
       material.current.uniforms.uTime.value = clock.elapsedTime;
       material.current.uniforms.uEnergy.value = activityEnergy(activity);
+      material.current.uniforms.uColor.value.copy(DEEP_AMBER);
     }
     if (group.current) {
       group.current.rotation.y += delta * 0.018 * activitySpeed(activity);
@@ -889,7 +898,7 @@ function DataFragments({ activity }: CinematicOrbProps) {
       uniforms: {
         uTime: { value: 0 },
         uEnergy: { value: 1 },
-        uColor: { value: PLASMA }
+        uColor: { value: COPPER_GLOW }
       },
       vertexShader: `
         attribute float aPhase;
@@ -924,7 +933,7 @@ function DataFragments({ activity }: CinematicOrbProps) {
           float roundMask = smoothstep(0.5, 0.08, length(gl_PointCoord - 0.5));
           float squareMask = 1.0 - smoothstep(0.34, 0.5, max(centered.x, centered.y));
           float mask = mix(roundMask, squareMask, vKind);
-          gl_FragColor = vec4(uColor, mask * vAlpha * 0.5);
+          gl_FragColor = vec4(uColor, mask * vAlpha * 0.44);
         }
       `
     }),
@@ -935,6 +944,7 @@ function DataFragments({ activity }: CinematicOrbProps) {
     if (material.current) {
       material.current.uniforms.uTime.value = clock.elapsedTime;
       material.current.uniforms.uEnergy.value = activityEnergy(activity);
+      material.current.uniforms.uColor.value.copy(activity === "speaking" ? PLASMA : COPPER_GLOW);
     }
     if (points.current) {
       points.current.rotation.x += delta * 0.006;
@@ -969,6 +979,7 @@ function EnergyFilament({ activity, spec, index }: CinematicOrbProps & { spec: F
     mesh.current.rotation.z += delta * spec.speed * speed;
     mesh.current.rotation.y -= delta * spec.speed * 0.32 * speed;
     const material = mesh.current.material as THREE.MeshBasicMaterial;
+    material.color.copy(index % 3 === 0 ? HOT_PLASMA : index % 3 === 1 ? PLASMA : COPPER_GLOW);
     material.opacity = (0.28 + (index % 4) * 0.12) * (0.82 + Math.sin(clock.elapsedTime * 1.3 + index) * 0.18);
   });
 
@@ -976,7 +987,7 @@ function EnergyFilament({ activity, spec, index }: CinematicOrbProps & { spec: F
     <mesh ref={mesh} geometry={geometry}>
       <meshBasicMaterial
         blending={THREE.AdditiveBlending}
-        color={PLASMA}
+        color={HOT_PLASMA}
         depthWrite={false}
         toneMapped={false}
         transparent
@@ -1029,7 +1040,7 @@ function FluxPackets({ activity }: CinematicOrbProps) {
     <points ref={points} geometry={geometry}>
       <pointsMaterial
         blending={THREE.AdditiveBlending}
-        color={PLASMA}
+        color={WHITE_HOT}
         depthWrite={false}
         opacity={0.94}
         size={0.052}
@@ -1047,7 +1058,7 @@ function FresnelVolume({ activity }: CinematicOrbProps) {
     () => ({
       uniforms: {
         uEnergy: { value: 1 },
-        uColor: { value: PLASMA }
+        uColor: { value: DEEP_AMBER }
       },
       vertexShader: `
         varying vec3 vNormal;
@@ -1066,14 +1077,17 @@ function FresnelVolume({ activity }: CinematicOrbProps) {
         varying vec3 vView;
         void main() {
           float fresnel = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), 4.5);
-          gl_FragColor = vec4(uColor, fresnel * 0.0015 * uEnergy);
+          gl_FragColor = vec4(uColor, fresnel * 0.0022 * uEnergy);
         }
       `
     }),
     []
   );
   useFrame(() => {
-    if (material.current) material.current.uniforms.uEnergy.value = activityEnergy(activity);
+    if (material.current) {
+      material.current.uniforms.uEnergy.value = activityEnergy(activity);
+      material.current.uniforms.uColor.value.copy(DEEP_AMBER);
+    }
   });
   return (
     <mesh scale={[1.04, 1.04, 1.04]}>
@@ -1133,9 +1147,9 @@ function PostFX({ activity }: CinematicOrbProps) {
   return (
     <EffectComposer multisampling={0}>
       <Bloom
-        intensity={activity === "speaking" ? 2.18 : activity === "thinking" ? 1.96 : 1.78}
-        luminanceSmoothing={0.6}
-        luminanceThreshold={0.24}
+        intensity={activity === "speaking" ? 2.28 : activity === "thinking" ? 2.02 : 1.84}
+        luminanceSmoothing={0.64}
+        luminanceThreshold={0.22}
         mipmapBlur
       />
     </EffectComposer>
@@ -1155,10 +1169,10 @@ export default function CinematicOrb({ activity }: CinematicOrbProps) {
           stencil: false
         }}
         onCreated={({ gl }) => {
-          gl.setClearColor("#010100", 1);
+          gl.setClearColor("#020100", 1);
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 0.92;
+          gl.toneMappingExposure = 0.98;
         }}
       >
         <SceneRig activity={activity} />
