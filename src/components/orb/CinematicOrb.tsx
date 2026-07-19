@@ -84,6 +84,11 @@ function applyOrbPalette(palette: EnergyPalette) {
   COPPER_GLOW.set(colors.copper);
   BACKGROUND_CLEAR = colors.clear;
 }
+
+function isInteractiveTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(target.closest(".hud-dock, .history-panel, .settings-panel, .prompt-shell, button, input, textarea, select"));
+}
 const FILAMENTS: FilamentSpec[] = [
   { radius: 0.72, seed: 1, span: 5.2, speed: 0.21, tilt: [0.2, 0.4, 0.1] },
   { radius: 0.86, seed: 2, span: 4.6, speed: -0.17, tilt: [1.1, 0.2, 0.6] },
@@ -1157,6 +1162,116 @@ function FresnelVolume({ activity }: CinematicOrbProps) {
   );
 }
 
+function buildTechScaffoldGeometry() {
+  const random = seededRandom(442019);
+  const positions: number[] = [];
+  const phases: number[] = [];
+  const intensities: number[] = [];
+
+  const pushLine = (a: THREE.Vector3, b: THREE.Vector3, phase = random() * Math.PI * 2, intensity = 0.3 + random() * 0.7) => {
+    positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    phases.push(phase, phase + 0.13);
+    intensities.push(intensity, intensity);
+  };
+
+  const zLevels = [-0.42, 0.0, 0.36];
+  zLevels.forEach((z, layer) => {
+    const w = 2.58 + layer * 0.18;
+    const h = 1.82 + layer * 0.12;
+    const corner = 0.46 + layer * 0.06;
+    const depth = z + (layer - 1) * 0.08;
+    const points = [
+      [new THREE.Vector3(-w, h, depth), new THREE.Vector3(-w + corner, h, depth)],
+      [new THREE.Vector3(-w, h, depth), new THREE.Vector3(-w, h - corner, depth)],
+      [new THREE.Vector3(w, h, depth), new THREE.Vector3(w - corner, h, depth)],
+      [new THREE.Vector3(w, h, depth), new THREE.Vector3(w, h - corner, depth)],
+      [new THREE.Vector3(-w, -h, depth), new THREE.Vector3(-w + corner, -h, depth)],
+      [new THREE.Vector3(-w, -h, depth), new THREE.Vector3(-w, -h + corner, depth)],
+      [new THREE.Vector3(w, -h, depth), new THREE.Vector3(w - corner, -h, depth)],
+      [new THREE.Vector3(w, -h, depth), new THREE.Vector3(w, -h + corner, depth)]
+    ];
+    points.forEach(([a, b], index) => pushLine(a, b, layer + index * 0.31, 0.42 + layer * 0.13));
+
+    for (let index = 0; index < 28; index += 1) {
+      const side = index % 4;
+      const t = (index % 7) / 6;
+      const tick = 0.03 + random() * 0.055;
+      if (side === 0) pushLine(new THREE.Vector3(-w + t * w * 2, h, depth), new THREE.Vector3(-w + t * w * 2, h - tick, depth), index, 0.28);
+      if (side === 1) pushLine(new THREE.Vector3(w, h - t * h * 2, depth), new THREE.Vector3(w - tick, h - t * h * 2, depth), index, 0.28);
+      if (side === 2) pushLine(new THREE.Vector3(w - t * w * 2, -h, depth), new THREE.Vector3(w - t * w * 2, -h + tick, depth), index, 0.28);
+      if (side === 3) pushLine(new THREE.Vector3(-w, -h + t * h * 2, depth), new THREE.Vector3(-w + tick, -h + t * h * 2, depth), index, 0.28);
+    }
+  });
+
+  for (let trace = 0; trace < 120; trace += 1) {
+    const lane = trace % 8;
+    const side = lane % 2 === 0 ? -1 : 1;
+    const x = side * (2.0 + random() * 0.72);
+    const y = -1.45 + random() * 2.9;
+    const z = (random() - 0.5) * 0.84;
+    const stepA = new THREE.Vector3(x, y, z);
+    const stepB = new THREE.Vector3(x + side * (0.08 + random() * 0.22), y, z);
+    const stepC = new THREE.Vector3(stepB.x, y + (random() - 0.5) * 0.28, z + (random() - 0.5) * 0.08);
+    pushLine(stepA, stepB, trace * 0.19, 0.22 + random() * 0.32);
+    pushLine(stepB, stepC, trace * 0.23, 0.16 + random() * 0.26);
+  }
+
+  for (let spoke = 0; spoke < 26; spoke += 1) {
+    const angle = (spoke / 26) * Math.PI * 2;
+    const inner = 1.2 + random() * 0.36;
+    const outer = 2.05 + random() * 0.58;
+    const z = (random() - 0.5) * 0.32;
+    pushLine(
+      new THREE.Vector3(Math.cos(angle) * inner, Math.sin(angle) * inner * 0.78, z),
+      new THREE.Vector3(Math.cos(angle) * outer, Math.sin(angle) * outer * 0.78, z + (random() - 0.5) * 0.2),
+      spoke * 0.41,
+      spoke % 5 === 0 ? 0.78 : 0.28
+    );
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("aPhase", new THREE.Float32BufferAttribute(phases, 1));
+  geometry.setAttribute("aIntensity", new THREE.Float32BufferAttribute(intensities, 1));
+  return geometry;
+}
+
+function TechScaffold({ activity }: CinematicOrbProps) {
+  const group = useRef<THREE.Group>(null);
+  const material = useRef<THREE.ShaderMaterial>(null);
+  const geometry = useMemo(buildTechScaffoldGeometry, []);
+  const shader = useMemo(makeLineShader, []);
+
+  useFrame(({ clock }, delta) => {
+    const energy = activityEnergy(activity);
+    if (material.current) {
+      material.current.uniforms.uTime.value = clock.elapsedTime * 0.72;
+      material.current.uniforms.uEnergy.value = activity === "speaking" ? energy * 1.22 : energy * 0.9;
+      material.current.uniforms.uOpacity.value = activity === "listening" ? 0.16 : activity === "speaking" ? 0.28 : 0.2;
+      material.current.uniforms.uColor.value.copy(HOT_PLASMA);
+    }
+    if (group.current) {
+      group.current.rotation.y += delta * 0.012 * activitySpeed(activity);
+      group.current.rotation.z = Math.sin(clock.elapsedTime * 0.18) * 0.018;
+    }
+  });
+
+  return (
+    <group ref={group} rotation={[0.02, 0.08, 0]}>
+      <lineSegments geometry={geometry}>
+        <shaderMaterial
+          ref={material}
+          args={[shader]}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+    </group>
+  );
+}
+
 function CameraOrbitController({ resetSignal = 0 }: Pick<CinematicOrbProps, "resetSignal">) {
   const { camera, gl, size } = useThree();
   const controls = useMemo(() => new OrbitControls(camera, gl.domElement), [camera, gl]);
@@ -1166,7 +1281,8 @@ function CameraOrbitController({ resetSignal = 0 }: Pick<CinematicOrbProps, "res
     controls.dampingFactor = 0.075;
     controls.enablePan = false;
     controls.enableZoom = true;
-    controls.rotateSpeed = 0.62;
+    controls.enableRotate = false;
+    controls.rotateSpeed = 0;
     controls.zoomSpeed = 0.48;
     controls.minDistance = 5.25;
     controls.maxDistance = size.width / size.height < 0.72 ? 15 : 8.6;
@@ -1266,14 +1382,70 @@ function ResponsePulseRings({ activity }: CinematicOrbProps) {
   );
 }
 
-function SceneRig({ activity }: CinematicOrbProps) {
+function SceneRig({ activity, resetSignal = 0 }: CinematicOrbProps) {
   const root = useRef<THREE.Group>(null);
   const { pointer, size } = useThree();
+  const drag = useRef({
+    active: false,
+    x: 0,
+    y: 0,
+    targetX: 0,
+    targetY: 0,
+    lastX: 0,
+    lastY: 0
+  });
+
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.button !== 0 || isInteractiveTarget(event.target)) return;
+      drag.current.active = true;
+      drag.current.lastX = event.clientX;
+      drag.current.lastY = event.clientY;
+      document.body.classList.add("is-reactor-dragging");
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!drag.current.active) return;
+      const dx = event.clientX - drag.current.lastX;
+      const dy = event.clientY - drag.current.lastY;
+      drag.current.lastX = event.clientX;
+      drag.current.lastY = event.clientY;
+      drag.current.targetY += dx * 0.0065;
+      drag.current.targetX += dy * 0.0048;
+      drag.current.targetX = THREE.MathUtils.clamp(drag.current.targetX, -0.9, 0.9);
+    };
+
+    const stopDragging = () => {
+      drag.current.active = false;
+      document.body.classList.remove("is-reactor-dragging");
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopDragging);
+    window.addEventListener("pointercancel", stopDragging);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopDragging);
+      window.removeEventListener("pointercancel", stopDragging);
+      document.body.classList.remove("is-reactor-dragging");
+    };
+  }, []);
+
+  useEffect(() => {
+    drag.current.x = 0;
+    drag.current.y = 0;
+    drag.current.targetX = 0;
+    drag.current.targetY = 0;
+  }, [resetSignal]);
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime;
     const narrow = size.width / size.height < 0.72;
     if (root.current) {
+      drag.current.x = THREE.MathUtils.lerp(drag.current.x, drag.current.targetX, 0.09);
+      drag.current.y = THREE.MathUtils.lerp(drag.current.y, drag.current.targetY, 0.09);
       const breath =
         1 +
         Math.sin(t * (activity === "speaking" ? 5.8 : 0.88)) *
@@ -1281,14 +1453,15 @@ function SceneRig({ activity }: CinematicOrbProps) {
           activityEnergy(activity);
       root.current.scale.setScalar(breath);
       const hoverLean = narrow ? 0 : 0.08;
-      root.current.rotation.x = THREE.MathUtils.lerp(root.current.rotation.x, -pointer.y * hoverLean, 0.045);
-      root.current.rotation.y = THREE.MathUtils.lerp(root.current.rotation.y, pointer.x * hoverLean, 0.045);
+      root.current.rotation.x = THREE.MathUtils.lerp(root.current.rotation.x, drag.current.x - pointer.y * hoverLean, 0.045);
+      root.current.rotation.y = THREE.MathUtils.lerp(root.current.rotation.y, drag.current.y + pointer.x * hoverLean, 0.045);
       root.current.rotation.z = Math.sin(t * 0.12) * 0.016;
     }
   });
 
   return (
     <group ref={root}>
+      <TechScaffold activity={activity} />
       <FresnelVolume activity={activity} />
       <OuterHaloFragments activity={activity} />
       <CircuitShell activity={activity} />
@@ -1341,7 +1514,7 @@ export default function CinematicOrb({ activity, palette = "gold", resetSignal =
       >
         <CanvasPaletteBackground palette={palette} />
         <CameraOrbitController resetSignal={resetSignal} />
-        <SceneRig activity={activity} key={palette} palette={palette} />
+        <SceneRig activity={activity} key={palette} palette={palette} resetSignal={resetSignal} />
         <PostFX activity={activity} />
       </Canvas>
     </div>
