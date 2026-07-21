@@ -38,7 +38,8 @@ const paletteLabels: Record<Palette, string> = {
   blue: "Stark Tech",
   green: "Alien Grid",
   red: "Transfer",
-  violet: "Neon Violet"
+  violet: "Neon Violet",
+  orange: "Cosmic Soul"
 };
 
 const activityLabels: Record<AiActivity, string> = {

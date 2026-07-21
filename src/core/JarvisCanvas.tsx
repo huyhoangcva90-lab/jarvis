@@ -11,6 +11,9 @@ import JarvisNeutralCore from "./JarvisNeutralCore";
 import { MindScene } from "../realms/mind/MindScene";
 import { TimeScene } from "../realms/time/TimeScene";
 import { SpaceScene } from "../realms/space/SpaceScene";
+import { RealityScene } from "../realms/reality/RealityScene";
+import { PowerScene } from "../realms/power/PowerScene";
+import { SoulScene } from "../realms/soul/SoulScene";
 
 type JarvisCanvasProps = {
   activity: AiActivity;
@@ -22,6 +25,9 @@ const CLEAR_COLORS: Record<string, string> = {
   gold: "#020100",
   green: "#000704",
   blue: "#00040a",
+  red: "#080002",
+  violet: "#040008",
+  orange: "#080300",
   neutral: "#020617",
 };
 
@@ -229,7 +235,15 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: Jar
               if (activePalette === "blue") {
                 return <SpaceScene activity={activity} />;
               }
-              // For red, violet, and neutral, fallback to Neutral Core in the prototype phase
+              if (activePalette === "red") {
+                return <RealityScene activity={activity} />;
+              }
+              if (activePalette === "violet") {
+                return <PowerScene activity={activity} />;
+              }
+              if (activePalette === "orange") {
+                return <SoulScene activity={activity} />;
+              }
               return <JarvisNeutralCore />;
             }}
           </RealmTransition>
