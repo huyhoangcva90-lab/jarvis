@@ -1,4 +1,4 @@
-import { FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { AiActivity, EnergyPalette } from "../../App";
 
 type Message = {
@@ -36,11 +36,21 @@ const BACKCHANNELS = new Set([
 const paletteLabels: Record<Palette, string> = {
   neutral: "Neutral",
   gold: "Gold Core",
-  blue: "Stark Tech",
-  green: "Alien Grid",
+  blue: "Blue Gate",
+  green: "Time Matrix",
   red: "Transfer",
   violet: "Neon Violet",
-  orange: "Cosmic Soul"
+  orange: "Agent Brain"
+};
+
+const paletteSwatches: Record<Palette, string> = {
+  neutral: "#fff7ea",
+  gold: "#ffb83d",
+  blue: "#33d7ff",
+  green: "#6eff9a",
+  red: "#ff315f",
+  violet: "#b35cff",
+  orange: "#ff9f2f"
 };
 
 const activityLabels: Record<AiActivity, string> = {
@@ -408,7 +418,18 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
           <section className="settings-block">
             <div className="settings-block-head"><span>Màu năng lượng</span></div>
             <div className="palette-grid">
-              {(Object.keys(paletteLabels) as Palette[]).map((key) => <button className={palette === key ? "active" : ""} key={key} type="button" onClick={() => setPalette(key)}><i />{paletteLabels[key]}</button>)}
+              {(Object.keys(paletteLabels) as Palette[]).map((key) => (
+                <button
+                  className={palette === key ? "active" : ""}
+                  key={key}
+                  style={{ "--swatch": paletteSwatches[key] } as CSSProperties}
+                  type="button"
+                  onClick={() => setPalette(key)}
+                >
+                  <i />
+                  {paletteLabels[key]}
+                </button>
+              ))}
             </div>
           </section>
           <section className="settings-actions">
