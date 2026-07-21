@@ -49,7 +49,7 @@ const PROVIDERS = [
   { name: "Local Ollama Llama3", latency: "—", status: "offline", color: "text-redCore border-redCore/20 bg-redCore/10" }
 ];
 
-export default function NineRouterDashboard() {
+export default function NineRouterDashboard({ data, updateData, addLog } = {}) {
   const [selectedCombo, setSelectedCombo] = useState("balanced");
   const [calcText, setCalcText] = useState("");
 

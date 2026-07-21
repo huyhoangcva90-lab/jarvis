@@ -79,7 +79,7 @@ function RouteCapsules({ activity }: { activity: SpaceSceneProps['activity'] }) 
 export const SpaceScene: React.FC<SpaceSceneProps> = ({ activity = 'idle' }) => {
   const gridRef = useRef<THREE.Mesh>(null!);
   const portalsRef = useRef<THREE.Group>(null!);
-  const riftRef = useRef<THREE.Line>(null!);
+  const riftRef = useRef<THREE.LineSegments>(null!);
 
   const gridGeometry = useMemo(() => new THREE.PlaneGeometry(20, 20, 32, 32), []);
   const initialPositions = useMemo(() => {
@@ -161,9 +161,9 @@ export const SpaceScene: React.FC<SpaceSceneProps> = ({ activity = 'idle' }) => 
       </group>
 
       {/* Spatial Rift */}
-      <line ref={riftRef} geometry={riftGeometry}>
+      <lineSegments ref={riftRef} geometry={riftGeometry}>
         <lineBasicMaterial color="#ffffff" transparent opacity={0.8} />
-      </line>
+      </lineSegments>
 
       {/* Hypercube System */}
       <HypercubeSystem activity={activity} />

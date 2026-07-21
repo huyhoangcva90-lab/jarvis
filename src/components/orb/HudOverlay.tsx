@@ -34,6 +34,7 @@ const BACKCHANNELS = new Set([
 ]);
 
 const paletteLabels: Record<Palette, string> = {
+  neutral: "Neutral",
   gold: "Gold Core",
   blue: "Stark Tech",
   green: "Alien Grid",

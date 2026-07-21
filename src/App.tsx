@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import CinematicOrb from "./components/orb/CinematicOrb";
 import BootScreen from "./components/BootScreen.jsx";
 import CommandCenter from "./components/CommandCenter.jsx";
@@ -20,6 +20,9 @@ import TerminalTab from "./components/TerminalTab.jsx";
 
 export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
 export type EnergyPalette = "gold" | "blue" | "green" | "red" | "violet" | "orange" | "neutral";
+
+const NineRouterDashboardView = NineRouterDashboard as ComponentType<any>;
+const OpenclawDashboardView = OpenclawDashboard as ComponentType<any>;
 
 export default function App() {
   const [booting, setBooting] = useState(true);
@@ -89,22 +92,23 @@ export default function App() {
     }).format(now);
   }, [now]);
 
-  const intensityClass = {
+  const intensityClassMap: Record<string, string> = {
     Low: "theme-low",
     Medium: "theme-medium",
     High: "theme-high",
-  }[data.themeIntensity] || "theme-medium";
+  };
+  const intensityClass = intensityClassMap[data.themeIntensity] || "theme-medium";
 
   const addLog = (message: string) => {
     const stamp = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date());
-    setData((current) => ({
+    setData((current: any) => ({
       ...current,
       logs: [...(current.logs || []), `[${stamp}] ${message}`].slice(-16),
     }));
   };
 
   const updateData = (patch: any) => {
-    setData((current) => ({ ...current, ...patch }));
+    setData((current: any) => ({ ...current, ...patch }));
   };
 
   const copyText = async (text: string, message: string) => {
@@ -177,15 +181,15 @@ export default function App() {
           <TopBar data={data} currentTime={currentTime} />
 
           {/* Deck tab switcher */}
-          <div className="flex gap-2 border-b border-cyan-300/20 bg-slate-900/50 p-2">
+          <div className="flex gap-2 overflow-x-auto border-b border-cyan-300/20 bg-slate-900/50 p-2">
             <button
-              className={`deck-tab px-4 py-2 font-mono text-sm uppercase ${activeDeck === "command" ? "bg-cyan-300/20 text-cyan-100" : "text-cyan-100/60 hover:bg-cyan-300/10"}`}
+              className={`deck-tab shrink-0 px-3 py-2 font-mono text-xs uppercase sm:px-4 sm:text-sm ${activeDeck === "command" ? "bg-cyan-300/20 text-cyan-100" : "text-cyan-100/60 hover:bg-cyan-300/10"}`}
               onClick={() => switchDeck("command")}
             >
               COMMAND CHAMBER
             </button>
             <button
-              className={`deck-tab px-4 py-2 font-mono text-sm uppercase ${activeDeck === "mission-control" ? "bg-cyan-300/20 text-cyan-100" : "text-cyan-100/60 hover:bg-cyan-300/10"}`}
+              className={`deck-tab shrink-0 px-3 py-2 font-mono text-xs uppercase sm:px-4 sm:text-sm ${activeDeck === "mission-control" ? "bg-cyan-300/20 text-cyan-100" : "text-cyan-100/60 hover:bg-cyan-300/10"}`}
               onClick={() => switchDeck("mission-control")}
             >
               MISSION CONTROL
@@ -246,13 +250,13 @@ export default function App() {
                       {energyPalette === "blue" && (
                         <div className="space-y-4">
                           <p className="font-mono text-sm text-cyan-100/60">SPACE REALM - 9ROUTER MULTI-MODEL GATEWAY</p>
-                          <NineRouterDashboard data={data} updateData={updateData} addLog={addLog} />
+                          <NineRouterDashboardView data={data} updateData={updateData} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "green" && (
                         <div className="space-y-4">
                           <p className="font-mono text-sm text-cyan-100/60">TIME REALM - PERSONAL SCHEDULE & OS ENGINE</p>
-                          <TerminalTab data={data} addLog={addLog} updateData={updateData} />
+                          <TerminalTab data={data} addLog={addLog} updateData={updateData} copyText={copyText} />
                         </div>
                       )}
                       {energyPalette === "red" && (
@@ -278,13 +282,13 @@ export default function App() {
                       {energyPalette === "violet" && (
                         <div className="space-y-4">
                           <p className="font-mono text-sm text-cyan-100/60">POWER REALM - OPENCLAW TACTICAL WORKFORCE</p>
-                          <OpenclawDashboard data={data} updateData={updateData} addLog={addLog} />
+                          <OpenclawDashboardView data={data} updateData={updateData} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "orange" && (
                         <div className="space-y-4">
                           <p className="font-mono text-sm text-cyan-100/60">SOUL REALM - PERSONAL IDENTITY & INTEGRITY</p>
-                          <CoreTab data={data} updateData={updateData} />
+                          <CoreTab data={data} currentTime={currentTime} updateData={updateData} />
                         </div>
                       )}
                     </div>

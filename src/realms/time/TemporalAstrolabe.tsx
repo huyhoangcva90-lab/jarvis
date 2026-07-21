@@ -68,9 +68,7 @@ export function TemporalAstrolabe({ activity }: TemporalAstrolabeProps) {
           <bufferGeometry>
             <bufferAttribute
               attach="attributes-position"
-              count={2}
-              array={new Float32Array([x1, 0, z1, x2, 0, z2])}
-              itemSize={3}
+              args={[new Float32Array([x1, 0, z1, x2, 0, z2]), 3]}
             />
           </bufferGeometry>
           <lineBasicMaterial color={isHour ? colors.glowGreen : colors.emerald} linewidth={isHour ? 2 : 1} />

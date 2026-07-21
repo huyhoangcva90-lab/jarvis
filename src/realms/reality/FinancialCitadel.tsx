@@ -124,9 +124,9 @@ export const FinancialCitadel: React.FC<FinancialCitadelProps> = ({ activity }) 
       {/* Resource Bridges */}
       <group ref={linesRef}>
           {lines.map((geom, i) => (
-              <line key={i} geometry={geom}>
+              <lineSegments key={i} geometry={geom}>
                   <lineBasicMaterial color="#ef4444" transparent opacity={0.6} />
-              </line>
+              </lineSegments>
           ))}
       </group>
     </group>

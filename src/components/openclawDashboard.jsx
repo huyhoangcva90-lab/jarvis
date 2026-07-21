@@ -17,7 +17,7 @@ const INITIAL_LOGS = [
   "[14:22:18] EDITH validated all changes. Policy check PASSED."
 ];
 
-export default function OpenclawDashboard() {
+export default function OpenclawDashboard({ data, updateData, addLog } = {}) {
   const [agents, setAgents] = useState(INITIAL_AGENTS);
   const [logs, setLogs] = useState(INITIAL_LOGS);
   const [isSimulating, setIsSimulating] = useState(false);

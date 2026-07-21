@@ -5,7 +5,7 @@ import { useStoneState } from "../utils/stoneState.js";
 import { soundManager } from "../utils/soundManager.js";
 import { loadMissions } from "../utils/missionEngine.js";
 
-export default function TerminalTab({ data, updateData, copyText, addLog, onLock }) {
+export default function TerminalTab({ data, updateData, copyText, addLog, onLock = null }) {
   const [input, setInput] = useState("");
   const [terminalLog, setTerminalLog] = useState([
     "J-Core local terminal ready.",
