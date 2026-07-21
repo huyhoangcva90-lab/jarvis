@@ -66,7 +66,7 @@ export default function NineRouterDashboard() {
   return (
     <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
       {/* Cột trái: Bộ chuyển Router Combo */}
-      <Panel title="9Router combo matrix" kicker="Space Stone Gateway">
+      <Panel title="9Router combo matrix" kicker="Space Realm Gateway">
         <p className="mb-4 font-mono text-xs uppercase text-cyan-100/60">
           Chọn cấu hình định tuyến thông minh của bạn. 9Router sẽ tự động chia luồng yêu cầu đến model tối ưu nhất.
         </p>

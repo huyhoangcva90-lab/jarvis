@@ -19,7 +19,7 @@ export default function JarvisCore() {
         </div>
         
         {/* Core text */}
-        <div className="z-10 flex flex-col items-center">
+        <div className="core-text z-10 flex flex-col items-center">
           <div className="text-3xl md:text-5xl font-bold text-cyanCore font-mono tracking-widest drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">
             JARVIS
           </div>
@@ -29,7 +29,7 @@ export default function JarvisCore() {
         </div>
       </div>
       
-      <div className="mt-4 text-xs font-mono text-cyanCore/80 tracking-widest animate-pulse">
+      <div className="core-status mt-4 text-xs font-mono text-cyanCore/80 tracking-widest animate-pulse">
         [ ORCHESTRATOR ONLINE ]
       </div>
     </div>

@@ -84,7 +84,7 @@ export default function AuthScreen({ data, onUnlock }) {
           <h1 className="text-2xl font-mono text-white font-bold tracking-widest">JARVIS</h1>
         </div>
         <div className="text-[10px] text-cyanCore/70 font-mono tracking-[0.3em] uppercase mb-8">
-          Infinity Core
+          Six Realms Core
         </div>
 
         {/* Subtitle */}

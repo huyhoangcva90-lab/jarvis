@@ -2196,7 +2196,7 @@ body[data-activity="speaking"] .prompt-shell {
   }
 }
 
-/* ??? Infinity Stone System ??????????????????????????????? */
+/* Realm Gate system */
 
 .stone-node {
   --stone-color: #22d3ee;
@@ -2303,7 +2303,7 @@ body[data-activity="speaking"] .prompt-shell {
   box-shadow: 0 0 10px rgba(251, 113, 133, 0.7);
 }
 
-/* Stone color variants */
+/* Realm color variants */
 .stone-power { --stone-color: #a855f7; --stone-glow: rgba(168, 85, 247, 0.5); }
 .stone-space { --stone-color: #3b82f6; --stone-glow: rgba(59, 130, 246, 0.5); }
 .stone-mind { --stone-color: #eab308; --stone-glow: rgba(234, 179, 8, 0.5); }
@@ -2356,6 +2356,18 @@ body[data-activity="speaking"] .prompt-shell {
   .command-center {
     grid-template-columns: 1fr 400px;
     padding: 1.5rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .core-text,
+  .core-status {
+    display: none;
+  }
+
+  .orbit-container {
+    max-width: min(86vw, 340px);
+    margin-top: 0.75rem;
   }
 }
 

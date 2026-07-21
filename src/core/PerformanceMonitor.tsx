@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 
 export default function PerformanceMonitor() {
-  const { gl, performance } = useThree();
+  const { gl } = useThree();
   const fpsRef = useRef<number[]>([]);
-  const lastTimeRef = useRef<number>(performance.now());
+  const lastTimeRef = useRef<number>(window.performance.now());
+  const lastStateUpdateRef = useRef<number>(0);
   const [fps, setFps] = useState(60);
 
   useFrame(() => {
-    const now = performance.now();
+    const now = window.performance.now();
     const delta = now - lastTimeRef.current;
     lastTimeRef.current = now;
 
@@ -23,7 +24,8 @@ export default function PerformanceMonitor() {
     // Average FPS
     const avgFps = fpsRef.current.reduce((a, b) => a + b, 0) / fpsRef.current.length;
     
-    if (Math.abs(avgFps - fps) > 5) {
+    if (now - lastStateUpdateRef.current > 900 && Math.abs(avgFps - fps) > 5) {
+      lastStateUpdateRef.current = now;
       setFps(Math.round(avgFps));
     }
   });

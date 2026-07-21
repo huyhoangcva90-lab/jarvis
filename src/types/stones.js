@@ -1,11 +1,11 @@
 /**
- * Jarvis Infinity System — Stone Definitions
+ * Jarvis Six Realms — Gate Definitions
  *
- * Mỗi Infinity Stone đại diện cho một domain trong hệ thống Jarvis.
- * Trạng thái Stone được chia sẻ qua React Context (xem stoneState.js).
+ * Moi Realm Gate dai dien cho mot domain trong he thong Jarvis.
+ * Ten bien cu van duoc giu tam thoi de tranh refactor lan rong.
  */
 
-// ─── Stone IDs ───────────────────────────────────────────────
+// ─── Realm IDs ───────────────────────────────────────────────
 export const STONE_IDS = {
   POWER: "power",
   SPACE: "space",
@@ -15,7 +15,7 @@ export const STONE_IDS = {
   SOUL: "soul",
 };
 
-// ─── Stone States ────────────────────────────────────────────
+// ─── Realm States ────────────────────────────────────────────
 export const STONE_STATES = {
   DORMANT: "dormant",
   READING: "reading",
@@ -27,99 +27,99 @@ export const STONE_STATES = {
   APPROVAL: "approval",
 };
 
-// ─── Stone Color Tokens (CSS custom property names map to Tailwind) ──
+// ─── Realm Color Tokens (CSS custom property names map to Tailwind) ──
 export const STONE_COLORS = {
   [STONE_IDS.POWER]: {
     primary: "#a855f7",   // Purple-500
     glow: "rgba(168,85,247,0.55)",
     bg: "rgba(168,85,247,0.12)",
     border: "rgba(168,85,247,0.35)",
-    label: "Power Stone",
+    label: "Power Realm",
   },
   [STONE_IDS.SPACE]: {
     primary: "#3b82f6",   // Blue-500
     glow: "rgba(59,130,246,0.55)",
     bg: "rgba(59,130,246,0.12)",
     border: "rgba(59,130,246,0.35)",
-    label: "Space Stone",
+    label: "Space Realm",
   },
   [STONE_IDS.MIND]: {
     primary: "#eab308",   // Yellow-500
     glow: "rgba(234,179,8,0.55)",
     bg: "rgba(234,179,8,0.12)",
     border: "rgba(234,179,8,0.35)",
-    label: "Mind Stone",
+    label: "Mind Realm",
   },
   [STONE_IDS.TIME]: {
     primary: "#22c55e",   // Green-500
     glow: "rgba(34,197,94,0.55)",
     bg: "rgba(34,197,94,0.12)",
     border: "rgba(34,197,94,0.35)",
-    label: "Time Stone",
+    label: "Time Realm",
   },
   [STONE_IDS.REALITY]: {
     primary: "#ef4444",   // Red-500
     glow: "rgba(239,68,68,0.55)",
     bg: "rgba(239,68,68,0.12)",
     border: "rgba(239,68,68,0.35)",
-    label: "Reality Stone",
+    label: "Reality Realm",
   },
   [STONE_IDS.SOUL]: {
     primary: "#f97316",   // Orange-500
     glow: "rgba(249,115,22,0.55)",
     bg: "rgba(249,115,22,0.12)",
     border: "rgba(249,115,22,0.35)",
-    label: "Soul Stone",
+    label: "Soul Realm",
   },
 };
 
-// ─── Stone Metadata (Domain, Description, Position in orbit) ──
+// ─── Realm Metadata (Domain, Description, Position in orbit) ──
 export const STONE_META = {
   [STONE_IDS.MIND]: {
-    label: "Mind Stone",
+    label: "Mind Realm",
     domain: "Knowledge & Dev",
     subtitle: "Knowledge Core · Claude Code",
-    icon: "🧠",
+    icon: "MN",
     orbitAngle: 270,       // Top center
     systemType: "external",
   },
   [STONE_IDS.SPACE]: {
-    label: "Space Stone",
+    label: "Space Realm",
     domain: "Model Infrastructure",
     subtitle: "9Router · Multi-Model Gateway",
-    icon: "🌌",
+    icon: "SP",
     orbitAngle: 330,       // Top-left
     systemType: "external",
   },
   [STONE_IDS.TIME]: {
-    label: "Time Stone",
+    label: "Time Realm",
     domain: "Personal OS",
     subtitle: "Schedule · Habits · Calendar",
-    icon: "⏳",
+    icon: "TM",
     orbitAngle: 210,       // Top-right
     systemType: "native",
   },
   [STONE_IDS.POWER]: {
-    label: "Power Stone",
+    label: "Power Realm",
     domain: "AI Company",
     subtitle: "OpenClaw · AI Workforce",
-    icon: "⚡",
+    icon: "PW",
     orbitAngle: 30,        // Bottom-left
     systemType: "external",
   },
   [STONE_IDS.REALITY]: {
-    label: "Reality Stone",
+    label: "Reality Realm",
     domain: "Finance System",
     subtitle: "Income · Expenses · Budget",
-    icon: "💎",
+    icon: "RL",
     orbitAngle: 150,       // Bottom-right
     systemType: "native",
   },
   [STONE_IDS.SOUL]: {
-    label: "Soul Stone",
+    label: "Soul Realm",
     domain: "Personal Identity",
     subtitle: "Mood · Energy · Memory",
-    icon: "🔥",
+    icon: "SL",
     orbitAngle: 90,        // Bottom center
     systemType: "native",
   },
@@ -177,7 +177,7 @@ export const STATE_VISUALS = {
   },
 };
 
-// ─── All stone IDs as ordered array (for iteration) ──────────
+// ─── All realm IDs as ordered array (for iteration) ──────────
 export const ALL_STONES = [
   STONE_IDS.MIND,
   STONE_IDS.SPACE,

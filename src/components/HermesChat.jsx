@@ -3,17 +3,17 @@ import { soundManager } from '../utils/soundManager.js';
 
 const AI_RESPONSES = [
   'I understand. Let me check the relevant systems.',
-  'Analyzing your request across the Infinity Stones...',
+  'Analyzing your request across the Six Realm Gates...',
   'Processing. I will route this through the appropriate domain.',
   'Noted. I have created a mission for this task.',
   'All systems nominal. What would you like to focus on?',
-  'Understood. Delegating to the appropriate Stone module.',
+  'Understood. Delegating to the appropriate Realm module.',
   'Running diagnostics across all connected nodes...',
   'I have reviewed the current mission parameters. Here is my assessment.',
 ];
 
 const VOICE_COMMANDS = [
-  "Check Space Stone latency status.",
+  "Check Space Realm latency status.",
   "Deploy a new workforce mission.",
   "Check mood and energy indexes.",
   "System diagnostics run please."
@@ -152,7 +152,7 @@ export default function HermesChat({ data, addLog, onClose }) {
       {isRecording && (
         <div className="flex flex-col items-center justify-center bg-slate-950/95 border-t border-cyan-300/15 p-4 animate-fadeIn">
           <p className="font-mono text-[10px] text-dangerCore animate-pulse uppercase tracking-wider mb-2">
-            🎙️ SYSTEM RECORDING AUDIO INPUT...
+            SYSTEM RECORDING AUDIO INPUT...
           </p>
           <div className="flex items-end justify-center gap-1 h-8">
             {[...Array(12)].map((_, i) => (
@@ -183,7 +183,7 @@ export default function HermesChat({ data, addLog, onClose }) {
           }`}
           title="Giữ chuột/chạm để nói (Push-to-Talk)"
         >
-          🎙️
+          MIC
         </button>
         <input
           type="text"

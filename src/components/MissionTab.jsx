@@ -235,7 +235,7 @@ export default function MissionTab({ data, updateData, addLog }) {
               </label>
 
               <label className="field-label">
-                Infinity Stone / Domain
+                Realm Gate / Domain
                 <select
                   className="hud-input"
                   value={domain}

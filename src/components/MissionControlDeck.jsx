@@ -30,7 +30,16 @@ export default function MissionControlDeck({ data, updateData, addLog, copyText,
             {stoneStatuses.map((s) => (
               <Panel key={s.id} title={STONE_META[s.id].label} kicker={STONE_META[s.id].domain}>
                 <div className="flex items-center gap-4 py-2">
-                  <div className="text-4xl">{STONE_META[s.id].icon}</div>
+                  <div
+                    className="grid h-12 w-12 place-items-center rounded border font-mono text-sm font-bold tracking-wider"
+                    style={{
+                      borderColor: STONE_COLORS[s.id].border,
+                      color: STONE_COLORS[s.id].primary,
+                      background: STONE_COLORS[s.id].bg,
+                    }}
+                  >
+                    {STONE_META[s.id].icon}
+                  </div>
                   <div>
                     <p className="font-mono text-xs uppercase text-cyan-100/50">Status</p>
                     <span
@@ -57,25 +66,25 @@ export default function MissionControlDeck({ data, updateData, addLog, copyText,
         return <NineRouterDashboard />;
       case 'SCHEDULE':
         return (
-          <Panel title="Time Stone Schedule" kicker="Personal OS · Phase 6">
+          <Panel title="Time Realm Schedule" kicker="Personal OS · Phase 6">
             <div className="flex min-h-[200px] items-center justify-center font-mono text-sm text-cyan-100/40">
-              <p>⏳ Calendar, Habits & Automation — Coming in Phase 6</p>
+              <p>Calendar, Habits & Automation - Coming in Phase 6</p>
             </div>
           </Panel>
         );
       case 'FINANCE':
         return (
-          <Panel title="Reality Stone Finance" kicker="Finance System · Phase 7">
+          <Panel title="Reality Realm Finance" kicker="Finance System · Phase 7">
             <div className="flex min-h-[200px] items-center justify-center font-mono text-sm text-cyan-100/40">
-              <p>💎 Income, Expenses & Budget tracking — Coming in Phase 7</p>
+              <p>Income, Expenses & Budget tracking - Coming in Phase 7</p>
             </div>
           </Panel>
         );
       case 'KNOWLEDGE':
         return (
-          <Panel title="Mind Stone Knowledge" kicker="Knowledge Core · Phase 9">
+          <Panel title="Mind Realm Knowledge" kicker="Knowledge Core · Phase 9">
             <div className="flex min-h-[200px] items-center justify-center font-mono text-sm text-cyan-100/40">
-              <p>🧠 Notion, Claude Code & RAG search — Coming in Phase 9</p>
+              <p>Notion, Codex context & knowledge search - Coming in Phase 9</p>
             </div>
           </Panel>
         );

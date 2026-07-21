@@ -40,7 +40,7 @@ export default function TerminalTab({ data, updateData, copyText, addLog, onLock
           "Available Commands:",
           "  help                          - Show this command list",
           "  sys-info                      - Print system configurations & specs",
-          "  stone-set <stone> <status>    - Force-set an Infinity Stone status",
+          "  realm-set <realm> <status>    - Force-set a Realm Gate status",
           "  mission-list                  - Print ASCII table of all missions",
           "  auth-lock                     - Lock console immediately",
           "  scan                          - Check current J-Core states",
@@ -54,7 +54,7 @@ export default function TerminalTab({ data, updateData, copyText, addLog, onLock
         push([
           ...prefix,
           "+--------------------------------------------+",
-          "| JARVIS INFINITY OPERATING SYSTEM - V2.0    |",
+          "| JARVIS SIX REALMS OPERATING SYSTEM - V2.0  |",
           "+--------------------------------------------+",
           `| OPERATOR: ${data.username.padEnd(32)} |`,
           `| PERSONA:  ${data.aiPersonaName.padEnd(32)} |`,
@@ -69,6 +69,7 @@ export default function TerminalTab({ data, updateData, copyText, addLog, onLock
           "+--------------------------------------------+"
         ]);
         break;
+      case "realm-set":
       case "stone-set": {
         const stoneId = tokens[1]?.toLowerCase();
         const status = tokens[2]?.toLowerCase();
@@ -78,18 +79,18 @@ export default function TerminalTab({ data, updateData, copyText, addLog, onLock
         if (!stoneId || !status) {
           push([
             ...prefix,
-            "Usage: stone-set <stone_id> <status>",
-            "Stones: power, space, mind, time, reality, soul",
+            "Usage: realm-set <realm_id> <status>",
+            "Realms: power, space, mind, time, reality, soul",
             "Statuses: dormant, reading, working, external_call, completed, warning, error, approval"
           ]);
         } else if (!validStones.includes(stoneId)) {
-          push([...prefix, `Error: Unknown stone ID "${stoneId}"`]);
+          push([...prefix, `Error: Unknown realm ID "${stoneId}"`]);
         } else if (!validStatuses.includes(status)) {
           push([...prefix, `Error: Unknown status "${status}"`]);
         } else {
           setStoneStatus(stoneId, status);
-          push([...prefix, `Success: Stone "${stoneId}" state set to "${status}"`]);
-          addLog(`Terminal: Override stone '${stoneId}' -> '${status}'`);
+          push([...prefix, `Success: Realm "${stoneId}" state set to "${status}"`]);
+          addLog(`Terminal: Override realm '${stoneId}' -> '${status}'`);
         }
         break;
       }

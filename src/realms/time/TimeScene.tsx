@@ -7,6 +7,11 @@ export interface TimeSceneProps {
   activity: 'idle' | 'listening' | 'thinking' | 'speaking';
 }
 
+function seededUnit(index: number) {
+  const value = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
+  return value - Math.floor(value);
+}
+
 function WavyTimeline({ activity }: { activity: 'idle' | 'listening' | 'thinking' | 'speaking' }) {
   const curveRef = useRef<THREE.Mesh>(null);
   const particlesRef = useRef<THREE.Points>(null);
@@ -36,11 +41,11 @@ function WavyTimeline({ activity }: { activity: 'idle' | 'listening' | 'thinking
   const particlePositions = useMemo(() => {
     const positions = new Float32Array(particleCount * 3);
     for (let i = 0; i < particleCount; i++) {
-      const t = Math.random();
+      const t = seededUnit(i + 3);
       const point = curve.getPoint(t);
-      positions[i * 3] = point.x + (Math.random() - 0.5) * 0.5;
-      positions[i * 3 + 1] = point.y + (Math.random() - 0.5) * 0.5;
-      positions[i * 3 + 2] = point.z + (Math.random() - 0.5) * 0.5;
+      positions[i * 3] = point.x + (seededUnit(i + 13) - 0.5) * 0.5;
+      positions[i * 3 + 1] = point.y + (seededUnit(i + 23) - 0.5) * 0.5;
+      positions[i * 3 + 2] = point.z + (seededUnit(i + 31) - 0.5) * 0.5;
     }
     return positions;
   }, [curve]);
@@ -48,10 +53,16 @@ function WavyTimeline({ activity }: { activity: 'idle' | 'listening' | 'thinking
   const particleGeometry = useMemo(() => {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
-    // Add custom attribute for particle 't' position along curve to animate
     const uvs = new Float32Array(particleCount);
-    for(let i=0; i<particleCount; i++) uvs[i] = Math.random();
+    const jitter = new Float32Array(particleCount * 2);
+    for(let i=0; i<particleCount; i++) {
+      const phase = (i * 0.61803398875) % 1;
+      uvs[i] = phase;
+      jitter[i * 2] = Math.sin(i * 12.9898) * 0.11;
+      jitter[i * 2 + 1] = Math.cos(i * 78.233) * 0.11;
+    }
     geo.setAttribute('uT', new THREE.BufferAttribute(uvs, 1));
+    geo.setAttribute('uJitter', new THREE.BufferAttribute(jitter, 2));
     return geo;
   }, [particlePositions]);
 
@@ -108,6 +119,7 @@ function WavyTimeline({ activity }: { activity: 'idle' | 'listening' | 'thinking
 
       const positions = particlesRef.current.geometry.attributes.position;
       const uTs = particlesRef.current.geometry.attributes.uT;
+      const jitters = particlesRef.current.geometry.attributes.uJitter;
 
       for (let i = 0; i < particleCount; i++) {
         let t = uTs.getX(i);
@@ -122,10 +134,12 @@ function WavyTimeline({ activity }: { activity: 'idle' | 'listening' | 'thinking
         let waveAmp = activity === 'speaking' ? 0.5 : 0.1;
         let waveSpeed = activity === 'speaking' ? 5 : 1;
         const waveY = Math.sin(point.x * 2 - timeRef.current * waveSpeed) * waveAmp;
+        const jitterX = jitters.getX(i) * (activity === 'thinking' ? 1.8 : 1);
+        const jitterZ = jitters.getY(i) * (activity === 'thinking' ? 1.8 : 1);
 
-        positions.setX(i, point.x);
-        positions.setY(i, point.y + waveY + (Math.random() - 0.5) * 0.2);
-        positions.setZ(i, point.z + (Math.random() - 0.5) * 0.2);
+        positions.setX(i, point.x + jitterX);
+        positions.setY(i, point.y + waveY + Math.sin(timeRef.current * 1.7 + i * 0.41) * 0.035);
+        positions.setZ(i, point.z + jitterZ);
       }
       positions.needsUpdate = true;
       (particlesRef.current.material as THREE.PointsMaterial).opacity = 0.5 * pulse + 0.3;

@@ -12,7 +12,7 @@ const STATUS_LABELS = {
   [STONE_STATES.APPROVAL]: 'Approve?',
 };
 
-export default function InfinityStoneNode({ stoneId, size = 52, onClick, showLabel = true }) {
+export default function RealmGateNode({ stoneId, size = 52, onClick, showLabel = true, showStatus = true }) {
   const { status } = useStone(stoneId);
   const meta = STONE_META[stoneId];
   const color = STONE_COLORS[stoneId];
@@ -33,12 +33,12 @@ export default function InfinityStoneNode({ stoneId, size = 52, onClick, showLab
         style={{ width: size, height: size }}
       >
         <span
-          className="absolute inset-0 flex items-center justify-center text-lg select-none"
-          style={{ fontSize: size * 0.38 }}
+          className="absolute inset-0 flex items-center justify-center select-none font-mono font-bold tracking-wider"
+          style={{ fontSize: size * 0.24 }}
         >
           {meta.icon}
         </span>
-        {!isDormant && (
+        {showStatus && !isDormant && (
           <span
             className="absolute -top-2 -right-3 rounded border bg-slate-950/90 px-1.5 py-0.5 font-mono text-[9px] uppercase"
             style={{ borderColor: color.border, color: color.primary }}

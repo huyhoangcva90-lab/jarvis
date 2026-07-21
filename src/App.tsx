@@ -239,25 +239,25 @@ export default function App() {
                     <div className="lg:col-span-2 overflow-auto bg-slate-950/40 p-4 rounded border border-cyan-300/10 backdrop-blur-sm">
                       {energyPalette === "gold" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">🧠 MIND REALUM - KNOWLEDGE CORE & DEV INTERFACE</p>
+                          <p className="font-mono text-sm text-cyan-100/60">MIND REALM - KNOWLEDGE CORE & DEV INTERFACE</p>
                           <MemoryTab data={data} updateData={updateData} copyText={copyText} />
                         </div>
                       )}
                       {energyPalette === "blue" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">🌌 SPACE REALM - 9ROUTER MULTI-MODEL GATEWAY</p>
+                          <p className="font-mono text-sm text-cyan-100/60">SPACE REALM - 9ROUTER MULTI-MODEL GATEWAY</p>
                           <NineRouterDashboard data={data} updateData={updateData} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "green" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">⏳ TIME REALM - PERSONAL SCHEDULE & OS ENGINE</p>
+                          <p className="font-mono text-sm text-cyan-100/60">TIME REALM - PERSONAL SCHEDULE & OS ENGINE</p>
                           <TerminalTab data={data} addLog={addLog} updateData={updateData} />
                         </div>
                       )}
                       {energyPalette === "red" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">💎 REALITY REALM - FINANCIAL Citadel & LEDGER</p>
+                          <p className="font-mono text-sm text-cyan-100/60">REALITY REALM - FINANCIAL CITADEL & LEDGER</p>
                           <Panel title="Finance Status" kicker="Obsidian Vault Ledger">
                             <div className="p-4 bg-slate-950/60 rounded border border-cyan-300/15 font-mono text-sm text-cyan-100/80">
                               <p className="text-greenCore mb-2">ACCOUNT OK - BALANCE POSITIVE</p>
@@ -277,13 +277,13 @@ export default function App() {
                       )}
                       {energyPalette === "violet" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">⚡ POWER REALM - OPENCLAW TACTICAL WORKFORCE</p>
+                          <p className="font-mono text-sm text-cyan-100/60">POWER REALM - OPENCLAW TACTICAL WORKFORCE</p>
                           <OpenclawDashboard data={data} updateData={updateData} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "orange" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">🔥 SOUL REALM - PERSONAL IDENTITY & INTEGRITY</p>
+                          <p className="font-mono text-sm text-cyan-100/60">SOUL REALM - PERSONAL IDENTITY & INTEGRITY</p>
                           <CoreTab data={data} updateData={updateData} />
                         </div>
                       )}
@@ -305,7 +305,7 @@ export default function App() {
                             onClick={() => setChatOpen(true)}
                             className="hud-button primary w-full py-2 text-xs"
                           >
-                            💬 Open Chat Console
+                            Open Chat Console
                           </button>
                         </div>
                       </Panel>
@@ -347,7 +347,7 @@ export default function App() {
           {/* Quick status toast */}
           {toast && (
             <div className="toast-notify fixed bottom-6 right-6 z-50 rounded border border-cyan-300/30 bg-slate-950/90 px-4 py-3 font-mono text-xs uppercase text-cyanCore shadow-lg shadow-cyan-950/50 backdrop-blur-xl">
-              ⚡ {toast}
+              {toast}
             </div>
           )}
 
@@ -358,7 +358,7 @@ export default function App() {
                 onClick={() => setChatOpen(true)}
                 className="hud-button primary px-6 py-3 font-mono text-sm tracking-wider uppercase shadow-lg shadow-cyan-950/80"
               >
-                💬 Kích hoạt Hermes
+                Kích hoạt Hermes
               </button>
             </div>
           )}

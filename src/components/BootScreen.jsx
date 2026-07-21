@@ -8,13 +8,13 @@ export default function BootScreen() {
             <div className="m-3 h-6 w-6 animate-pulseCore rounded-full bg-greenCore/70 shadow-[0_0_22px_rgba(74,222,128,0.8)]" />
           </div>
           <div>
-            <p className="font-mono text-sm uppercase text-greenCore">Infinity System Boot</p>
+            <p className="font-mono text-sm uppercase text-greenCore">Six Realms Boot</p>
             <h1 className="font-mono text-3xl uppercase">JARVIS</h1>
           </div>
         </div>
         <div className="space-y-2 font-mono text-sm text-cyan-100/80">
           <p>&gt; Initializing Hermes Orchestrator...</p>
-          <p>&gt; Calibrating Infinity Stones...</p>
+          <p>&gt; Calibrating Realm Gates...</p>
           <p>&gt; Establishing secure command surface...</p>
           <p className="text-greenCore">&gt; All systems: ONLINE</p>
         </div>

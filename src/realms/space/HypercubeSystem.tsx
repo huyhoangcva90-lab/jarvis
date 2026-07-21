@@ -3,7 +3,12 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 interface HypercubeSystemProps {
-  activity?: 'idle' | 'thinking' | 'speaking';
+  activity?: 'idle' | 'listening' | 'thinking' | 'speaking';
+}
+
+function seededUnit(index: number) {
+  const value = Math.sin(index * 12.9898 + 78.233) * 43758.5453;
+  return value - Math.floor(value);
 }
 
 export const HypercubeSystem: React.FC<HypercubeSystemProps> = ({ activity = 'idle' }) => {
@@ -23,12 +28,12 @@ export const HypercubeSystem: React.FC<HypercubeSystemProps> = ({ activity = 'id
     const numLines = 20;
     for (let i = 0; i < numLines; i++) {
       const start = new THREE.Vector3(
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2
+        (seededUnit(i * 3 + 1) - 0.5) * 2,
+        (seededUnit(i * 3 + 2) - 0.5) * 2,
+        (seededUnit(i * 3 + 3) - 0.5) * 2
       ).normalize().multiplyScalar(1);
       
-      const end = start.clone().multiplyScalar(3 + Math.random() * 2);
+      const end = start.clone().multiplyScalar(3 + seededUnit(i + 21) * 2);
       
       points.push(start, end);
     }

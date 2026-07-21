@@ -7,7 +7,7 @@ export default function TopBar({ data, currentTime }) {
     <header className="sticky top-0 z-30 border-b border-cyan-300/20 bg-void/90 px-4 py-3 backdrop-blur-xl lg:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-mono text-xs uppercase text-greenCore/80">Infinity System</p>
+          <p className="font-mono text-xs uppercase text-greenCore/80">Six Realms System</p>
           <h1 className="font-mono text-xl uppercase text-cyan-50 sm:text-2xl">JARVIS</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase">
