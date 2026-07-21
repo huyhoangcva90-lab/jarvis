@@ -114,8 +114,8 @@ export default function OpenclawDashboard({ data, updateData, addLog } = {}) {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      {/* Cột trái: Agent Cards Grid */}
-      <Panel title="Active Agent Fleet" kicker="OpenClaw Workforce">
+      {/* Cột trái: Virtual Agent Office */}
+      <Panel title="AI Agent Virtual Office" kicker="OpenClaw local workforce">
         <div className="flex gap-2 mb-4">
           <button
             type="button"
@@ -141,42 +141,33 @@ export default function OpenclawDashboard({ data, updateData, addLog } = {}) {
           </button>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="agent-office" aria-label="AI Agent Virtual Office">
+          <div className="office-room strategy"><span>Strategy</span></div>
+          <div className="office-room build"><span>Build Lab</span></div>
+          <div className="office-room audit"><span>Audit</span></div>
+          <div className="office-room memory"><span>Memory</span></div>
           {agents.map((agent) => (
             <div
               key={agent.id}
-              className={`border rounded p-4 font-mono transition-all duration-200 ${agent.color}`}
+              className={`office-agent ${agent.status.toLowerCase()}`}
+              style={{ "--agent-index": INITIAL_AGENTS.findIndex((item) => item.id === agent.id) }}
             >
+              <span>{agent.name}</span>
+              <small>{agent.status}</small>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {agents.map((agent) => (
+            <div key={`${agent.id}-card`} className={`border rounded p-3 font-mono transition-all duration-200 ${agent.color}`}>
               <div className="flex items-center justify-between border-b border-cyan-300/10 pb-2">
-                <span className="text-sm font-bold tracking-wider">{agent.name}</span>
-                <span
-                  className={`text-[10px] uppercase font-bold rounded px-1.5 py-0.5 border ${
-                    agent.status === "Running"
-                      ? "border-amberCore text-amberCore bg-amberCore/10 animate-pulse"
-                      : agent.status === "Thinking"
-                      ? "border-cyanCore text-cyanCore bg-cyanCore/10 animate-bounce"
-                      : agent.status === "Paused"
-                      ? "border-redCore text-redCore bg-redCore/10"
-                      : "border-cyan-300/20 text-cyan-100/50"
-                  }`}
-                >
-                  {agent.status}
-                </span>
+                <span className="text-xs font-bold tracking-wider">{agent.name}</span>
+                <span className="text-[10px] uppercase opacity-75">{agent.status}</span>
               </div>
               <p className="mt-2 text-xs opacity-75">{agent.role}</p>
-
-              {/* Load indicator */}
-              <div className="mt-4">
-                <div className="flex justify-between text-[10px] opacity-50 mb-1">
-                  <span>LOAD CAPACITY</span>
-                  <span>{agent.load}%</span>
-                </div>
-                <div className="h-1 w-full bg-slate-900 rounded overflow-hidden">
-                  <div
-                    className="h-full bg-cyanCore transition-all duration-300"
-                    style={{ width: `${agent.load}%` }}
-                  />
-                </div>
+              <div className="mt-3 h-1 w-full overflow-hidden rounded bg-slate-900">
+                <div className="h-full bg-purpleCore transition-all duration-300" style={{ width: `${agent.load}%` }} />
               </div>
             </div>
           ))}

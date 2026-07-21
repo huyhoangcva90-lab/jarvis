@@ -1,0 +1,66 @@
+export const REALM_BY_PALETTE = {
+  gold: {
+    id: "mind",
+    title: "Mind Realm",
+    bridge: "Claude Code Local",
+    endpointKey: "hermes",
+    endpointFallback: "http://localhost:8080",
+    visual: "gold neural cognition core",
+    duty: "Code, project memory, research context, local AI command reasoning.",
+    modules: ["Claude Code local", "Repository memory", "Prompt context", "Debug trace"],
+  },
+  blue: {
+    id: "space",
+    title: "Space Realm",
+    bridge: "9Router",
+    endpointKey: "nineRouter",
+    endpointFallback: "http://localhost:9000",
+    visual: "blue dimensional routing gateway",
+    duty: "Model routing, provider quota, combo selection, fallback and usage paths.",
+    modules: ["Provider combos", "Quota windows", "Fallback routes", "Cost estimate"],
+  },
+  green: {
+    id: "time",
+    title: "Time Realm",
+    bridge: "Hermes Notion",
+    endpointKey: "hermes",
+    endpointFallback: "http://localhost:8080",
+    visual: "green temporal ring operating system",
+    duty: "Notion, daily plan, calendar rhythm, habits, reminders and scheduling.",
+    modules: ["Notion tasks", "Calendar slots", "Habit cycles", "Reminder queue"],
+  },
+  red: {
+    id: "reality",
+    title: "Reality Realm",
+    bridge: "Hermes Finance",
+    endpointKey: "hermes",
+    endpointFallback: "http://localhost:8080",
+    visual: "red-gold vault and cosmic finance magic",
+    duty: "Finance tracking, income, expense, budget, saving and cash-flow warnings.",
+    modules: ["Cash flow", "Budget gates", "Saving shield", "Debt locks"],
+  },
+  violet: {
+    id: "power",
+    title: "Power Realm",
+    bridge: "OpenClaw Local",
+    endpointKey: "openclaw",
+    endpointFallback: "http://localhost:18789",
+    visual: "violet tactical city and virtual agent office",
+    duty: "OpenClaw agent workforce, delegation, department status and mission dispatch.",
+    modules: ["Virtual office", "Agent roster", "Mission dispatch", "Tool heartbeat"],
+  },
+  orange: {
+    id: "soul",
+    title: "Soul Realm",
+    bridge: "Personal Brain",
+    endpointKey: "hermes",
+    endpointFallback: "http://localhost:8080",
+    visual: "orange agent-brain observer network",
+    duty: "Personal identity, mood, energy, long memory and agent activity awareness.",
+    modules: ["Agent awareness", "Mood channel", "Energy signal", "Long memory"],
+  },
+};
+
+export function getRealmProfile(palette) {
+  return REALM_BY_PALETTE[palette] || null;
+}

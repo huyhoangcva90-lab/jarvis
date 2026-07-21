@@ -2507,3 +2507,169 @@ body[data-activity="speaking"] .prompt-shell {
   box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
   animation: stonePulse 1.5s ease-in-out infinite;
 }
+
+/* Six Realm feature surfaces */
+
+.agent-office {
+  position: relative;
+  min-height: 360px;
+  overflow: hidden;
+  border: 1px solid rgba(168, 85, 247, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(168, 85, 247, 0.12) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(168, 85, 247, 0.1) 1px, transparent 1px),
+    radial-gradient(circle at 50% 45%, rgba(217, 70, 239, 0.16), transparent 48%),
+    rgba(2, 2, 10, 0.74);
+  background-size: 42px 42px, 42px 42px, auto, auto;
+  box-shadow: inset 0 0 42px rgba(168, 85, 247, 0.08), 0 0 28px rgba(168, 85, 247, 0.08);
+}
+
+.office-room {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(216, 180, 254, 0.18);
+  background: rgba(88, 28, 135, 0.12);
+  color: rgba(245, 208, 254, 0.62);
+  font-family: "Share Tech Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.office-room.strategy { left: 5%; top: 8%; width: 38%; height: 32%; }
+.office-room.build { right: 5%; top: 8%; width: 42%; height: 32%; }
+.office-room.audit { left: 5%; bottom: 8%; width: 42%; height: 36%; }
+.office-room.memory { right: 5%; bottom: 8%; width: 38%; height: 36%; }
+
+.office-agent {
+  --agent-index: 0;
+  position: absolute;
+  left: calc(16% + (var(--agent-index) % 3) * 27%);
+  top: calc(18% + (var(--agent-index) % 2) * 38%);
+  width: 58px;
+  min-height: 58px;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  border: 1px solid rgba(233, 213, 255, 0.42);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 30%, rgba(255, 255, 255, 0.78), rgba(216, 180, 254, 0.42) 32%, rgba(88, 28, 135, 0.18) 68%, transparent 72%);
+  color: #f5d0fe;
+  font-family: "Share Tech Mono", ui-monospace, monospace;
+  font-size: 10px;
+  text-align: center;
+  box-shadow: 0 0 24px rgba(168, 85, 247, 0.38);
+  animation: officePatrol calc(7s + var(--agent-index) * 900ms) ease-in-out infinite;
+}
+
+.office-agent small {
+  color: rgba(245, 208, 254, 0.55);
+  font-size: 8px;
+}
+
+.office-agent.running,
+.office-agent.thinking {
+  box-shadow: 0 0 34px rgba(217, 70, 239, 0.58), 0 0 60px rgba(168, 85, 247, 0.24);
+}
+
+.office-agent.paused {
+  filter: saturate(0.45);
+  opacity: 0.62;
+}
+
+@keyframes officePatrol {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  34% { transform: translate3d(22px, -14px, 0) scale(1.04); }
+  68% { transform: translate3d(-18px, 18px, 0) scale(0.96); }
+}
+
+.brain-map {
+  position: relative;
+  min-height: 360px;
+  overflow: hidden;
+  border: 1px solid rgba(251, 146, 60, 0.28);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 237, 213, 0.2), rgba(251, 146, 60, 0.14) 20%, transparent 54%),
+    conic-gradient(from 15deg, transparent, rgba(251, 146, 60, 0.16), transparent 32%, rgba(251, 191, 36, 0.12), transparent 72%),
+    rgba(5, 2, 0, 0.82);
+  box-shadow: inset 0 0 48px rgba(251, 146, 60, 0.08), 0 0 30px rgba(251, 146, 60, 0.1);
+}
+
+.brain-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 132px;
+  height: 132px;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  border: 1px solid rgba(255, 237, 213, 0.38);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.78), rgba(251, 191, 36, 0.34) 34%, rgba(154, 52, 18, 0.14) 68%, transparent 72%);
+  color: #fff7ed;
+  font-family: "Share Tech Mono", ui-monospace, monospace;
+  text-align: center;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 36px rgba(251, 146, 60, 0.62);
+  animation: brainPulse 1800ms ease-in-out infinite;
+}
+
+.brain-core b {
+  color: rgba(255, 237, 213, 0.68);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.brain-agent {
+  --i: 0;
+  --angle: 0deg;
+  --angle-neg: 0deg;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 92px;
+  min-height: 50px;
+  padding: 8px;
+  border: 1px solid rgba(251, 146, 60, 0.28);
+  background: rgba(67, 20, 7, 0.55);
+  color: #fed7aa;
+  font-family: "Share Tech Mono", ui-monospace, monospace;
+  font-size: 10px;
+  transform:
+    translate(-50%, -50%)
+    rotate(var(--angle))
+    translateX(145px)
+    rotate(var(--angle-neg));
+  animation: brainOrbit 12s linear infinite;
+  animation-delay: calc(var(--i) * -1.1s);
+}
+
+.brain-agent small {
+  display: block;
+  margin-top: 4px;
+  color: rgba(255, 237, 213, 0.52);
+}
+
+.brain-agent.warning {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fecaca;
+}
+
+@keyframes brainPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.96); opacity: 0.86; }
+  45% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
+}
+
+@keyframes brainOrbit {
+  from {
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateX(145px) rotate(var(--angle-neg));
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(calc(var(--angle) + 360deg)) translateX(145px) rotate(calc(var(--angle-neg) - 360deg));
+  }
+}

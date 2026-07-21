@@ -17,6 +17,8 @@ import OpenclawDashboard from "./components/openclawDashboard.jsx";
 import CoreTab from "./components/CoreTab.jsx";
 import MemoryTab from "./components/MemoryTab.jsx";
 import TerminalTab from "./components/TerminalTab.jsx";
+import PersonalBrainDashboard from "./components/PersonalBrainDashboard.jsx";
+import { getRealmProfile } from "./config/realmProfiles.js";
 
 export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
 export type EnergyPalette = "gold" | "blue" | "green" | "red" | "violet" | "orange" | "neutral";
@@ -155,6 +157,8 @@ export default function App() {
     }
   };
 
+  const activeRealm = getRealmProfile(energyPalette);
+
   if (!authenticated) {
     return <AuthScreen data={data} onUnlock={() => setAuthenticated(true)} />;
   }
@@ -181,15 +185,15 @@ export default function App() {
           <TopBar data={data} currentTime={currentTime} />
 
           {/* Deck tab switcher */}
-          <div className="flex gap-2 overflow-x-auto border-b border-cyan-300/20 bg-slate-900/50 p-2">
+          <div className="flex gap-2 border-b border-cyan-300/20 bg-slate-900/50 p-2">
             <button
-              className={`deck-tab shrink-0 px-3 py-2 font-mono text-xs uppercase sm:px-4 sm:text-sm ${activeDeck === "command" ? "bg-cyan-300/20 text-cyan-100" : "text-cyan-100/60 hover:bg-cyan-300/10"}`}
+              className={`deck-tab px-4 py-2 font-mono text-sm uppercase ${activeDeck === "command" ? "bg-cyan-300/20 text-cyan-100" : "text-cyan-100/60 hover:bg-cyan-300/10"}`}
               onClick={() => switchDeck("command")}
             >
               COMMAND CHAMBER
             </button>
             <button
-              className={`deck-tab shrink-0 px-3 py-2 font-mono text-xs uppercase sm:px-4 sm:text-sm ${activeDeck === "mission-control" ? "bg-cyan-300/20 text-cyan-100" : "text-cyan-100/60 hover:bg-cyan-300/10"}`}
+              className={`deck-tab px-4 py-2 font-mono text-sm uppercase ${activeDeck === "mission-control" ? "bg-cyan-300/20 text-cyan-100" : "text-cyan-100/60 hover:bg-cyan-300/10"}`}
               onClick={() => switchDeck("mission-control")}
             >
               MISSION CONTROL
@@ -223,12 +227,7 @@ export default function App() {
                       <h2 className="font-mono text-lg text-cyan-100 uppercase tracking-wider">
                         Realm:{" "}
                         <span className="text-amberCore">
-                          {energyPalette === "gold" && "Mind Realm"}
-                          {energyPalette === "blue" && "Space Realm"}
-                          {energyPalette === "green" && "Time Realm"}
-                          {energyPalette === "red" && "Reality Realm"}
-                          {energyPalette === "violet" && "Power Realm"}
-                          {energyPalette === "orange" && "Soul Realm"}
+                          {activeRealm?.title}
                         </span>
                       </h2>
                     </div>
@@ -243,25 +242,25 @@ export default function App() {
                     <div className="lg:col-span-2 overflow-auto bg-slate-950/40 p-4 rounded border border-cyan-300/10 backdrop-blur-sm">
                       {energyPalette === "gold" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">MIND REALM - KNOWLEDGE CORE & DEV INTERFACE</p>
+                          <p className="font-mono text-sm text-cyan-100/60">MIND REALM - CLAUDE CODE LOCAL AI CORE</p>
                           <MemoryTab data={data} updateData={updateData} copyText={copyText} />
                         </div>
                       )}
                       {energyPalette === "blue" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">SPACE REALM - 9ROUTER MULTI-MODEL GATEWAY</p>
+                          <p className="font-mono text-sm text-cyan-100/60">SPACE REALM - 9ROUTER MODEL ROUTING GATEWAY</p>
                           <NineRouterDashboardView data={data} updateData={updateData} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "green" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">TIME REALM - PERSONAL SCHEDULE & OS ENGINE</p>
+                          <p className="font-mono text-sm text-cyan-100/60">TIME REALM - HERMES NOTION TEMPORAL OS</p>
                           <TerminalTab data={data} addLog={addLog} updateData={updateData} copyText={copyText} />
                         </div>
                       )}
                       {energyPalette === "red" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">REALITY REALM - FINANCIAL CITADEL & LEDGER</p>
+                          <p className="font-mono text-sm text-cyan-100/60">REALITY REALM - HERMES FINANCE VAULT</p>
                           <Panel title="Finance Status" kicker="Obsidian Vault Ledger">
                             <div className="p-4 bg-slate-950/60 rounded border border-cyan-300/15 font-mono text-sm text-cyan-100/80">
                               <p className="text-greenCore mb-2">ACCOUNT OK - BALANCE POSITIVE</p>
@@ -281,21 +280,21 @@ export default function App() {
                       )}
                       {energyPalette === "violet" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">POWER REALM - OPENCLAW TACTICAL WORKFORCE</p>
+                          <p className="font-mono text-sm text-cyan-100/60">POWER REALM - OPENCLAW AI AGENT VIRTUAL OFFICE</p>
                           <OpenclawDashboardView data={data} updateData={updateData} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "orange" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">SOUL REALM - PERSONAL IDENTITY & INTEGRITY</p>
-                          <CoreTab data={data} currentTime={currentTime} updateData={updateData} />
+                          <p className="font-mono text-sm text-cyan-100/60">SOUL REALM - PERSONAL AGENT BRAIN MONITOR</p>
+                          <PersonalBrainDashboard data={data} />
                         </div>
                       )}
                     </div>
 
                     {/* Right Column (Side Controls & System Stats) */}
                     <div className="space-y-6 overflow-auto">
-                      <Panel title="Local Orchestrator" kicker="Hermes Controller">
+                      <Panel title="Local Orchestrator" kicker={activeRealm?.bridge || "Hermes Controller"}>
                         <div className="space-y-3 font-mono text-xs text-cyan-100/70">
                           <div className="flex justify-between items-center bg-cyan-300/5 p-2 rounded">
                             <span>Status:</span>
@@ -303,7 +302,21 @@ export default function App() {
                           </div>
                           <div className="flex justify-between items-center bg-cyan-300/5 p-2 rounded">
                             <span>API Bridge:</span>
-                            <span>{data.endpoints?.hermes || "http://localhost:8080"}</span>
+                            <span>{activeRealm ? data.endpoints?.[activeRealm.endpointKey] || activeRealm.endpointFallback : data.endpoints?.hermes || "http://localhost:8080"}</span>
+                          </div>
+                          {activeRealm && (
+                            <div className="rounded border border-cyan-300/10 bg-slate-950/50 p-2 leading-relaxed">
+                              <p className="mb-1 text-cyanCore">{activeRealm.visual}</p>
+                              <p className="text-cyan-100/55">{activeRealm.duty}</p>
+                            </div>
+                          )}
+                          <div className="grid gap-2">
+                            {(activeRealm?.modules || []).map((module: string) => (
+                              <div key={module} className="flex items-center justify-between rounded bg-cyan-300/5 p-2">
+                                <span>{module}</span>
+                                <span className="text-cyanCore">READY</span>
+                              </div>
+                            ))}
                           </div>
                           <button
                             onClick={() => setChatOpen(true)}

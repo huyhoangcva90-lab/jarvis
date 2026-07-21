@@ -51,13 +51,13 @@ export default function CommandCenter({ data, currentTime, onStoneClick, onOpenC
         </div>
 
         {/* Quick Info Row */}
-        <div className="hidden w-full max-w-[560px] grid-cols-3 gap-3 sm:grid">
+        <div className="grid w-full max-w-[560px] grid-cols-3 gap-3">
           <div className="rounded border border-cyan-300/20 bg-slate-950/60 p-3 text-center">
             <p className="font-mono text-2xl text-cyanCore">0</p>
             <p className="font-mono text-[10px] uppercase text-cyan-100/50">Active Missions</p>
           </div>
           <div className="rounded border border-cyan-300/20 bg-slate-950/60 p-3 text-center">
-            <p className="truncate font-mono text-xl text-greenCore">{currentTime}</p>
+            <p className="font-mono text-2xl text-greenCore">{currentTime}</p>
             <p className="font-mono text-[10px] uppercase text-cyan-100/50">System Time</p>
           </div>
           <div className="rounded border border-cyan-300/20 bg-slate-950/60 p-3 text-center">
@@ -102,7 +102,7 @@ export default function CommandCenter({ data, currentTime, onStoneClick, onOpenC
           </div>
         </Panel>
 
-        <Panel title="Recent Logs" kicker="System activity" className="hidden sm:block">
+        <Panel title="Recent Logs" kicker="System activity">
           <div className="space-y-2">
             {recentLogs.length > 0 ? recentLogs.map((log, index) => (
               <div key={`log-${index}`} className="rounded border border-cyan-300/10 bg-cyan-300/5 p-2 font-mono text-xs text-cyan-100/70">
