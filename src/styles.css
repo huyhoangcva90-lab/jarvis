@@ -2195,3 +2195,303 @@ body[data-activity="speaking"] .prompt-shell {
     max-height: 52dvh;
   }
 }
+
+/* ??? Infinity Stone System ??????????????????????????????? */
+
+.stone-node {
+  --stone-color: #22d3ee;
+  --stone-glow: rgba(34, 211, 238, 0.5);
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, color-mix(in srgb, var(--stone-color) 90%, white), var(--stone-color), color-mix(in srgb, var(--stone-color) 60%, black));
+  box-shadow: 0 0 18px var(--stone-glow), inset 0 0 12px rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: transform 280ms ease, box-shadow 280ms ease;
+}
+
+.stone-node::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 1.5px solid var(--stone-color);
+  opacity: 0.35;
+  animation: stonePulse 2.5s ease-in-out infinite;
+}
+
+.stone-node:hover {
+  transform: scale(1.18);
+  box-shadow: 0 0 36px var(--stone-glow), 0 0 60px var(--stone-glow), inset 0 0 14px rgba(255, 255, 255, 0.2);
+}
+
+.stone-node.dormant {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+}
+
+.stone-node.dormant::before {
+  animation: none;
+}
+
+.stone-node.reading {
+  animation: stoneGlow 2s ease-in-out infinite;
+}
+
+.stone-node.working {
+  animation: stoneGlow 1.2s ease-in-out infinite;
+}
+
+.stone-node.working::before {
+  animation: stonePulse 0.8s ease-in-out infinite;
+  border-color: var(--stone-color);
+  opacity: 0.7;
+}
+
+.stone-node.external_call {
+  animation: stoneGlow 0.8s ease-in-out infinite;
+}
+
+.stone-node.external_call::before {
+  border-style: dashed;
+  animation: stonePulse 0.6s ease-in-out infinite, orbit 3s linear infinite;
+}
+
+.stone-node.completed {
+  box-shadow: 0 0 24px var(--stone-glow), 0 0 48px var(--stone-glow);
+}
+
+.stone-node.warning {
+  animation: stoneGlow 1.5s ease-in-out infinite;
+}
+
+.stone-node.warning::before {
+  border-color: #facc15;
+  opacity: 0.6;
+}
+
+.stone-node.error {
+  animation: stoneGlow 0.5s ease-in-out infinite;
+  filter: saturate(1.4);
+}
+
+.stone-node.error::before {
+  border-color: #fb7185;
+  opacity: 0.8;
+  animation: stonePulse 0.4s ease-in-out infinite;
+}
+
+.stone-node.approval {
+  animation: stoneGlow 0.7s ease-in-out infinite;
+}
+
+.stone-node.approval::after {
+  content: '!';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fb7185;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 10px rgba(251, 113, 133, 0.7);
+}
+
+/* Stone color variants */
+.stone-power { --stone-color: #a855f7; --stone-glow: rgba(168, 85, 247, 0.5); }
+.stone-space { --stone-color: #3b82f6; --stone-glow: rgba(59, 130, 246, 0.5); }
+.stone-mind { --stone-color: #eab308; --stone-glow: rgba(234, 179, 8, 0.5); }
+.stone-time { --stone-color: #22c55e; --stone-glow: rgba(34, 197, 94, 0.5); }
+.stone-reality { --stone-color: #ef4444; --stone-glow: rgba(239, 68, 68, 0.5); }
+.stone-soul { --stone-color: #f97316; --stone-glow: rgba(249, 115, 22, 0.5); }
+
+/* ??? Orbit Layout ???????????????????????????????????????? */
+
+.orbit-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 560px;
+}
+
+.orbit-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(34, 211, 238, 0.12);
+}
+
+.orbit-ring.inner {
+  inset: 18%;
+}
+
+.orbit-ring.core {
+  inset: 36%;
+  border-color: rgba(74, 222, 128, 0.18);
+}
+
+.stone-orbit-slot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center;
+}
+
+/* ??? Command Center Layout ??????????????????????????????? */
+
+.command-center {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  padding: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .command-center {
+    grid-template-columns: 1fr 400px;
+    padding: 1.5rem;
+  }
+}
+
+/* ??? Chat Panel ?????????????????????????????????????????? */
+
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 211, 238, 0.2) transparent;
+}
+
+.chat-messages::-webkit-scrollbar {
+  width: 5px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.2);
+  border-radius: 4px;
+}
+
+.chat-bubble-user {
+  align-self: flex-end;
+  max-width: 85%;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.12), rgba(34, 211, 238, 0.08));
+  border-radius: 12px 12px 2px 12px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.875rem;
+  color: rgba(240, 249, 255, 0.92);
+}
+
+.chat-bubble-ai {
+  align-self: flex-start;
+  max-width: 85%;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  background: rgba(8, 47, 73, 0.34);
+  border-radius: 12px 12px 12px 2px;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.875rem;
+  color: rgba(224, 242, 254, 0.9);
+}
+
+/* ??? Auth Screen ????????????????????????????????????????? */
+
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: #020617;
+}
+
+.pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(34, 211, 238, 0.5);
+  background: transparent;
+  transition: background 200ms ease, box-shadow 200ms ease;
+}
+
+.pin-dot.filled {
+  background: #22d3ee;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.6);
+}
+
+/* ??? Voice Waveform ?????????????????????????????????????? */
+
+.waveform-bar {
+  width: 3px;
+  background: linear-gradient(to top, #22d3ee, #4ade80);
+  border-radius: 2px;
+  transform-origin: bottom;
+}
+
+/* ??? Deck Switch Tabs ???????????????????????????????????? */
+
+.deck-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.2rem;
+  font-family: 'Share Tech Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  border: 1px solid rgba(34, 211, 238, 0.15);
+  border-radius: 6px;
+  background: rgba(2, 6, 23, 0.6);
+  color: rgba(165, 243, 252, 0.65);
+  cursor: pointer;
+  transition: all 200ms ease;
+}
+
+.deck-tab:hover {
+  border-color: rgba(34, 211, 238, 0.45);
+  color: rgba(224, 242, 254, 0.9);
+}
+
+.deck-tab.active {
+  border-color: rgba(34, 211, 238, 0.7);
+  background: rgba(34, 211, 238, 0.1);
+  color: #e0f2fe;
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.12);
+}
+
+/* ??? Status Dot (connection indicators) ?????????????????? */
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-dot.online {
+  background: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+}
+
+.status-dot.offline {
+  background: #fb7185;
+  box-shadow: 0 0 8px rgba(251, 113, 133, 0.5);
+}
+
+.status-dot.checking {
+  background: #facc15;
+  box-shadow: 0 0 8px rgba(250, 204, 21, 0.5);
+  animation: stonePulse 1.5s ease-in-out infinite;
+}
