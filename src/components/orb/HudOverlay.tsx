@@ -116,7 +116,7 @@ function formatFileSize(bytes: number) {
 
 function createInitialWindows(stored?: Partial<WindowLayouts>): WindowLayouts {
   return {
-    hub: { open: false, minimized: false, position: stored?.hub?.position ?? DEFAULT_WINDOW_POSITIONS.hub },
+    hub: { open: typeof window !== "undefined" && window.innerWidth > 980, minimized: false, position: stored?.hub?.position ?? DEFAULT_WINDOW_POSITIONS.hub },
     settings: { open: false, minimized: false, position: stored?.settings?.position ?? DEFAULT_WINDOW_POSITIONS.settings },
   };
 }
@@ -203,6 +203,7 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const [handsFree, setHandsFree] = useState(initial?.handsFree ?? false);
   const [advisorMode, setAdvisorMode] = useState(initial?.advisorMode ?? true);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [chatVisible, setChatVisible] = useState(() => typeof window !== "undefined" && window.innerWidth > 760);
   const [windows, setWindows] = useState<WindowLayouts>(() => createInitialWindows(initial?.windows));
   const [activeWindow, setActiveWindow] = useState<WindowId>("hub");
   const [orbOnly, setOrbOnly] = useState(initial?.orbOnly ?? false);
@@ -213,6 +214,8 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const recognitionRef = useRef<any>(null);
   const voiceModeRef = useRef(false);
   const recognitionActiveRef = useRef(false);
+  const microphonePermissionRef = useRef(false);
+  const activityRef = useRef<AiActivity>("idle");
   const manualStopRef = useRef(false);
   const resultHandledRef = useRef(false);
   const speechRunRef = useRef(0);
@@ -233,6 +236,7 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   }, [activeAgent, advisorMode, handsFree, messages, orbOnly, palette, voiceReply, windows]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
+  useEffect(() => { activityRef.current = activity; }, [activity]);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
   useEffect(() => {
     messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: "smooth" });
@@ -260,7 +264,7 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const scheduleVoiceRestart = (delay = 520) => {
     if (!voiceModeRef.current || !handsFree) return;
     if (restartTimer.current) window.clearTimeout(restartTimer.current);
-    restartTimer.current = window.setTimeout(() => startRecognition(), advisorMode ? Math.max(delay, 1700) : delay);
+    restartTimer.current = window.setTimeout(() => { void startRecognition(); }, advisorMode ? Math.max(delay, 1700) : delay);
   };
 
   const speak = (text: string) => {
@@ -398,10 +402,23 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
     }
   };
 
-  function startRecognition() {
+  async function startRecognition() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) { setToast("Trình duyệt này chưa hỗ trợ nhận giọng nói."); return; }
-    if (recognitionActiveRef.current || activity === "thinking" || activity === "speaking") return;
+    if (!SpeechRecognition) { setToast("Trình duyệt này chưa hỗ trợ Google Web Speech. Hãy mở bằng Chrome hoặc Edge."); return; }
+    if (recognitionActiveRef.current || activityRef.current === "thinking" || activityRef.current === "speaking") return;
+    if (!microphonePermissionRef.current && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+        microphonePermissionRef.current = true;
+      } catch (error) {
+        const name = error instanceof DOMException ? error.name : "";
+        voiceModeRef.current = false;
+        setVoiceMode(false);
+        setToast(name === "NotFoundError" ? "Không tìm thấy microphone khả dụng." : "Microphone đang bị chặn. Hãy cấp quyền cho trang rồi bật Voice lại.");
+        return;
+      }
+    }
     manualStopRef.current = false;
     resultHandledRef.current = false;
     const recognition = new SpeechRecognition();
@@ -466,12 +483,12 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
     setActivity("idle");
   };
 
-  const toggleVoiceMode = () => {
+  const toggleVoiceMode = async () => {
     if (voiceModeRef.current || listening) { stopVoice(); return; }
     setVoiceMode(true);
     voiceModeRef.current = true;
     setToast(handsFree ? "Voice đã bật và sẽ tự nghe tiếp sau mỗi câu." : "Voice đã bật cho một lượt nghe.");
-    startRecognition();
+    await startRecognition();
   };
 
   const clearChat = () => {
@@ -546,6 +563,7 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
 
       {!orbOnly && <nav className="hud-dock" aria-label="Điều khiển giao diện">
         <button type="button" aria-label="Ẩn toàn bộ HUD, chỉ hiện quả cầu" onClick={() => setOrbOnly(true)}><Icon name="focus" /></button>
+        <button className={chatVisible ? "active" : ""} type="button" aria-label="Bật tắt chat bên phải" onClick={() => setChatVisible((current) => !current)}><Icon name="chat" /></button>
         <button className={palette === "neutral" ? "active" : ""} type="button" aria-label="Mở hệ hành tinh Infinity" onClick={() => onPaletteChange("neutral")}><Icon name="orbit" /></button>
         <button type="button" aria-label="Reset góc nhìn" onClick={onResetView}><Icon name="reset" /></button>
       </nav>}
@@ -628,12 +646,11 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
         </HudWindow>
       )}
 
-      {!orbOnly && <section className="hud-bottom">
-        <div className={`ai-state-readout ${activity}`}>
-          <i className={`status-dot ${activity}`} />
-          <span>{activityLabels[activity]}</span>
-          <div className="voice-wave" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} style={{ animationDelay: `${index * 48}ms` }} />)}</div>
-        </div>
+      {!orbOnly && chatVisible && <aside className="chat-side-panel" aria-label="Chat bên phải">
+        <header className="chat-side-head">
+          <div><i className={`status-dot ${activity}`} /><span>ĐỐI THOẠI</span></div>
+          <div><b>{agentLabels[activeAgent]}</b><button type="button" aria-label="Ẩn chat bên phải" onClick={() => setChatVisible(false)}><Icon name="close" /></button></div>
+        </header>
         <div className="chat-transcript" ref={messageListRef} role="log" aria-label="Hội thoại hiện tại" aria-live="polite">
           {messages.slice(-12).map((message) => (
             <article className={`chat-turn ${message.role}`} key={message.id}>
@@ -649,6 +666,14 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
               ))}
             </article>
           ))}
+        </div>
+      </aside>}
+
+      {!orbOnly && <section className="hud-bottom">
+        <div className={`ai-state-readout ${activity}`}>
+          <i className={`status-dot ${activity}`} />
+          <span>{activityLabels[activity]}</span>
+          <div className="voice-wave" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} style={{ animationDelay: `${index * 48}ms` }} />)}</div>
         </div>
         {pendingAttachment && (
           <div className="attachment-tray" aria-live="polite">

@@ -2,10 +2,18 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef, useState, useEffect } from "react";
 import type { AiActivity } from "../../App";
+import type { LegacyOrbPalette } from "./MindScene";
 
 // Colors (Gold Palette)
 const WHITE_HOT = new THREE.Color("#fff8d6");
 const COPPER_GLOW = new THREE.Color("#d65f10");
+
+const LATTICE_COLORS: Record<LegacyOrbPalette, [string, string]> = {
+  gold: ["#fff8d6", "#d65f10"],
+  green: ["#f5fff6", "#18bd58"],
+  violet: ["#fff6ff", "#7f35ff"],
+  orange: ["#fff5de", "#ed5f12"],
+};
 
 function seededRandom(seed: number) {
   return () => {
@@ -211,7 +219,10 @@ function TriangularMindCage({ activity, flashRef }: { activity: AiActivity, flas
   );
 }
 
-export function NeuralLattice({ activity }: { activity: AiActivity }) {
+export function NeuralLattice({ activity, palette = "gold" }: { activity: AiActivity; palette?: LegacyOrbPalette }) {
+  const [white, copper] = LATTICE_COLORS[palette];
+  WHITE_HOT.set(white);
+  COPPER_GLOW.set(copper);
   const [flash, setFlash] = useState(0);
   const flashRef = useRef(0);
 
