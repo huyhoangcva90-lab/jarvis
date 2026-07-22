@@ -1,90 +1,106 @@
-import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
+import { useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import * as THREE from "three";
 
-interface HypercubeSystemProps {
-  activity?: 'idle' | 'listening' | 'thinking' | 'speaking';
+type SpaceActivity = "idle" | "listening" | "thinking" | "speaking";
+
+const CUBE_NODES: [number, number, number][] = [
+  [-1.75, -1.05, -0.42], [-1.45, 1.2, 0.18], [1.55, -1.08, 0.32], [1.72, 0.92, -0.3],
+  [-0.82, -1.72, 0.12], [0.74, 1.66, -0.16], [2.18, 0.12, 0.1], [-2.12, 0.18, -0.08],
+];
+
+function activitySpeed(activity: SpaceActivity) {
+  if (activity === "speaking") return 1.9;
+  if (activity === "thinking") return 1.45;
+  if (activity === "listening") return 0.62;
+  return 1;
 }
 
-export const HypercubeSystem: React.FC<HypercubeSystemProps> = ({ activity = 'idle' }) => {
-  const outerCubeRef = useRef<THREE.LineSegments>(null!);
-  const innerCubeRef = useRef<THREE.LineSegments>(null!);
-  const linesRef = useRef<THREE.LineSegments>(null!);
+function connectorGeometry(inner = 0.72, outer = 1.28) {
+  const points: THREE.Vector3[] = [];
+  for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1]) {
+    points.push(new THREE.Vector3(x * inner, y * inner, z * inner), new THREE.Vector3(x * outer, y * outer, z * outer));
+  }
+  return new THREE.BufferGeometry().setFromPoints(points);
+}
 
-  // Basic box geometry for the wireframes
-  const geometry = useMemo(() => {
-    const boxGeo = new THREE.BoxGeometry(2, 2, 2);
-    return new THREE.WireframeGeometry(boxGeo);
-  }, []);
-
-  // Spatial routing lines geometry
-  const routingLinesGeometry = useMemo(() => {
-    const points: THREE.Vector3[] = [];
-    const numLines = 20;
-    for (let i = 0; i < numLines; i++) {
-      const start = new THREE.Vector3(
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2,
-        (Math.random() - 0.5) * 2
-      ).normalize().multiplyScalar(1);
-      
-      const end = start.clone().multiplyScalar(3 + Math.random() * 2);
-      
-      points.push(start, end);
-    }
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+export function HypercubeSystem({ activity = "idle" }: { activity?: SpaceActivity }) {
+  const root = useRef<THREE.Group>(null);
+  const outer = useRef<THREE.LineSegments>(null);
+  const inner = useRef<THREE.LineSegments>(null);
+  const formation = useRef<THREE.Group>(null);
+  const outerGeometry = useMemo(() => {
+    const source = new THREE.BoxGeometry(2.56, 2.56, 2.56);
+    const geometry = new THREE.EdgesGeometry(source);
+    source.dispose();
     return geometry;
   }, []);
+  const innerGeometry = useMemo(() => {
+    const source = new THREE.BoxGeometry(1.44, 1.44, 1.44);
+    const geometry = new THREE.EdgesGeometry(source);
+    source.dispose();
+    return geometry;
+  }, []);
+  const nodeGeometry = useMemo(() => {
+    const source = new THREE.BoxGeometry(0.28, 0.28, 0.28);
+    const geometry = new THREE.EdgesGeometry(source);
+    source.dispose();
+    return geometry;
+  }, []);
+  const bridges = useMemo(() => connectorGeometry(), []);
 
-  useFrame((state, delta) => {
-    // Rotation logic based on activity
-    let speed = 0.5;
-    if (activity === 'thinking') speed = 1.0;
-    if (activity === 'speaking') speed = 2.0;
-
-    if (outerCubeRef.current) {
-      outerCubeRef.current.rotation.x += delta * 0.2 * speed;
-      outerCubeRef.current.rotation.y += delta * 0.3 * speed;
-      
-      if (activity === 'speaking') {
-         outerCubeRef.current.rotation.z += delta * 0.5;
-      }
+  useFrame(({ clock }, delta) => {
+    const t = clock.elapsedTime;
+    const speed = activitySpeed(activity);
+    if (root.current) {
+      root.current.rotation.x += delta * 0.11 * speed;
+      root.current.rotation.y += delta * 0.18 * speed;
     }
-
-    if (innerCubeRef.current) {
-      innerCubeRef.current.rotation.x -= delta * 0.3 * speed;
-      innerCubeRef.current.rotation.y -= delta * 0.4 * speed;
-
-      // Morphing scale logic
-      const scale = 0.3 + (Math.sin(state.clock.elapsedTime * speed) * 0.5 + 0.5) * 0.5;
-      innerCubeRef.current.scale.set(scale, scale, scale);
+    if (outer.current) outer.current.rotation.z += delta * 0.07 * speed;
+    if (inner.current) {
+      inner.current.rotation.x -= delta * 0.2 * speed;
+      inner.current.rotation.y -= delta * 0.14 * speed;
+      const pulse = 0.9 + Math.sin(t * 1.8 * speed) * 0.1;
+      inner.current.scale.setScalar(pulse);
     }
-    
-    if (linesRef.current) {
-      linesRef.current.rotation.y += delta * 0.1 * speed;
-      // Pulse effect
-      const material = linesRef.current.material as THREE.LineBasicMaterial;
-      if (activity === 'thinking') {
-         material.opacity = 0.5 + Math.sin(state.clock.elapsedTime * 10) * 0.5;
-      } else {
-         material.opacity = 0.3;
-      }
+    if (formation.current) {
+      formation.current.children.forEach((child, index) => {
+        const wave = (Math.sin(t * (1.2 + speed * 0.25) - index * 0.62) + 1) * 0.5;
+        child.scale.setScalar(0.42 + wave * 0.58);
+        child.rotation.x += delta * (0.18 + index * 0.018);
+        child.rotation.y -= delta * (0.23 + index * 0.014);
+      });
     }
   });
 
   return (
-    <group>
-      <lineSegments ref={outerCubeRef} geometry={geometry}>
-        <lineBasicMaterial color="#00ffff" transparent opacity={0.8} />
+    <group ref={root} scale={0.86}>
+      <lineSegments ref={outer} geometry={outerGeometry} rotation={[0.18, 0.32, 0.12]}>
+        <lineBasicMaterial blending={THREE.AdditiveBlending} color="#35d8ff" depthWrite={false} opacity={0.82} toneMapped={false} transparent />
       </lineSegments>
-      
-      <lineSegments ref={innerCubeRef} geometry={geometry} scale={[0.5, 0.5, 0.5]}>
-        <lineBasicMaterial color="#00aaff" transparent opacity={0.9} />
+      <lineSegments ref={inner} geometry={innerGeometry} rotation={[-0.34, 0.26, -0.18]}>
+        <lineBasicMaterial blending={THREE.AdditiveBlending} color="#56ffb1" depthWrite={false} opacity={0.9} toneMapped={false} transparent />
+      </lineSegments>
+      <lineSegments geometry={bridges}>
+        <lineBasicMaterial blending={THREE.AdditiveBlending} color="#d9ffff" depthWrite={false} opacity={0.52} toneMapped={false} transparent />
       </lineSegments>
 
-      <lineSegments ref={linesRef} geometry={routingLinesGeometry}>
-        <lineBasicMaterial color="#0088ff" transparent opacity={0.3} />
-      </lineSegments>
+      <mesh>
+        <icosahedronGeometry args={[0.44, 1]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color="#49f5d0" depthWrite={false} opacity={0.16} toneMapped={false} transparent wireframe />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[0.105, 20, 20]} />
+        <meshBasicMaterial color="#f1ffff" toneMapped={false} />
+      </mesh>
+
+      <group ref={formation}>
+        {CUBE_NODES.map((position, index) => (
+          <lineSegments geometry={nodeGeometry} key={index} position={position}>
+            <lineBasicMaterial blending={THREE.AdditiveBlending} color={index % 2 ? "#56ffb1" : "#35d8ff"} depthWrite={false} opacity={0.72} toneMapped={false} transparent />
+          </lineSegments>
+        ))}
+      </group>
     </group>
   );
-};
+}

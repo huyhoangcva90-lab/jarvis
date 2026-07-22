@@ -167,7 +167,12 @@ export default function App() {
       <main className={`jarvis-shell min-h-dvh overflow-hidden bg-void text-cyan-50 ${intensityClass}`}>
         {/* WebGL 3D Canvas Background */}
         <div className="orb-stage fixed inset-0 z-0">
-          <CinematicOrb activity={activity} palette={energyPalette} resetSignal={resetViewSignal} />
+          <CinematicOrb
+            activity={activity}
+            palette={energyPalette}
+            resetSignal={resetViewSignal}
+            onRealmSelect={setEnergyPalette}
+          />
         </div>
 
         {booting && <BootScreen />}
@@ -373,6 +378,7 @@ export default function App() {
 
         {hudVisible && (
           <HudOverlay
+            palette={energyPalette}
             onActivityChange={setActivity}
             onPaletteChange={setEnergyPalette}
             onResetView={() => setResetViewSignal((signal) => signal + 1)}

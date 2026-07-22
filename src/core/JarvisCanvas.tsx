@@ -18,6 +18,7 @@ type JarvisCanvasProps = {
   activity: AiActivity;
   palette: EnergyPalette;
   resetSignal?: number;
+  onRealmSelect?: (palette: EnergyPalette) => void;
 };
 
 const CLEAR_COLORS: Record<string, string> = {
@@ -200,7 +201,7 @@ function PostFX({ activity, palette }: { activity: AiActivity; palette: string }
   );
 }
 
-export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: JarvisCanvasProps) {
+export default function JarvisCanvas({ activity, palette, resetSignal = 0, onRealmSelect }: JarvisCanvasProps) {
   return (
     <div className="orb-webgl" aria-hidden="true">
       <Canvas
@@ -242,7 +243,7 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: Jar
               if (activePalette === "orange") {
                 return <SoulScene activity={activity} />;
               }
-              return <JarvisNeutralCore />;
+              return <JarvisNeutralCore onSelectRealm={onRealmSelect} />;
             }}
           </RealmTransition>
         </SceneRig>

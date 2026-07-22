@@ -15,11 +15,13 @@ type Message = {
   role: "user" | "assistant";
   text: string;
   at: number;
+  speaker?: AgentId;
   attachments?: Attachment[];
 };
 
 type Palette = EnergyPalette;
-type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "trash" | "close" | "minimize" | "restore" | "attach" | "file" | "mic" | "screen" | "send" | "focus" | "reveal";
+type AgentId = "j-core" | "hermes" | "openclaw" | "9router";
+type IconName = "hub" | "chat" | "settings" | "reset" | "orbit" | "external" | "trash" | "close" | "minimize" | "restore" | "attach" | "file" | "mic" | "screen" | "send" | "focus" | "reveal";
 type WindowId = "hub" | "settings";
 type WindowLayout = {
   open: boolean;
@@ -62,7 +64,14 @@ const paletteLabels: Record<Palette, string> = {
   red: "Transfer",
   violet: "Neon Violet",
   orange: "Cosmic Soul",
-  neutral: "Neutral Core"
+  neutral: "Infinity Orbit"
+};
+
+const agentLabels: Record<AgentId, string> = {
+  "j-core": "J-CORE",
+  hermes: "HERMES",
+  openclaw: "OPENCLAW",
+  "9router": "9ROUTER",
 };
 
 const activityLabels: Record<AiActivity, string> = {
@@ -78,6 +87,7 @@ function Icon({ name }: { name: IconName }) {
     chat: <><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z" /><path d="M8 9h8M8 13h5" /></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3V9.6h.09A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.16.37.37.72.6 1 .3.3.69.44 1.1.4h.1v4h-.1A1.7 1.7 0 0 0 19.4 15Z" /></>,
     reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v6h6" /><path d="M12 8v4l3 2" /></>,
+    orbit: <><circle cx="12" cy="12" r="2.4" /><ellipse cx="12" cy="12" rx="9" ry="4.2" transform="rotate(-28 12 12)" /><circle cx="19.2" cy="8.2" r="1" /></>,
     external: <><path d="M14 3h7v7M10 14 21 3" /><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" /></>,
     trash: <><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6" /></>,
     close: <><path d="m8 8 8 8M16 8l-8 8" /><path d="M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4" /></>,
@@ -111,8 +121,17 @@ function createInitialWindows(stored?: Partial<WindowLayouts>): WindowLayouts {
   };
 }
 
-function createReply(input: string) {
+function createReply(input: string, agent: AgentId) {
   const text = input.toLowerCase();
+  if (agent === "hermes") {
+    return "Hermes đã nhận lệnh. T sẽ chuyển yêu cầu thành hành động rõ ràng và ưu tiên bước tiếp theo có thể thực hiện ngay.";
+  }
+  if (agent === "openclaw") {
+    return "OpenClaw online. T đang phân rã nhiệm vụ thành các agent chuyên trách và kiểm tra thứ tự triển khai an toàn.";
+  }
+  if (agent === "9router") {
+    return "9Router đã nhận truy vấn. T đang chọn tuyến mô hình phù hợp nhất theo độ khó, tốc độ và ngữ cảnh hiện tại.";
+  }
   if (text.includes("mệt") || text.includes("tired")) {
     return "T nghe thấy năng lượng của bạn đang thấp. Hãy uống nước, chọn một việc nhỏ nhất và làm trong 12 phút trước.";
   }
@@ -125,7 +144,7 @@ function createReply(input: string) {
   if (text.includes("chatgpt")) {
     return "T có thể mở ChatGPT Web. Bản này chưa có API thật nên phần phản hồi hiện vẫn chạy cục bộ trên trình duyệt.";
   }
-  return "Đã nhận lệnh. T đang lưu lịch sử, nhận giọng nói, đọc phản hồi và điều khiển trạng thái lõi AI ngay trên thiết bị này.";
+  return "Đã nhận lệnh. J-CORE đang phân tích ngữ cảnh và điều phối hệ thống phù hợp cho yêu cầu này.";
 }
 
 function normalizeIntentText(value: string) {
@@ -160,25 +179,26 @@ function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as { messages?: Message[]; palette?: Palette; voiceReply?: boolean; handsFree?: boolean; advisorMode?: boolean; orbOnly?: boolean; windows?: Partial<WindowLayouts> };
+    return JSON.parse(raw) as { messages?: Message[]; palette?: Palette; activeAgent?: AgentId; voiceReply?: boolean; handsFree?: boolean; advisorMode?: boolean; orbOnly?: boolean; windows?: Partial<WindowLayouts> };
   } catch {
     return null;
   }
 }
 
 type HudOverlayProps = {
+  palette: EnergyPalette;
   onActivityChange: (activity: AiActivity) => void;
   onPaletteChange: (palette: EnergyPalette) => void;
   onResetView: () => void;
 };
 
-export default function HudOverlay({ onActivityChange, onPaletteChange, onResetView }: HudOverlayProps) {
+export default function HudOverlay({ palette, onActivityChange, onPaletteChange, onResetView }: HudOverlayProps) {
   const initial = useMemo(() => (typeof window === "undefined" ? null : loadState()), []);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>(
-    () => initial?.messages?.length ? initial.messages : [{ id: createId(), role: "assistant", text: "Kết nối đã sẵn sàng. Bạn có thể chat hoặc nói trực tiếp với t.", at: Date.now() }]
+    () => initial?.messages?.length ? initial.messages : [{ id: createId(), role: "assistant", speaker: "j-core", text: "Kết nối đã sẵn sàng. Chọn hệ AI bên dưới để bắt đầu hội thoại.", at: Date.now() }]
   );
-  const [palette, setPalette] = useState<Palette>(initial?.palette ?? "gold");
+  const [activeAgent, setActiveAgent] = useState<AgentId>(initial?.activeAgent ?? "j-core");
   const [voiceReply, setVoiceReply] = useState(initial?.voiceReply ?? true);
   const [handsFree, setHandsFree] = useState(initial?.handsFree ?? false);
   const [advisorMode, setAdvisorMode] = useState(initial?.advisorMode ?? true);
@@ -205,13 +225,12 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
 
   useEffect(() => {
     document.body.dataset.palette = palette;
-    onPaletteChange(palette);
     const persistedMessages = messages.map((message) => ({
       ...message,
       attachments: message.attachments?.map(({ previewUrl: _previewUrl, ...attachment }) => attachment),
     }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages: persistedMessages, palette, voiceReply, handsFree, advisorMode, orbOnly, windows }));
-  }, [advisorMode, handsFree, messages, onPaletteChange, orbOnly, palette, voiceReply, windows]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages: persistedMessages, palette, activeAgent, voiceReply, handsFree, advisorMode, orbOnly, windows }));
+  }, [activeAgent, advisorMode, handsFree, messages, orbOnly, palette, voiceReply, windows]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
@@ -293,7 +312,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
     setActivity("thinking");
     if (thinkingTimer.current) window.clearTimeout(thinkingTimer.current);
     thinkingTimer.current = window.setTimeout(() => {
-      const reply = { id: createId(), role: "assistant" as const, text: createReply(trimmed || `tệp ${attachment?.name ?? "đính kèm"}`), at: Date.now() + 1 };
+      const reply = { id: createId(), role: "assistant" as const, speaker: activeAgent, text: createReply(trimmed || `tệp ${attachment?.name ?? "đính kèm"}`, activeAgent), at: Date.now() + 1 };
       setMessages((current) => [...current, reply].slice(-80));
       speak(reply.text);
     }, 980);
@@ -462,7 +481,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     objectUrlsRef.current.clear();
     setPendingAttachment(null);
-    setMessages([{ id: createId(), role: "assistant", text: "Lịch sử đã được xóa. Kết nối vẫn hoạt động.", at: Date.now() }]);
+    setMessages([{ id: createId(), role: "assistant", speaker: activeAgent, text: "Lịch sử đã được xóa. Kết nối vẫn hoạt động.", at: Date.now() }]);
   };
 
   const localNow = useMemo(() => new Date(), [activity, messages.length, palette]);
@@ -527,6 +546,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
 
       {!orbOnly && <nav className="hud-dock" aria-label="Điều khiển giao diện">
         <button type="button" aria-label="Ẩn toàn bộ HUD, chỉ hiện quả cầu" onClick={() => setOrbOnly(true)}><Icon name="focus" /></button>
+        <button className={palette === "neutral" ? "active" : ""} type="button" aria-label="Mở hệ hành tinh Infinity" onClick={() => onPaletteChange("neutral")}><Icon name="orbit" /></button>
         <button type="button" aria-label="Reset góc nhìn" onClick={onResetView}><Icon name="reset" /></button>
       </nav>}
 
@@ -597,7 +617,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
             <section className="settings-block">
               <div className="settings-block-head"><span>Màu năng lượng</span></div>
               <div className="palette-grid">
-                {(Object.keys(paletteLabels) as Palette[]).map((key) => <button className={palette === key ? "active" : ""} key={key} type="button" onClick={() => setPalette(key)}><i />{paletteLabels[key]}</button>)}
+                {(Object.keys(paletteLabels) as Palette[]).map((key) => <button className={palette === key ? "active" : ""} key={key} type="button" onClick={() => onPaletteChange(key)}><i />{paletteLabels[key]}</button>)}
               </div>
             </section>
             <section className="settings-actions">
@@ -617,7 +637,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
         <div className="chat-transcript" ref={messageListRef} role="log" aria-label="Hội thoại hiện tại" aria-live="polite">
           {messages.slice(-12).map((message) => (
             <article className={`chat-turn ${message.role}`} key={message.id}>
-              <b>{message.role === "user" ? "YOU" : "J-CORE"}</b>
+              <b>{message.role === "user" ? "YOU" : agentLabels[message.speaker ?? "j-core"]}</b>
               <span>{message.text}</span>
               {message.attachments?.map((attachment) => (
                 <span className="message-attachment" key={attachment.id}>
@@ -639,6 +659,23 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
             <button type="button" aria-label="Gỡ tệp đính kèm" onClick={removePendingAttachment}><Icon name="close" /></button>
           </div>
         )}
+        <div className="agent-selector" role="group" aria-label="Chọn hệ AI để nói chuyện">
+          <span>NÓI VỚI</span>
+          {(Object.keys(agentLabels) as AgentId[]).map((agent) => (
+            <button
+              className={activeAgent === agent ? "active" : ""}
+              key={agent}
+              type="button"
+              aria-pressed={activeAgent === agent}
+              onClick={() => {
+                setActiveAgent(agent);
+                setToast(`Đã chuyển kênh sang ${agentLabels[agent]}.`);
+              }}
+            >
+              {agentLabels[agent]}
+            </button>
+          ))}
+        </div>
         <form className="prompt-shell" onSubmit={submit}>
           <button className={voiceMode || listening ? "listening" : ""} type="button" aria-label="Bật chế độ giọng nói" onClick={toggleVoiceMode}><Icon name="mic" /></button>
           <div className="prompt-hidden-actions" aria-label="Công cụ chat">
@@ -655,7 +692,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
             onChange={handleAttachmentChange}
           />
           <label className="sr-only" htmlFor="jcore-command">Nhập tin nhắn</label>
-          <input id="jcore-command" placeholder="Nói hoặc nhập lệnh..." value={input} onChange={(event) => setInput(event.target.value)} />
+          <input id="jcore-command" placeholder={`Nói với ${agentLabels[activeAgent]}...`} value={input} onChange={(event) => setInput(event.target.value)} />
           <button type="submit" aria-label="Gửi tin nhắn" disabled={!input.trim() && !pendingAttachment}><Icon name="send" /></button>
         </form>
         <p aria-live="polite">{toast}</p>
