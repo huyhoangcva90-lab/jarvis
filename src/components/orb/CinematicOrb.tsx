@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as THREE from "three";
 import type { AiActivity, EnergyPalette } from "../../App";
+import { RealmSignature } from "./RealmSignatures";
 
 type CinematicOrbProps = {
   activity: AiActivity;
@@ -80,6 +81,14 @@ const ORB_PALETTES: Record<
     deep: "#2d0f58",
     copper: "#7f35ff",
     clear: "#040008"
+  },
+  orange: {
+    plasma: "#ff6a18",
+    hot: "#ffe0a8",
+    white: "#fff7df",
+    deep: "#7c2406",
+    copper: "#d9480f",
+    clear: "#070200"
   }
 };
 
@@ -92,6 +101,7 @@ const ORB_MODE: Record<
   green: { speed: 0.74, bloom: 1.04, scaffold: 0.74, shell: 1.48, pulse: 0.82, packet: 0.92 },
   red: { speed: 1.44, bloom: 1.12, scaffold: 1.18, shell: 0.92, pulse: 1.42, packet: 1.55 },
   violet: { speed: 1.12, bloom: 1.2, scaffold: 1.08, shell: 1.08, pulse: 1.34, packet: 1.26 }
+  ,orange: { speed: 0.88, bloom: 1.08, scaffold: 0.62, shell: 0.92, pulse: 1.18, packet: 1.12 }
 };
 
 function modeFor(palette: EnergyPalette = "gold") {
@@ -534,7 +544,7 @@ function OuterHaloFragments({ activity }: CinematicOrbProps) {
     if (material.current) {
       material.current.uniforms.uTime.value = clock.elapsedTime * 0.82;
       material.current.uniforms.uEnergy.value = activityEnergy(activity);
-      material.current.uniforms.uOpacity.value = 0.5;
+      material.current.uniforms.uOpacity.value = 0.34;
       material.current.uniforms.uColor.value.copy(COPPER_GLOW);
     }
     if (group.current) {
@@ -1265,7 +1275,8 @@ function buildModeSignatureGeometry(palette: EnergyPalette) {
     blue: 60319,
     green: 84011,
     red: 19441,
-    violet: 71077
+    violet: 71077,
+    orange: 55109
   };
   const random = seededRandom(seedMap[palette]);
   const positions: number[] = [];
@@ -1886,87 +1897,24 @@ function SceneRig({ activity, palette = "gold", resetSignal = 0 }: CinematicOrbP
 
   return (
     <group ref={root}>
-      {palette === "red" && (
-        <>
-          <TechScaffold activity={activity} palette={palette} />
-          <FresnelVolume activity={activity} />
-          <OuterHaloFragments activity={activity} />
-          <CircuitShell activity={activity} />
-          <DataFragments activity={activity} />
-          <ModeSignature activity={activity} palette={palette} />
-          <PlanetaryOrbitField activity={activity} />
-          <ModeConduits activity={activity} palette={palette} />
-          <EnergyFilaments activity={activity} />
-          <AccretionBelt activity={activity} />
-          <FluxPackets activity={activity} />
-          <AxisBeams activity={activity} />
-          <CoreSpokes activity={activity} />
-          <ResponsePulseRings activity={activity} />
-          <CoreVortex activity={activity} />
-        </>
-      )}
-
       {palette === "gold" && (
         <>
-          <FresnelVolume activity={activity} />
           <OuterHaloFragments activity={activity} />
-          <group scale={[1.05, 0.92, 1.05]}>
+          <group scale={[1.02, 0.9, 1.02]}>
             <PaletteArchitecture activity={activity} palette={palette} />
             <PlanetaryOrbitField activity={activity} />
-            <AccretionBelt activity={activity} />
           </group>
           <ModeConduits activity={activity} palette={palette} />
-          <AxisBeams activity={activity} />
-          <CoreSpokes activity={activity} />
           <ResponsePulseRings activity={activity} />
           <CoreVortex activity={activity} />
         </>
       )}
 
-      {palette === "blue" && (
+      {palette !== "gold" && (
         <>
-          <group scale={[1.14, 0.78, 0.92]} rotation={[0.08, -0.18, 0.02]}>
-            <TechScaffold activity={activity} palette={palette} />
-            <PaletteArchitecture activity={activity} palette={palette} />
-            <CircuitShell activity={activity} />
-          </group>
-          <DataFragments activity={activity} />
-          <ModeSignature activity={activity} palette={palette} />
-          <ModeConduits activity={activity} palette={palette} />
-          <FluxPackets activity={activity} />
-          <CoreSpokes activity={activity} />
-          <CoreVortex activity={activity} />
-        </>
-      )}
-
-      {palette === "green" && (
-        <>
-          <FresnelVolume activity={activity} />
-          <group scale={[0.9, 1.16, 1.06]} rotation={[0.14, 0.22, -0.16]}>
-            <PaletteArchitecture activity={activity} palette={palette} />
-            <EnergyFilaments activity={activity} />
-            <ModeSignature activity={activity} palette={palette} />
-          </group>
-          <DataFragments activity={activity} />
-          <ModeConduits activity={activity} palette={palette} />
-          <FluxPackets activity={activity} />
-          <CoreSpokes activity={activity} />
-          <CoreVortex activity={activity} />
-        </>
-      )}
-
-      {palette === "violet" && (
-        <>
-          <group scale={[0.86, 1.22, 0.88]} rotation={[0.08, -0.14, 0.24]}>
-            <PaletteArchitecture activity={activity} palette={palette} />
-            <ModeSignature activity={activity} palette={palette} />
-            <ModeConduits activity={activity} palette={palette} />
-          </group>
-          <DataFragments activity={activity} />
-          <ResponsePulseRings activity={activity} />
-          <FluxPackets activity={activity} />
-          <CoreSpokes activity={activity} />
-          <CoreVortex activity={activity} />
+          <RealmSignature activity={activity} palette={palette} />
+          {palette === "red" && <ModeConduits activity={activity} palette={palette} />}
+          {palette === "violet" && <DataFragments activity={activity} />}
         </>
       )}
     </group>

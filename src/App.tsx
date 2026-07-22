@@ -3,7 +3,7 @@ import CinematicOrb from "./components/orb/CinematicOrb";
 import HudOverlay from "./components/orb/HudOverlay";
 
 export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
-export type EnergyPalette = "gold" | "blue" | "green" | "red" | "violet";
+export type EnergyPalette = "gold" | "blue" | "green" | "red" | "violet" | "orange";
 
 export default function App() {
   const [activity, setActivity] = useState<AiActivity>("idle");

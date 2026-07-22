@@ -1,5 +1,6 @@
 import { FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { AiActivity, EnergyPalette } from "../../App";
+import RealmDesktop, { type LocalEndpoints } from "../RealmDesktop";
 
 type Message = {
   id: string;
@@ -12,6 +13,11 @@ type Palette = EnergyPalette;
 type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "mic" | "send";
 
 const STORAGE_KEY = "jarvis.commandOrb.v2";
+const DEFAULT_ENDPOINTS: LocalEndpoints = {
+  hermes: "http://localhost:8080",
+  openclaw: "http://localhost:18789",
+  nineRouter: "http://localhost:9000"
+};
 const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
 const REQUEST_INTENTS =
   /\b(giup|hoi|tu van|phan tich|lam sao|nen|co nen|hay|cho t|cho tao|cho minh|debug|sua|mo|tim|nhac|ghi nho|ke hoach|y kien|danh gia)\b/;
@@ -34,11 +40,12 @@ const BACKCHANNELS = new Set([
 ]);
 
 const paletteLabels: Record<Palette, string> = {
-  gold: "Gold Core",
-  blue: "Stark Tech",
-  green: "Alien Grid",
-  red: "Transfer",
-  violet: "Neon Violet"
+  gold: "Mind / Memory",
+  blue: "Space / 9Router",
+  green: "Time / Terminal",
+  red: "Reality / Finance",
+  violet: "Power / OpenClaw",
+  orange: "Soul / Brain"
 };
 
 const activityLabels: Record<AiActivity, string> = {
@@ -117,10 +124,16 @@ function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as { messages?: Message[]; palette?: Palette; voiceReply?: boolean; handsFree?: boolean; advisorMode?: boolean };
+    return JSON.parse(raw) as { messages?: Message[]; palette?: Palette; voiceReply?: boolean; handsFree?: boolean; advisorMode?: boolean; endpoints?: Partial<LocalEndpoints> };
   } catch {
     return null;
   }
+}
+
+function paletteFromUrl(): Palette | null {
+  if (typeof window === "undefined") return null;
+  const value = new URLSearchParams(window.location.search).get("core");
+  return value && Object.prototype.hasOwnProperty.call(paletteLabels, value) ? value as Palette : null;
 }
 
 type HudOverlayProps = {
@@ -135,10 +148,11 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   const [messages, setMessages] = useState<Message[]>(
     () => initial?.messages?.length ? initial.messages : [{ id: createId(), role: "assistant", text: "Kết nối đã sẵn sàng. Bạn có thể chat hoặc nói trực tiếp với t.", at: Date.now() }]
   );
-  const [palette, setPalette] = useState<Palette>(initial?.palette ?? "gold");
+  const [palette, setPalette] = useState<Palette>(() => paletteFromUrl() ?? initial?.palette ?? "gold");
   const [voiceReply, setVoiceReply] = useState(initial?.voiceReply ?? true);
   const [handsFree, setHandsFree] = useState(initial?.handsFree ?? false);
   const [advisorMode, setAdvisorMode] = useState(initial?.advisorMode ?? true);
+  const [endpoints, setEndpoints] = useState<LocalEndpoints>(() => ({ ...DEFAULT_ENDPOINTS, ...(initial?.endpoints || {}) }));
   const [voiceMode, setVoiceMode] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 760);
@@ -159,8 +173,8 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   useEffect(() => {
     document.body.dataset.palette = palette;
     onPaletteChange(palette);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, handsFree, advisorMode }));
-  }, [advisorMode, handsFree, messages, onPaletteChange, palette, voiceReply]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, handsFree, advisorMode, endpoints }));
+  }, [advisorMode, endpoints, handsFree, messages, onPaletteChange, palette, voiceReply]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
@@ -297,7 +311,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
         detail: "Nhac viec thu cong qua chat"
       },
       { label: "VOICE", value: voiceMode ? "OPEN CHANNEL" : "STANDBY", detail: advisorMode ? "Co van, loc cau vu vo" : "Phan hoi moi cau nghe duoc" },
-      { label: "MODE", value: paletteLabels[palette].toUpperCase(), detail: "Orb doi mau va cau truc" },
+      { label: "ACTIVE CORE", value: paletteLabels[palette].toUpperCase(), detail: "Mau sac la module dang dieu khien" },
       { label: "MEMORY", value: `${messages.length} LOGS`, detail: "Luu cuc bo trong trinh duyet" }
     ],
     [advisorMode, localNow, messages.length, palette, voiceMode]
@@ -338,6 +352,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
 
   return (
     <div className="hud-overlay" aria-label="J-Core AI interface">
+      <RealmDesktop palette={palette} endpoints={endpoints} onSelect={setPalette} />
       <nav className="hud-dock" aria-label="Điều khiển giao diện">
         <button className={hubOpen ? "active" : ""} type="button" aria-label="Mo activity hub" onClick={toggleHub}><Icon name="hub" /></button>
         <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở lịch sử chat" onClick={toggleHistory}><Icon name="chat" /></button>
@@ -404,10 +419,17 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
             <label className="toggle-row"><span>Đọc phản hồi</span><input checked={voiceReply} type="checkbox" onChange={(event) => setVoiceReply(event.target.checked)} /></label>
           </section>
           <section className="settings-block">
-            <div className="settings-block-head"><span>Màu năng lượng</span></div>
+            <div className="settings-block-head"><span>Lõi / module đang hoạt động</span></div>
             <div className="palette-grid">
               {(Object.keys(paletteLabels) as Palette[]).map((key) => <button className={palette === key ? "active" : ""} key={key} type="button" onClick={() => setPalette(key)}><i />{paletteLabels[key]}</button>)}
             </div>
+          </section>
+          <section className="settings-block endpoint-settings">
+            <div className="settings-block-head"><span>Kết nối máy local</span></div>
+            <label><span>Hermes</span><input value={endpoints.hermes} onChange={(event) => setEndpoints((current) => ({ ...current, hermes: event.target.value }))} /></label>
+            <label><span>OpenClaw</span><input value={endpoints.openclaw} onChange={(event) => setEndpoints((current) => ({ ...current, openclaw: event.target.value }))} /></label>
+            <label><span>9Router</span><input value={endpoints.nineRouter} onChange={(event) => setEndpoints((current) => ({ ...current, nineRouter: event.target.value }))} /></label>
+            <small>Có thể thay localhost bằng URL tunnel HTTPS. Nút TEST nằm trong từng cửa sổ module.</small>
           </section>
           <section className="settings-actions">
             <button type="button" onClick={() => window.open("https://chatgpt.com/", "_blank", "noopener,noreferrer")}><Icon name="external" /><span>Mở ChatGPT Web</span></button>

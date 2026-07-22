@@ -35,6 +35,12 @@ body[data-palette="violet"] {
   --hot: #f0b8ff;
 }
 
+body[data-palette="orange"] {
+  --accent: #ff6a18;
+  --accent-rgb: 255, 106, 24;
+  --hot: #ffe0a8;
+}
+
 body[data-activity="listening"],
 body[data-activity="thinking"] {
   --panel-bg: rgba(0, 0, 0, 0.64);
