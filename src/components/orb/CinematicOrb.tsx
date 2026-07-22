@@ -9,7 +9,7 @@ type CinematicOrbProps = {
 };
 
 export default function CinematicOrb({ activity, palette = "gold", resetSignal = 0 }: CinematicOrbProps) {
-  if (palette === "gold" || palette === "red" || palette === "violet" || palette === "orange") {
+  if (palette === "gold" || palette === "red" || palette === "orange") {
     return <LegacyCinematicOrb activity={activity} palette={palette as LegacyEnergyPalette} resetSignal={resetSignal} />;
   }
 

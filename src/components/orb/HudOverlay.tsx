@@ -38,7 +38,7 @@ const paletteLabels: Record<Palette, string> = {
   blue: "Stark Tech",
   green: "Agamotto Time",
   red: "Reality Legacy",
-  violet: "Power Legacy",
+  violet: "Power Lattice",
   orange: "Cosmic Soul"
 };
 
