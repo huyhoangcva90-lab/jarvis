@@ -41,18 +41,7 @@ export const defaultData = {
     "J-Core kernel initialized.",
     "Operator profile loaded.",
     "Mission control standing by."
-  ],
-  endpoints: {
-    hermes: 'http://localhost:8080',
-    openclaw: 'http://localhost:18789',
-    nineRouter: 'http://localhost:9000',
-  },
-  auth: {
-    pinEnabled: false,
-    pinCode: '1234',
-  },
-  soundEnabled: true,
-  activeDeck: 'command',  // 'command' or 'mission-control'
+  ]
 };
 
 export function loadData() {
@@ -79,9 +68,6 @@ function mergeData(base, saved) {
     ...saved,
     memory: { ...base.memory, ...(saved.memory || {}) },
     toolUrls: { ...base.toolUrls, ...(saved.toolUrls || {}) },
-    endpoints: { ...base.endpoints, ...(saved.endpoints || {}) },
-    auth: { ...base.auth, ...(saved.auth || {}) },
-    activeDeck: saved.activeDeck || base.activeDeck,
     sectors: Array.isArray(saved.sectors) ? saved.sectors : base.sectors,
     sideQuests: Array.isArray(saved.sideQuests) ? saved.sideQuests.slice(0, 3) : base.sideQuests,
     logs: Array.isArray(saved.logs) ? saved.logs.slice(-16) : base.logs
