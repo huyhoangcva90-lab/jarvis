@@ -2915,6 +2915,23 @@ body[data-activity="speaking"] .prompt-shell {
   box-shadow: 14px 0 42px rgba(var(--accent-rgb), 0.18), inset -28px 0 34px rgba(var(--accent-rgb), 0.08);
 }
 
+.edge-tab.is-active {
+  color: var(--hot);
+  border-color: rgba(var(--accent-rgb), 0.82);
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.97), rgba(var(--accent-rgb), 0.25)),
+    repeating-linear-gradient(90deg, transparent 0 14px, rgba(var(--accent-rgb), 0.065) 14px 15px);
+  box-shadow:
+    15px 0 46px rgba(var(--accent-rgb), 0.2),
+    inset -3px 0 0 rgba(var(--accent-rgb), 0.86),
+    inset -30px 0 38px rgba(var(--accent-rgb), 0.1);
+}
+
+.edge-tab.is-stowed {
+  color: rgba(255, 245, 225, 0.64);
+  border-color: rgba(var(--accent-rgb), 0.28);
+}
+
 .edge-tab span {
   min-width: 0;
   font-family: "JetBrains Mono", ui-monospace, monospace;

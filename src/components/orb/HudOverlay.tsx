@@ -33,7 +33,7 @@ const DEFAULT_WINDOW_POSITIONS: Record<WindowId, HudWindowPosition> = {
   settings: { x: 0, y: 0 },
 };
 
-const STORAGE_KEY = "jarvis.commandOrb.v3";
+const STORAGE_KEY = "jarvis.commandOrb.v4";
 const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
 const REQUEST_INTENTS =
   /\b(giup|hoi|tu van|phan tich|lam sao|nen|co nen|hay|cho t|cho tao|cho minh|debug|sua|mo|tim|nhac|ghi nho|ke hoach|y kien|danh gia)\b/;
@@ -106,8 +106,8 @@ function formatFileSize(bytes: number) {
 
 function createInitialWindows(stored?: Partial<WindowLayouts>): WindowLayouts {
   return {
-    hub: { open: stored?.hub?.open ?? false, minimized: stored?.hub?.minimized ?? false, position: stored?.hub?.position ?? DEFAULT_WINDOW_POSITIONS.hub },
-    settings: { open: stored?.settings?.open ?? false, minimized: stored?.settings?.minimized ?? false, position: stored?.settings?.position ?? DEFAULT_WINDOW_POSITIONS.settings },
+    hub: { open: false, minimized: false, position: stored?.hub?.position ?? DEFAULT_WINDOW_POSITIONS.hub },
+    settings: { open: false, minimized: false, position: stored?.settings?.position ?? DEFAULT_WINDOW_POSITIONS.settings },
   };
 }
 
@@ -397,19 +397,6 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
     [advisorMode, localNow, messages.length, palette, voiceMode]
   );
 
-  const toggleWindow = (id: WindowId) => {
-    setWindows((current) => {
-      const target = current[id];
-      return {
-        ...current,
-        [id]: target.open && !target.minimized
-          ? { ...target, open: false }
-          : { ...target, open: true, minimized: false },
-      };
-    });
-    setActiveWindow(id);
-  };
-
   const closeWindow = (id: WindowId) => {
     setWindows((current) => ({ ...current, [id]: { ...current[id], open: false, minimized: false } }));
   };
@@ -430,8 +417,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
 
   const hubOpen = windows.hub.open;
   const settingsOpen = windows.settings.open;
-  const toggleSettings = () => toggleWindow("settings");
-  const minimizedWindows = (Object.keys(windows) as WindowId[]).filter((id) => windows[id].open && windows[id].minimized);
+  const windowIds = Object.keys(windows) as WindowId[];
 
   return (
     <div className={`hud-overlay${orbOnly ? " is-orb-only" : ""}`} aria-label="J-Core AI interface">
@@ -440,13 +426,14 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
           <button className="edge-tab orb-restore-tab" type="button" onClick={() => setOrbOnly(false)}>
             <Icon name="reveal" /><span>KHÔI PHỤC HUD</span>
           </button>
-        ) : minimizedWindows.map((id, index) => (
+        ) : windowIds.map((id, index) => (
           <button
-            className="edge-tab"
+            className={`edge-tab${windows[id].open && !windows[id].minimized ? " is-active" : ""}${windows[id].minimized ? " is-stowed" : ""}`}
             key={id}
             type="button"
+            aria-pressed={windows[id].open && !windows[id].minimized}
             style={{ "--tab-index": index } as CSSProperties}
-            onClick={() => restoreWindow(id)}
+            onClick={() => windows[id].open && !windows[id].minimized ? closeWindow(id) : restoreWindow(id)}
           >
             <Icon name={id === "hub" ? "hub" : "settings"} />
             <span>{id === "hub" ? "OPERATOR HUB" : "SYSTEM HUB"}</span>
@@ -455,8 +442,6 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
       </nav>
 
       {!orbOnly && <nav className="hud-dock" aria-label="Điều khiển giao diện">
-        <button className={hubOpen ? "active" : ""} type="button" aria-pressed={hubOpen} aria-label="Mở activity hub" onClick={() => toggleWindow("hub")}><Icon name="hub" /></button>
-        <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở cài đặt" onClick={toggleSettings}><Icon name="settings" /></button>
         <button type="button" aria-label="Ẩn toàn bộ HUD, chỉ hiện quả cầu" onClick={() => setOrbOnly(true)}><Icon name="focus" /></button>
         <button type="button" aria-label="Reset góc nhìn" onClick={onResetView}><Icon name="reset" /></button>
       </nav>}
