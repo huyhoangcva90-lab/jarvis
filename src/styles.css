@@ -2521,9 +2521,32 @@ body[data-activity="speaking"] .prompt-shell {
 }
 
 .hud-window-handle {
+  position: relative;
   cursor: grab;
   user-select: none;
   touch-action: none;
+}
+
+.hud-window-handle::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 34px;
+  height: 3px;
+  pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 3px, rgba(var(--accent-rgb), 0.58) 3px 5px);
+  filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), 0.28));
+  opacity: 0.34;
+  transform: translate3d(-50%, 0, 0);
+  transition: opacity 180ms ease, filter 180ms ease;
+}
+
+.hud-window-handle:hover::after,
+.hud-window-handle:focus-visible::after,
+.hud-window.is-dragging .hud-window-handle::after {
+  opacity: 0.95;
+  filter: drop-shadow(0 0 7px rgba(var(--accent-rgb), 0.62));
 }
 
 .hud-window-handle:focus-visible {
@@ -2565,19 +2588,19 @@ body[data-activity="speaking"] .prompt-shell {
   display: flex !important;
   align-items: center;
   justify-content: flex-end;
-  gap: 3px !important;
+  gap: 6px !important;
 }
 
 .settings-hero > .window-actions {
   display: flex;
-  gap: 3px;
+  gap: 6px;
 }
 
 .window-actions button,
 .panel-actions button {
-  width: 36px;
-  height: 36px;
-  min-height: 36px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -2589,6 +2612,35 @@ body[data-activity="speaking"] .prompt-shell {
   transition: color 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
+.window-control {
+  position: relative;
+  overflow: hidden;
+}
+
+.window-control::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  opacity: 0.45;
+}
+
+.window-control.is-minimize {
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.32);
+  background: linear-gradient(145deg, rgba(var(--accent-rgb), 0.1), rgba(0, 0, 0, 0.42));
+}
+
+.window-control.is-close {
+  color: rgba(255, 111, 132, 0.86);
+  border-color: rgba(255, 71, 98, 0.32);
+  background: linear-gradient(145deg, rgba(255, 51, 82, 0.1), rgba(0, 0, 0, 0.46));
+}
+
 .window-actions button:hover,
 .window-actions button:focus-visible,
 .panel-actions button:hover,
@@ -2598,6 +2650,26 @@ body[data-activity="speaking"] .prompt-shell {
   border-color: rgba(var(--accent-rgb), 0.52);
   background: rgba(var(--accent-rgb), 0.09);
   box-shadow: inset 0 0 16px rgba(var(--accent-rgb), 0.08), 0 0 16px rgba(var(--accent-rgb), 0.12);
+}
+
+.window-control.is-minimize:hover,
+.window-control.is-minimize:focus-visible {
+  color: var(--hot);
+  border-color: rgba(var(--accent-rgb), 0.72);
+  background: linear-gradient(145deg, rgba(var(--accent-rgb), 0.2), rgba(0, 0, 0, 0.52));
+  box-shadow: inset 0 0 18px rgba(var(--accent-rgb), 0.12), 0 0 20px rgba(var(--accent-rgb), 0.22);
+}
+
+.window-control.is-close:hover,
+.window-control.is-close:focus-visible {
+  color: #ff9aaa;
+  border-color: rgba(255, 71, 98, 0.76);
+  background: linear-gradient(145deg, rgba(255, 45, 78, 0.22), rgba(0, 0, 0, 0.56));
+  box-shadow: inset 0 0 18px rgba(255, 45, 78, 0.12), 0 0 20px rgba(255, 45, 78, 0.22);
+}
+
+.window-control:active {
+  transform: scale(0.94);
 }
 
 .window-actions svg,
@@ -2749,8 +2821,8 @@ body[data-activity="speaking"] .prompt-shell {
 
   .window-actions button,
   .panel-actions button {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -2758,7 +2830,8 @@ body[data-activity="speaking"] .prompt-shell {
   .hud-window,
   .window-actions button,
   .panel-actions button,
-  .attachment-tray button {
+  .attachment-tray button,
+  .hud-window-handle::after {
     transition: none;
   }
 }

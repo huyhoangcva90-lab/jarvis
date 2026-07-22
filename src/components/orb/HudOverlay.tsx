@@ -81,8 +81,8 @@ function Icon({ name }: { name: IconName }) {
     external: <><path d="M14 3h7v7M10 14 21 3" /><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" /></>,
     copy: <><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>,
     trash: <><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6" /></>,
-    close: <path d="m6 6 12 12M18 6 6 18" />,
-    minimize: <path d="M5 18h14" />,
+    close: <><path d="m8 8 8 8M16 8l-8 8" /><path d="M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4" /></>,
+    minimize: <><path d="M5 18h14" /><path d="M12 5v9M8.5 10.5 12 14l3.5-3.5" /></>,
     restore: <><rect x="5" y="7" width="12" height="12" rx="1" /><path d="M8 7V4h11v11h-2" /></>,
     attach: <path d="m20.5 11.5-8.7 8.7a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7L9 17.4a2 2 0 0 1-2.8-2.8l8.6-8.6" />,
     file: <><path d="M6 2h8l4 4v16H6Z" /><path d="M14 2v5h5M9 13h6M9 17h4" /></>,
@@ -477,8 +477,8 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
             <b>{activity === "speaking" ? "RESPONDING" : activity === "thinking" ? "ANALYZING" : activity === "listening" ? "LISTENING" : "STANDBY"}</b>
             </div>
             <div className="window-actions">
-              <button type="button" aria-label="Thu nhỏ hub vào thanh ẩn" onClick={() => minimizeWindow("hub")}><Icon name="minimize" /></button>
-              <button type="button" aria-label="Đóng hub" onClick={() => closeWindow("hub")}><Icon name="close" /></button>
+              <button className="window-control is-minimize" type="button" aria-label="Thu nhỏ hub vào thanh ẩn" onClick={() => minimizeWindow("hub")}><Icon name="minimize" /></button>
+              <button className="window-control is-close" type="button" aria-label="Đóng hub" onClick={() => closeWindow("hub")}><Icon name="close" /></button>
             </div>
           </>}
         >
@@ -513,8 +513,8 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
           titleBar={<>
             <div><span>HỆ THỐNG</span><b>{voiceMode ? "VOICE ACTIVE" : "LOCAL MODE"}</b></div>
             <div className="window-actions">
-              <button type="button" aria-label="Thu nhỏ hệ thống vào thanh ẩn" onClick={() => minimizeWindow("settings")}><Icon name="minimize" /></button>
-              <button type="button" aria-label="Đóng cài đặt" onClick={() => closeWindow("settings")}><Icon name="close" /></button>
+              <button className="window-control is-minimize" type="button" aria-label="Thu nhỏ hệ thống vào thanh ẩn" onClick={() => minimizeWindow("settings")}><Icon name="minimize" /></button>
+              <button className="window-control is-close" type="button" aria-label="Đóng cài đặt" onClick={() => closeWindow("settings")}><Icon name="close" /></button>
             </div>
           </>}
         >
