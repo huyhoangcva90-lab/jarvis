@@ -687,7 +687,9 @@ export function MindScene({ activity, palette = "gold" }: { activity: AiActivity
   return (
     <group>
       <FresnelVolume activity={activity} />
-      <NeuralLattice activity={activity} palette={palette} />
+      <group scale={palette === "violet" ? 0.46 : 1}>
+        <NeuralLattice activity={activity} palette={palette} />
+      </group>
       <ModeConduits activity={activity} />
       <CoreVortex activity={activity} />
       <AccretionBelt activity={activity} />
