@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AiActivity } from "../../types/orb";
 import { LivingOrb } from "../../core/LivingOrb";
+import { RealmAtmosphere } from "../../core/RealmAtmosphere";
 
 const TAU = Math.PI * 2;
 
@@ -67,6 +68,7 @@ export function RealityScene({ activity = "idle" }: { activity?: AiActivity }) {
 
   return (
     <LivingOrb activity={activity} color="#ff314e" accent="#ffd36b">
+      <RealmAtmosphere activity={activity} primary="#ff314e" secondary="#ffb62f" hot="#fff0b0" variant="asgard" />
       <group ref={root} scale={0.92}>
         <group ref={realmRing}>
           {[1.76, 2.12, 2.48].map((radius, index) => (
