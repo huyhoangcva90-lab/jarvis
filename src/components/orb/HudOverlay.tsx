@@ -19,7 +19,7 @@ type Message = {
 };
 
 type Palette = EnergyPalette;
-type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "restore" | "attach" | "file" | "mic" | "screen" | "send" | "focus" | "reveal";
+type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "trash" | "close" | "minimize" | "restore" | "attach" | "file" | "mic" | "screen" | "send" | "focus" | "reveal";
 type WindowId = "hub" | "settings";
 type WindowLayout = {
   open: boolean;
@@ -58,7 +58,7 @@ const BACKCHANNELS = new Set([
 const paletteLabels: Record<Palette, string> = {
   gold: "Gold Core",
   blue: "Stark Tech",
-  green: "Alien Grid",
+  green: "Agamotto Time",
   red: "Transfer",
   violet: "Neon Violet",
   orange: "Cosmic Soul",
@@ -79,7 +79,6 @@ function Icon({ name }: { name: IconName }) {
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3V9.6h.09A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.16.37.37.72.6 1 .3.3.69.44 1.1.4h.1v4h-.1A1.7 1.7 0 0 0 19.4 15Z" /></>,
     reset: <><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v6h6" /><path d="M12 8v4l3 2" /></>,
     external: <><path d="M14 3h7v7M10 14 21 3" /><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5" /></>,
-    copy: <><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>,
     trash: <><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6" /></>,
     close: <><path d="m8 8 8 8M16 8l-8 8" /><path d="M9 4H5a1 1 0 0 0-1 1v4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4" /></>,
     minimize: <><path d="M5 18h14" /><path d="M12 5v9M8.5 10.5 12 14l3.5-3.5" /></>,
@@ -456,11 +455,6 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
     startRecognition();
   };
 
-  const copyContext = async () => {
-    await navigator.clipboard.writeText(messages.map((message) => `${message.role === "user" ? "User" : "J-Core"}: ${message.text}`).join("\n"));
-    setToast("Đã copy lịch sử chat.");
-  };
-
   const clearChat = () => {
     speechRunRef.current += 1;
     window.speechSynthesis?.cancel();
@@ -608,7 +602,6 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
             </section>
             <section className="settings-actions">
               <button type="button" onClick={() => window.open("https://chatgpt.com/", "_blank", "noopener,noreferrer")}><Icon name="external" /><span>Mở ChatGPT Web</span></button>
-              <button type="button" onClick={copyContext}><Icon name="copy" /><span>Copy ngữ cảnh</span></button>
               <button className="danger-text" type="button" onClick={clearChat}><Icon name="trash" /><span>Xóa bộ nhớ chat</span></button>
             </section>
           </div>
