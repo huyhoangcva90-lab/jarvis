@@ -1405,7 +1405,7 @@ body[data-activity="speaking"] .prompt-shell {
   right: 22px;
   bottom: 118px;
   z-index: 6;
-  width: min(340px, calc(100vw - 44px));
+  width: min(292px, calc(100vw - 44px));
   min-height: 0;
   display: grid;
   grid-template-rows: 48px minmax(0, 1fr);
