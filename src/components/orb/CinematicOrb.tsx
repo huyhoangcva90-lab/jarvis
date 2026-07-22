@@ -6,11 +6,10 @@ type CinematicOrbProps = {
   activity: AiActivity;
   palette?: EnergyPalette;
   resetSignal?: number;
-  onRealmSelect?: (palette: EnergyPalette) => void;
 };
 
-export default function CinematicOrb({ activity, palette = "gold", resetSignal = 0, onRealmSelect }: CinematicOrbProps) {
-  if (palette === "gold" || palette === "green" || palette === "violet" || palette === "orange") {
+export default function CinematicOrb({ activity, palette = "gold", resetSignal = 0 }: CinematicOrbProps) {
+  if (palette === "gold" || palette === "red" || palette === "violet" || palette === "orange") {
     return <LegacyCinematicOrb activity={activity} palette={palette as LegacyEnergyPalette} resetSignal={resetSignal} />;
   }
 
@@ -19,7 +18,6 @@ export default function CinematicOrb({ activity, palette = "gold", resetSignal =
       activity={activity}
       palette={palette}
       resetSignal={resetSignal}
-      onRealmSelect={onRealmSelect}
     />
   );
 }
