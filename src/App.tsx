@@ -32,7 +32,7 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [authenticated, setAuthenticated] = useState(!data.auth?.pinEnabled);
   const [activity, setActivity] = useState<AiActivity>("idle");
-  const [energyPalette, setEnergyPalette] = useState<EnergyPalette>("neutral");
+  const [energyPalette, setEnergyPalette] = useState<EnergyPalette>("gold");
   const [resetViewSignal, setResetViewSignal] = useState(0);
   const [hudVisible, setHudVisible] = useState(true);
 
