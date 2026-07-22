@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AiActivity } from "../../types/orb";
 import { LivingOrb } from "../../core/LivingOrb";
+import { RealmAtmosphere } from "../../core/RealmAtmosphere";
 
 const TAU = Math.PI * 2;
 
@@ -117,6 +118,7 @@ export function MysticTimeCore({ activity }: { activity: AiActivity }) {
 
   return (
     <LivingOrb activity={activity} color="#48ff91" accent="#eafff1">
+      <RealmAtmosphere activity={activity} primary="#35f487" secondary="#8dffb6" hot="#f2fff5" variant="mystic" />
       <group ref={root} scale={0.9}>
         <RuneBand radius={2.42} count={36} rotation={[Math.PI / 3, 0.18, 0.1]} color="#32dd7b" />
         <RuneBand radius={2.12} count={28} rotation={[-Math.PI / 3, -0.22, -0.08]} color="#82ffaf" reverse />

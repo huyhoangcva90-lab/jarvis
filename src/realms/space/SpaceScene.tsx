@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { HypercubeSystem } from "./HypercubeSystem";
 import { LivingOrb } from "../../core/LivingOrb";
+import { RealmAtmosphere } from "../../core/RealmAtmosphere";
 
 type SpaceActivity = "idle" | "listening" | "thinking" | "speaking";
 
@@ -28,6 +29,7 @@ export function SpaceScene({ activity = "idle" }: { activity?: SpaceActivity }) 
 
   return (
     <LivingOrb activity={activity} color="#27c7ff" accent="#a7ffff">
+      <RealmAtmosphere activity={activity} primary="#27c7ff" secondary="#4effd2" hot="#efffff" variant="tesseract" />
       <HypercubeSystem activity={activity} />
       <points ref={starField} geometry={stars}>
         <pointsMaterial blending={THREE.AdditiveBlending} color="#38d9ff" depthWrite={false} opacity={0.34} size={0.022} sizeAttenuation toneMapped={false} transparent />
