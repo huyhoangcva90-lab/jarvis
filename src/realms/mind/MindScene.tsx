@@ -11,6 +11,24 @@ const WHITE_HOT = new THREE.Color("#fff8d6");
 const DEEP_AMBER = new THREE.Color("#b8490b");
 const COPPER_GLOW = new THREE.Color("#d65f10");
 
+export type LegacyOrbPalette = "gold" | "green" | "violet" | "orange";
+
+const LEGACY_ORB_COLORS: Record<LegacyOrbPalette, [string, string, string, string, string]> = {
+  gold: ["#ff8a18", "#ffd15c", "#fff8d6", "#b8490b", "#d65f10"],
+  green: ["#4cff85", "#b9ffc9", "#f5fff6", "#0b4f24", "#18bd58"],
+  violet: ["#b35cff", "#e8b7ff", "#fff6ff", "#2d0f58", "#7f35ff"],
+  orange: ["#ff7a18", "#ffc46b", "#fff5de", "#7a2608", "#ed5f12"],
+};
+
+function applyLegacyOrbPalette(palette: LegacyOrbPalette) {
+  const [plasma, hot, white, deep, copper] = LEGACY_ORB_COLORS[palette];
+  PLASMA.set(plasma);
+  HOT_PLASMA.set(hot);
+  WHITE_HOT.set(white);
+  DEEP_AMBER.set(deep);
+  COPPER_GLOW.set(copper);
+}
+
 type OrbitSpec = {
   radiusX: number;
   radiusZ: number;
@@ -189,20 +207,9 @@ function makeMajorOrbitCurve(spec: OrbitSpec) {
 
 function CoreVortex({ activity }: { activity: AiActivity }) {
   const group = useRef<THREE.Group>(null);
-  const outerShell = useRef<THREE.LineSegments>(null);
-  const innerShell = useRef<THREE.LineSegments>(null);
-  const outerGeometry = useMemo(() => {
-    const source = new THREE.IcosahedronGeometry(0.68, 2);
-    const wireframe = new THREE.WireframeGeometry(source);
-    source.dispose();
-    return wireframe;
-  }, []);
-  const innerGeometry = useMemo(() => {
-    const source = new THREE.IcosahedronGeometry(0.49, 1);
-    const wireframe = new THREE.WireframeGeometry(source);
-    source.dispose();
-    return wireframe;
-  }, []);
+  const knotA = useRef<THREE.Mesh>(null);
+  const knotB = useRef<THREE.Mesh>(null);
+  const knotC = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }, delta) => {
     const t = clock.elapsedTime;
@@ -213,16 +220,9 @@ function CoreVortex({ activity }: { activity: AiActivity }) {
       group.current.scale.setScalar((1 + voicePulse) * (0.98 + energy * 0.035));
       group.current.rotation.y += delta * 0.18 * speed;
     }
-    if (outerShell.current) {
-      outerShell.current.rotation.x += delta * 0.19 * speed;
-      outerShell.current.rotation.y += delta * 0.27 * speed;
-      outerShell.current.rotation.z -= delta * 0.08 * speed;
-    }
-    if (innerShell.current) {
-      innerShell.current.rotation.x -= delta * 0.15 * speed;
-      innerShell.current.rotation.y -= delta * 0.21 * speed;
-      innerShell.current.rotation.z += delta * 0.12 * speed;
-    }
+    if (knotA.current) knotA.current.rotation.x += delta * 0.42 * speed;
+    if (knotB.current) knotB.current.rotation.y -= delta * 0.34 * speed;
+    if (knotC.current) knotC.current.rotation.z += delta * 0.27 * speed;
   });
 
   return (
@@ -253,26 +253,18 @@ function CoreVortex({ activity }: { activity: AiActivity }) {
           transparent
         />
       </mesh>
-      <lineSegments ref={outerShell} geometry={outerGeometry} rotation={[0.24, 0.34, 0.08]}>
-        <lineBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color={HOT_PLASMA}
-          depthWrite={false}
-          opacity={0.74}
-          toneMapped={false}
-          transparent
-        />
-      </lineSegments>
-      <lineSegments ref={innerShell} geometry={innerGeometry} rotation={[0.82, 0.18, 0.56]}>
-        <lineBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color={COPPER_GLOW}
-          depthWrite={false}
-          opacity={0.42}
-          toneMapped={false}
-          transparent
-        />
-      </lineSegments>
+      <mesh ref={knotA} rotation={[0.3, 0.2, 0.1]}>
+        <torusKnotGeometry args={[0.34, 0.018, 180, 5, 2, 3]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={HOT_PLASMA} depthWrite={false} toneMapped={false} />
+      </mesh>
+      <mesh ref={knotB} rotation={[1.1, 0.4, 0.8]} scale={1.18}>
+        <torusKnotGeometry args={[0.34, 0.011, 180, 4, 3, 5]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={PLASMA} depthWrite={false} opacity={0.72} toneMapped={false} transparent />
+      </mesh>
+      <mesh ref={knotC} rotation={[0.2, 1.2, 0.5]} scale={1.42}>
+        <torusKnotGeometry args={[0.34, 0.008, 180, 4, 2, 5]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={COPPER_GLOW} depthWrite={false} opacity={0.48} toneMapped={false} transparent />
+      </mesh>
     </group>
   );
 }
@@ -690,11 +682,12 @@ function FresnelVolume({ activity }: { activity: AiActivity }) {
   );
 }
 
-export function MindScene({ activity }: { activity: AiActivity }) {
+export function MindScene({ activity, palette = "gold" }: { activity: AiActivity; palette?: LegacyOrbPalette }) {
+  applyLegacyOrbPalette(palette);
   return (
     <group>
       <FresnelVolume activity={activity} />
-      <NeuralLattice activity={activity} />
+      <NeuralLattice activity={activity} palette={palette} />
       <ModeConduits activity={activity} />
       <CoreVortex activity={activity} />
       <AccretionBelt activity={activity} />

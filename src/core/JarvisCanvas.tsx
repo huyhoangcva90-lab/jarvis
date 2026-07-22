@@ -8,11 +8,8 @@ import type { AiActivity, EnergyPalette } from "../App";
 import RealmTransition from "./RealmTransition";
 import JarvisNeutralCore from "./JarvisNeutralCore";
 import { MindScene } from "../realms/mind/MindScene";
-import { TimeScene } from "../realms/time/TimeScene";
 import { SpaceScene } from "../realms/space/SpaceScene";
 import { RealityScene } from "../realms/reality/RealityScene";
-import { PowerScene } from "../realms/power/PowerScene";
-import { SoulScene } from "../realms/soul/SoulScene";
 
 type JarvisCanvasProps = {
   activity: AiActivity;
@@ -84,7 +81,7 @@ function isInteractiveTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
   return Boolean(
     target.closest(
-      ".hud-dock, .history-panel, .settings-panel, .activity-hub, .prompt-shell, button, input, textarea, select"
+      ".hud-dock, .history-panel, .chat-side-panel, .settings-panel, .activity-hub, .prompt-shell, button, input, textarea, select"
     )
   );
 }
@@ -226,10 +223,10 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0, onRea
           <RealmTransition palette={palette}>
             {(activePalette) => {
               if (activePalette === "gold") {
-                return <MindScene activity={activity} />;
+                return <MindScene activity={activity} palette="gold" />;
               }
               if (activePalette === "green") {
-                return <TimeScene activity={activity} />;
+                return <MindScene activity={activity} palette="green" />;
               }
               if (activePalette === "blue") {
                 return <SpaceScene activity={activity} />;
@@ -238,10 +235,10 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0, onRea
                 return <RealityScene activity={activity} />;
               }
               if (activePalette === "violet") {
-                return <PowerScene activity={activity} />;
+                return <MindScene activity={activity} palette="violet" />;
               }
               if (activePalette === "orange") {
-                return <SoulScene activity={activity} />;
+                return <MindScene activity={activity} palette="orange" />;
               }
               return <JarvisNeutralCore onSelectRealm={onRealmSelect} />;
             }}
