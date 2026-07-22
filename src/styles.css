@@ -35,6 +35,24 @@ body[data-palette="violet"] {
   --hot: #f0b8ff;
 }
 
+body[data-palette="gold"] {
+  --accent: #ffd15c;
+  --accent-rgb: 255, 209, 92;
+  --hot: #fff3bd;
+}
+
+body[data-palette="orange"] {
+  --accent: #ff8a34;
+  --accent-rgb: 255, 138, 52;
+  --hot: #ffd0a8;
+}
+
+body[data-palette="neutral"] {
+  --accent: #d8f5ff;
+  --accent-rgb: 216, 245, 255;
+  --hot: #ffffff;
+}
+
 body[data-activity="listening"],
 body[data-activity="thinking"] {
   --panel-bg: rgba(0, 0, 0, 0.64);
@@ -3223,6 +3241,15 @@ body[data-activity="speaking"] .prompt-shell {
   border-color: rgba(var(--accent-rgb), 0.66);
   background: rgba(var(--accent-rgb), 0.12);
   box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.16);
+}
+
+.settings-panel .palette-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-panel .palette-grid button {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 760px) {
