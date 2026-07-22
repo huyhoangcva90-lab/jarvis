@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AiActivity } from "../../types/orb";
 import { LivingOrb } from "../../core/LivingOrb";
+import { RealmAtmosphere } from "../../core/RealmAtmosphere";
 
 const TAU = Math.PI * 2;
 
@@ -58,6 +59,7 @@ export function AlienScene({ activity }: { activity: AiActivity }) {
 
   return (
     <LivingOrb activity={activity} color="#ac4dff" accent="#69e6ff">
+      <RealmAtmosphere activity={activity} primary="#ac4dff" secondary="#5de7ff" hot="#f3ddff" variant="alien" />
       <group ref={root} scale={0.95} rotation={[0.08, 0.2, 0.04]}>
         {shellGeometries.map((geometry, index) => (
           <lineSegments key={index} geometry={geometry} ref={(node) => { if (node) shells.current[index] = node; }} rotation={[index * 0.38, index * -0.25, index * 0.16]}>

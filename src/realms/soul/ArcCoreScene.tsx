@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AiActivity } from "../../types/orb";
 import { LivingOrb } from "../../core/LivingOrb";
+import { RealmAtmosphere } from "../../core/RealmAtmosphere";
 
 const TAU = Math.PI * 2;
 
@@ -42,6 +43,7 @@ export function ArcCoreScene({ activity }: { activity: AiActivity }) {
 
   return (
     <LivingOrb activity={activity} color="#ff861c" accent="#d8fbff">
+      <RealmAtmosphere activity={activity} primary="#ff861c" secondary="#7deaff" hot="#f4ffff" variant="arc" />
       <group ref={root} scale={0.94} rotation={[0.12, 0.18, 0]}>
         <group ref={armor}>
           {[1.38, 1.74, 2.18].map((radius, index) => (
