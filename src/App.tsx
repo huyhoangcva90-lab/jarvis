@@ -58,6 +58,19 @@ export default function App() {
   }, [activity]);
 
   useEffect(() => {
+    const blockClipboard = (event: ClipboardEvent) => event.preventDefault();
+    const blockContextMenu = (event: MouseEvent) => event.preventDefault();
+    document.addEventListener("copy", blockClipboard);
+    document.addEventListener("cut", blockClipboard);
+    document.addEventListener("contextmenu", blockContextMenu);
+    return () => {
+      document.removeEventListener("copy", blockClipboard);
+      document.removeEventListener("cut", blockClipboard);
+      document.removeEventListener("contextmenu", blockContextMenu);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!toast) return undefined;
     const timer = window.setTimeout(() => setToast(""), 2600);
     return () => window.clearTimeout(timer);
@@ -108,17 +121,10 @@ export default function App() {
     setData((current) => ({ ...current, ...patch }));
   };
 
-  const copyText = async (text: string, message: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setToast(message);
-      addLog(message);
-      soundManager.play("success");
-    } catch {
-      setToast("Clipboard access blocked by browser.");
-      addLog("Clipboard access blocked.");
-      soundManager.play("warning");
-    }
+  const copyText = async (_text: string, _message: string) => {
+    setToast("Copy đã bị khóa trên hệ thống này.");
+    addLog("Clipboard export blocked by system policy.");
+    soundManager.play("warning");
   };
 
   const hardReset = () => {

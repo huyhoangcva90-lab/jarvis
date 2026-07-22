@@ -46,6 +46,14 @@ body[data-activity="speaking"] {
 
 * {
   box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 html,
@@ -2921,6 +2929,33 @@ body[data-activity="speaking"] .prompt-shell {
   .prompt-hidden-actions,
   .hud-window-handle::after {
     transition: none;
+  }
+}
+
+/* Balanced desktop wings: operator hub left, live chat right. */
+@media (min-width: 1001px) {
+  .hud-bottom {
+    top: 80px;
+    right: 22px;
+    bottom: 126px;
+    left: auto;
+    width: min(292px, 25vw);
+    transform: none;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    align-content: stretch;
+  }
+
+  .hud-bottom .ai-state-readout,
+  .hud-bottom .chat-transcript,
+  .hud-bottom .attachment-tray,
+  .hud-bottom .prompt-shell {
+    width: 100%;
+    max-width: none;
+  }
+
+  .hud-bottom .chat-transcript {
+    min-height: 0;
+    max-height: none;
   }
 }
 
