@@ -1,5 +1,5 @@
 import { FormEvent, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import type { AiActivity, EnergyPalette } from "../../App";
+import type { AiActivity, EnergyPalette } from "../../types/orb";
 
 type Message = {
   id: string;
@@ -35,11 +35,11 @@ const BACKCHANNELS = new Set([
 
 const paletteLabels: Record<Palette, string> = {
   gold: "Gold Core",
-  blue: "Stark Tech",
+  blue: "Tesseract AI",
   green: "Agamotto Time",
-  red: "Reality Legacy",
-  violet: "Power Lattice",
-  orange: "Cosmic Soul"
+  red: "Asgard Divine",
+  violet: "Alien Lattice",
+  orange: "Arc Intelligence"
 };
 
 const activityLabels: Record<AiActivity, string> = {
