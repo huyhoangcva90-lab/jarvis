@@ -19,7 +19,7 @@ type Message = {
 };
 
 type Palette = EnergyPalette;
-type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "restore" | "attach" | "file" | "mic" | "send" | "focus" | "reveal";
+type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "restore" | "attach" | "file" | "mic" | "screen" | "send" | "focus" | "reveal";
 type WindowId = "hub" | "settings";
 type WindowLayout = {
   open: boolean;
@@ -87,6 +87,7 @@ function Icon({ name }: { name: IconName }) {
     attach: <path d="m20.5 11.5-8.7 8.7a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7L9 17.4a2 2 0 0 1-2.8-2.8l8.6-8.6" />,
     file: <><path d="M6 2h8l4 4v16H6Z" /><path d="M14 2v5h5M9 13h6M9 17h4" /></>,
     mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" /></>,
+    screen: <><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4" /><path d="m14 8 3 3-3 3M17 11H9" /></>,
     send: <><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></>,
     focus: <><circle cx="12" cy="12" r="3" /><path d="M3 9V4a1 1 0 0 1 1-1h5M15 3h5a1 1 0 0 1 1 1v5M21 15v5a1 1 0 0 1-1 1h-5M9 21H4a1 1 0 0 1-1-1v-5" /></>,
     reveal: <><path d="m9 18 6-6-6-6" /><path d="M3 4v16" /></>
@@ -195,10 +196,12 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   const recognitionActiveRef = useRef(false);
   const manualStopRef = useRef(false);
   const resultHandledRef = useRef(false);
+  const speechRunRef = useRef(0);
   const thinkingTimer = useRef<number | null>(null);
   const idleTimer = useRef<number | null>(null);
   const restartTimer = useRef<number | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
   const objectUrlsRef = useRef(new Set<string>());
 
   useEffect(() => {
@@ -214,6 +217,9 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
   useEffect(() => {
+    messageListRef.current?.scrollTo({ top: messageListRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+  useEffect(() => {
     document.body.classList.toggle("is-orb-only-mode", orbOnly);
     return () => document.body.classList.remove("is-orb-only-mode");
   }, [orbOnly]);
@@ -226,6 +232,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
     if (thinkingTimer.current) window.clearTimeout(thinkingTimer.current);
     if (idleTimer.current) window.clearTimeout(idleTimer.current);
     if (restartTimer.current) window.clearTimeout(restartTimer.current);
+    speechRunRef.current += 1;
     recognitionRef.current?.abort?.();
     window.speechSynthesis?.cancel();
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -240,10 +247,12 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
 
   const speak = (text: string) => {
     if (idleTimer.current) window.clearTimeout(idleTimer.current);
+    const speechRun = ++speechRunRef.current;
     setActivity("speaking");
     const startedAt = Date.now();
     const minimumSpeakingMs = Math.min(5600, Math.max(2400, text.length * 42));
     const finishSpeaking = () => {
+      if (speechRun !== speechRunRef.current) return;
       const remaining = Math.max(300, minimumSpeakingMs - (Date.now() - startedAt));
       idleTimer.current = window.setTimeout(() => { setActivity("idle"); scheduleVoiceRestart(); }, remaining);
     };
@@ -322,6 +331,55 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
     setToast(file.type.startsWith("image/") ? "Đã ghim hình ảnh." : "Đã ghim tệp.");
   };
 
+  const captureSharedScreen = async () => {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      setToast("Trình duyệt này chưa hỗ trợ chia sẻ màn hình.");
+      return;
+    }
+
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const video = document.createElement("video");
+      video.muted = true;
+      video.playsInline = true;
+      video.srcObject = stream;
+      await new Promise<void>((resolve) => {
+        if (video.readyState >= 1) resolve();
+        else video.onloadedmetadata = () => resolve();
+      });
+      await video.play();
+
+      const scale = Math.min(1, 1600 / Math.max(1, video.videoWidth));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
+      canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
+      if (!blob) throw new Error("screen-capture-empty");
+
+      if (pendingAttachment?.previewUrl) {
+        URL.revokeObjectURL(pendingAttachment.previewUrl);
+        objectUrlsRef.current.delete(pendingAttachment.previewUrl);
+      }
+      const previewUrl = URL.createObjectURL(blob);
+      objectUrlsRef.current.add(previewUrl);
+      setPendingAttachment({
+        id: createId(),
+        name: `screen-${new Date().toISOString().replace(/[:.]/g, "-")}.png`,
+        type: "image/png",
+        size: blob.size,
+        previewUrl,
+      });
+      setToast("Đã chụp màn hình chia sẻ và ghim vào chat.");
+    } catch (error) {
+      const name = error instanceof DOMException ? error.name : "";
+      setToast(name === "AbortError" || name === "NotAllowedError" ? "Đã hủy chia sẻ màn hình." : "Không thể chụp màn hình chia sẻ.");
+    } finally {
+      stream?.getTracks().forEach((track) => track.stop());
+    }
+  };
+
   function startRecognition() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) { setToast("Trình duyệt này chưa hỗ trợ nhận giọng nói."); return; }
@@ -339,7 +397,28 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
       if (manualStopRef.current) { setActivity("idle"); return; }
       if (!resultHandledRef.current) { setActivity((current) => current === "listening" ? "idle" : current); scheduleVoiceRestart(700); }
     };
-    recognition.onerror = () => { recognitionActiveRef.current = false; setListening(false); setActivity("idle"); setToast("Không thể truy cập microphone."); };
+    recognition.onerror = (event: { error?: string }) => {
+      recognitionActiveRef.current = false;
+      setListening(false);
+      setActivity("idle");
+      if (event.error === "aborted") return;
+      if (event.error === "no-speech") {
+        setToast("Chưa nghe rõ giọng nói. Hãy thử lại gần microphone hơn.");
+        scheduleVoiceRestart(900);
+        return;
+      }
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        voiceModeRef.current = false;
+        setVoiceMode(false);
+        setToast("Microphone đang bị chặn. Hãy cấp quyền rồi bật Voice lại.");
+        return;
+      }
+      if (event.error === "audio-capture") {
+        setToast("Không tìm thấy microphone khả dụng.");
+        return;
+      }
+      setToast(event.error === "network" ? "Nhận giọng nói mất kết nối mạng." : "Nhận giọng nói tạm thời gặp lỗi.");
+    };
     recognition.onresult = (event: any) => {
       const transcript = event.results?.[0]?.[0]?.transcript || "";
       resultHandledRef.current = true;
@@ -347,13 +426,23 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
       if (transcript) sendMessage(transcript, "voice");
     };
     recognitionRef.current = recognition;
-    try { recognition.start(); } catch { recognitionActiveRef.current = false; }
+    try { recognition.start(); } catch {
+      recognitionActiveRef.current = false;
+      voiceModeRef.current = false;
+      setVoiceMode(false);
+      setListening(false);
+      setActivity("idle");
+      setToast("Không thể khởi động microphone. Hãy thử bật Voice lại.");
+    }
   }
 
   const stopVoice = () => {
     manualStopRef.current = true;
+    speechRunRef.current += 1;
     if (restartTimer.current) window.clearTimeout(restartTimer.current);
+    if (idleTimer.current) window.clearTimeout(idleTimer.current);
     recognitionRef.current?.stop?.();
+    window.speechSynthesis?.cancel();
     setVoiceMode(false);
     setListening(false);
     setActivity("idle");
@@ -363,7 +452,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
     if (voiceModeRef.current || listening) { stopVoice(); return; }
     setVoiceMode(true);
     voiceModeRef.current = true;
-    setToast("Voice mode đã bật. T sẽ tự nghe lại sau mỗi câu.");
+    setToast(handsFree ? "Voice đã bật và sẽ tự nghe tiếp sau mỗi câu." : "Voice đã bật cho một lượt nghe.");
     startRecognition();
   };
 
@@ -373,6 +462,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   };
 
   const clearChat = () => {
+    speechRunRef.current += 1;
     window.speechSynthesis?.cancel();
     setActivity("idle");
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -531,6 +621,22 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
           <span>{activityLabels[activity]}</span>
           <div className="voice-wave" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} style={{ animationDelay: `${index * 48}ms` }} />)}</div>
         </div>
+        <div className="chat-transcript" ref={messageListRef} role="log" aria-label="Hội thoại hiện tại" aria-live="polite">
+          {messages.slice(-12).map((message) => (
+            <article className={`chat-turn ${message.role}`} key={message.id}>
+              <b>{message.role === "user" ? "YOU" : "J-CORE"}</b>
+              <span>{message.text}</span>
+              {message.attachments?.map((attachment) => (
+                <span className="message-attachment" key={attachment.id}>
+                  {attachment.previewUrl && attachment.type.startsWith("image/")
+                    ? <img src={attachment.previewUrl} alt={attachment.name} />
+                    : <span className="attachment-file-icon"><Icon name="file" /></span>}
+                  <span><strong>{attachment.name}</strong><small>{formatFileSize(attachment.size)}</small></span>
+                </span>
+              ))}
+            </article>
+          ))}
+        </div>
         {pendingAttachment && (
           <div className="attachment-tray" aria-live="polite">
             {pendingAttachment.previewUrl && pendingAttachment.type.startsWith("image/")
@@ -542,7 +648,10 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
         )}
         <form className="prompt-shell" onSubmit={submit}>
           <button className={voiceMode || listening ? "listening" : ""} type="button" aria-label="Bật chế độ giọng nói" onClick={toggleVoiceMode}><Icon name="mic" /></button>
-          <button type="button" aria-label="Ghim một tệp hoặc hình ảnh" onClick={chooseAttachment}><Icon name="attach" /></button>
+          <div className="prompt-hidden-actions" aria-label="Công cụ chat">
+            <button type="button" aria-label="Ghim một tệp hoặc hình ảnh" onClick={chooseAttachment}><Icon name="attach" /></button>
+            <button type="button" aria-label="Chia sẻ và chụp màn hình" onClick={captureSharedScreen}><Icon name="screen" /></button>
+          </div>
           <input
             ref={attachmentInputRef}
             className="attachment-input"

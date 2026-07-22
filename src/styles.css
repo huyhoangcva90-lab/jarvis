@@ -1303,9 +1303,10 @@ body[data-activity="speaking"] .prompt-shell {
 }
 
 .prompt-shell button.listening {
-  color: #ff315f;
-  border-color: #ff315f;
-  box-shadow: 0 0 32px rgba(255, 49, 95, 0.42);
+  color: var(--hot);
+  border-color: var(--accent);
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.3), rgba(0, 0, 0, 0.68));
+  box-shadow: 0 0 32px rgba(var(--accent-rgb), 0.46), inset 0 0 18px rgba(var(--accent-rgb), 0.1);
 }
 
 .prompt-shell svg {
@@ -2689,7 +2690,88 @@ body[data-activity="speaking"] .prompt-shell {
 }
 
 .prompt-shell {
-  grid-template-columns: 48px 48px minmax(0, 1fr) 48px;
+  position: relative;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+}
+
+.chat-transcript {
+  pointer-events: auto;
+  width: min(650px, calc(100vw - 32px));
+  max-height: 168px;
+  justify-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid rgba(var(--accent-rgb), 0.18);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(2, 2, 2, 0.48), rgba(2, 2, 2, 0.88));
+  box-shadow: 0 0 28px rgba(var(--accent-rgb), 0.08), inset 0 0 24px rgba(var(--accent-rgb), 0.025);
+  backdrop-filter: blur(12px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--accent-rgb), 0.28) transparent;
+  text-align: left;
+}
+
+.chat-turn {
+  max-width: 88%;
+  display: grid;
+  gap: 3px;
+  padding: 7px 9px;
+  border-left: 1px solid rgba(var(--accent-rgb), 0.36);
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.075), transparent);
+}
+
+.chat-turn.user {
+  align-self: flex-end;
+  border-right: 1px solid rgba(var(--accent-rgb), 0.42);
+  border-left: 0;
+  background: linear-gradient(270deg, rgba(var(--accent-rgb), 0.11), transparent);
+  text-align: right;
+}
+
+.chat-turn b {
+  color: var(--accent);
+  font: 700 8px/1.2 "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: 0.15em;
+}
+
+.chat-turn > span:not(.message-attachment) {
+  color: rgba(255, 245, 225, 0.82);
+  font: 12px/1.45 Inter, system-ui, sans-serif;
+}
+
+.prompt-hidden-actions {
+  position: absolute;
+  left: 4px;
+  bottom: calc(100% + 8px);
+  display: flex;
+  gap: 8px;
+  padding: 5px;
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+  border-radius: 4px;
+  background: rgba(2, 2, 2, 0.9);
+  box-shadow: 0 0 28px rgba(var(--accent-rgb), 0.12);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate3d(0, 8px, 0);
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 220ms;
+}
+
+.prompt-shell:hover .prompt-hidden-actions,
+.prompt-shell:focus-within .prompt-hidden-actions {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+  transition-delay: 0s;
+}
+
+.prompt-hidden-actions button {
+  width: 44px;
+  height: 44px;
 }
 
 .attachment-input {
@@ -2810,7 +2892,12 @@ body[data-activity="speaking"] .prompt-shell {
 
 @media (max-width: 760px) {
   .prompt-shell {
-    grid-template-columns: 44px 44px minmax(0, 1fr) 44px;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+  }
+
+  .chat-transcript {
+    width: calc(100vw - 18px);
+    max-height: 116px;
   }
 
   .hud-window.is-minimized {
@@ -2831,8 +2918,18 @@ body[data-activity="speaking"] .prompt-shell {
   .window-actions button,
   .panel-actions button,
   .attachment-tray button,
+  .prompt-hidden-actions,
   .hud-window-handle::after {
     transition: none;
+  }
+}
+
+@media (hover: none) {
+  .prompt-hidden-actions {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
   }
 }
 
