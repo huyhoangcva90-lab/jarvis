@@ -1,4 +1,4 @@
-import { FormEvent, type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { AiActivity, EnergyPalette } from "../../App";
 
 type Message = {
@@ -9,7 +9,7 @@ type Message = {
 };
 
 type Palette = EnergyPalette;
-type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "mic" | "attach" | "screen" | "send";
+type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "maximize" | "mic" | "attach" | "screen" | "send";
 
 const STORAGE_KEY = "jarvis.commandOrb.v2";
 const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
@@ -60,12 +60,73 @@ function Icon({ name }: { name: IconName }) {
     copy: <><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>,
     trash: <><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6" /></>,
     close: <path d="m6 6 12 12M18 6 6 18" />,
+    minimize: <path d="M6 12h12" />,
+    maximize: <><path d="M8 4H4v4M16 4h4v4M20 16v4h-4M8 20H4v-4" /></>,
     mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" /></>,
     attach: <path d="m20.5 11.5-8.7 8.7a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7L9 17.4a2 2 0 0 1-2.8-2.8l8.6-8.6" />,
     screen: <><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4" /><path d="m14 8 3 3-3 3M17 11H9" /></>,
     send: <><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></>
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
+}
+
+type PanelOffset = { x: number; y: number };
+
+function usePanelDrag() {
+  const panelRef = useRef<HTMLElement>(null);
+  const [offset, setOffset] = useState<PanelOffset>({ x: 0, y: 0 });
+  const dragState = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    base: PanelOffset;
+    rect: DOMRect;
+  } | null>(null);
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || window.innerWidth <= 760 || (event.target as HTMLElement).closest("button")) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    dragState.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      base: offset,
+      rect: panel.getBoundingClientRect()
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    document.body.classList.add("hud-dragging");
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+    const drag = dragState.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const margin = 8;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    const boundedX = Math.min(window.innerWidth - margin - drag.rect.right, Math.max(margin - drag.rect.left, deltaX));
+    const boundedY = Math.min(window.innerHeight - margin - drag.rect.bottom, Math.max(margin - drag.rect.top, deltaY));
+    setOffset({ x: drag.base.x + boundedX, y: drag.base.y + boundedY });
+  };
+
+  const stopDragging = (event: ReactPointerEvent<HTMLElement>) => {
+    if (dragState.current?.pointerId !== event.pointerId) return;
+    dragState.current = null;
+    document.body.classList.remove("hud-dragging");
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
+  return {
+    panelRef,
+    offset,
+    resetPosition: () => setOffset({ x: 0, y: 0 }),
+    dragHandleProps: {
+      onPointerDown,
+      onPointerMove,
+      onPointerUp: stopDragging,
+      onPointerCancel: stopDragging
+    }
+  };
 }
 
 function createId() {
@@ -148,6 +209,9 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 760);
   const [hubOpen, setHubOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 980);
+  const [historyMinimized, setHistoryMinimized] = useState(false);
+  const [hubMinimized, setHubMinimized] = useState(false);
+  const [settingsMinimized, setSettingsMinimized] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const [listening, setListening] = useState(false);
   const [activity, setActivity] = useState<AiActivity>("idle");
@@ -164,6 +228,9 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const restartTimer = useRef<number | null>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
   const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const hubDrag = usePanelDrag();
+  const historyDrag = usePanelDrag();
+  const settingsDrag = usePanelDrag();
 
   useEffect(() => {
     document.body.dataset.palette = palette;
@@ -378,14 +445,7 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   };
 
   const toggleSettings = () => {
-    setSettingsOpen((current) => {
-      const next = !current;
-      if (next) {
-        setHistoryOpen(false);
-        setHubOpen(false);
-      }
-      return next;
-    });
+    setSettingsOpen((current) => !current);
   };
 
   const toggleHub = () => {
@@ -402,10 +462,16 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
       </nav>
 
       {hubOpen && (
-        <aside className="activity-hub" aria-label="Activity hub">
-          <div className="hub-title">
-            <span>OPERATOR HUB</span>
-            <b>{activity === "speaking" ? "RESPONDING" : activity === "thinking" ? "ANALYZING" : activity === "listening" ? "LISTENING" : "STANDBY"}</b>
+        <aside ref={hubDrag.panelRef} className={`activity-hub draggable-panel ${hubMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${hubDrag.offset.x}px, ${hubDrag.offset.y}px, 0)` }} aria-label="Activity hub">
+          <div className="hub-title panel-drag-handle" {...hubDrag.dragHandleProps} onDoubleClick={hubDrag.resetPosition}>
+            <div className="hub-title-copy">
+              <span>OPERATOR HUB</span>
+              <b>{activity === "speaking" ? "RESPONDING" : activity === "thinking" ? "ANALYZING" : activity === "listening" ? "LISTENING" : "STANDBY"}</b>
+            </div>
+            <div className="panel-actions hub-actions">
+              <button type="button" aria-label={hubMinimized ? "Restore hub" : "Minimize hub"} onClick={() => setHubMinimized((current) => !current)}><Icon name={hubMinimized ? "maximize" : "minimize"} /></button>
+              <button type="button" aria-label="Close hub" onClick={() => setHubOpen(false)}><Icon name="close" /></button>
+            </div>
           </div>
           <div className="hub-orbit-map" aria-hidden="true">
             <i />
@@ -426,12 +492,13 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
       )}
 
       {historyOpen && (
-        <aside className="history-panel" aria-label="Lịch sử chat">
-          <div className="panel-head">
+        <aside ref={historyDrag.panelRef} className={`history-panel draggable-panel ${historyMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${historyDrag.offset.x}px, ${historyDrag.offset.y}px, 0)` }} aria-label="Lịch sử chat">
+          <div className="panel-head panel-drag-handle" {...historyDrag.dragHandleProps} onDoubleClick={historyDrag.resetPosition}>
             <div><i className={`status-dot ${activity}`} /><span>ĐỐI THOẠI</span></div>
             <div className="panel-actions">
               <button type="button" aria-label="Copy lịch sử" onClick={copyContext}><Icon name="copy" /></button>
               <button type="button" aria-label="Xóa lịch sử" onClick={clearChat}><Icon name="trash" /></button>
+              <button type="button" aria-label={historyMinimized ? "Khôi phục chat" : "Thu nhỏ chat"} onClick={() => setHistoryMinimized((current) => !current)}><Icon name={historyMinimized ? "maximize" : "minimize"} /></button>
               <button type="button" aria-label="Đóng lịch sử" onClick={() => setHistoryOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
@@ -448,10 +515,13 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
       )}
 
       {settingsOpen && (
-        <aside className="settings-panel" aria-label="Cài đặt">
-          <div className="settings-hero">
+        <aside ref={settingsDrag.panelRef} className={`settings-panel draggable-panel ${settingsMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${settingsDrag.offset.x}px, ${settingsDrag.offset.y}px, 0)` }} aria-label="Cài đặt">
+          <div className="settings-hero panel-drag-handle" {...settingsDrag.dragHandleProps} onDoubleClick={settingsDrag.resetPosition}>
             <div><span>HỆ THỐNG</span><b>{voiceMode ? "VOICE ACTIVE" : "LOCAL MODE"}</b></div>
-            <button type="button" aria-label="Đóng cài đặt" onClick={() => setSettingsOpen(false)}><Icon name="close" /></button>
+            <div className="panel-actions settings-window-actions">
+              <button type="button" aria-label={settingsMinimized ? "Khôi phục cài đặt" : "Thu nhỏ cài đặt"} onClick={() => setSettingsMinimized((current) => !current)}><Icon name={settingsMinimized ? "maximize" : "minimize"} /></button>
+              <button type="button" aria-label="Đóng cài đặt" onClick={() => setSettingsOpen(false)}><Icon name="close" /></button>
+            </div>
           </div>
           <section className="settings-block">
             <div className="settings-block-head"><span>Voice link</span><button className={voiceMode ? "danger" : "primary"} type="button" onClick={toggleVoiceMode}>{voiceMode ? "Tắt" : "Bật"}</button></div>

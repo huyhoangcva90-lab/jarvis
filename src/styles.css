@@ -2256,3 +2256,120 @@ body[data-activity="speaking"] .prompt-shell {
   .prompt-shell-with-tools { grid-template-columns: 44px auto minmax(86px, 1fr) 44px; }
   .legacy-chat-tools button { width: 36px; height: 38px; }
 }
+
+/* Palette-native window controls and desktop panel dragging. */
+.hub-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 7px 6px 14px;
+}
+
+.hub-title-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.panel-drag-handle {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.panel-drag-handle:active,
+body.hud-dragging .panel-drag-handle {
+  cursor: grabbing;
+}
+
+body.hud-dragging {
+  user-select: none;
+}
+
+.draggable-panel {
+  will-change: transform;
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.draggable-panel:has(.panel-drag-handle:active) {
+  z-index: 9;
+  border-color: rgba(var(--accent-rgb), 0.5);
+  box-shadow: 0 0 34px rgba(var(--accent-rgb), 0.16), inset 0 0 30px rgba(var(--accent-rgb), 0.045);
+}
+
+.panel-actions button,
+.hub-actions button,
+.settings-window-actions button {
+  color: rgba(var(--accent-rgb), 0.76);
+}
+
+.panel-actions button:active,
+.hub-actions button:active,
+.settings-window-actions button:active {
+  color: var(--hot);
+  background: rgba(var(--accent-rgb), 0.16);
+  box-shadow: inset 0 0 18px rgba(var(--accent-rgb), 0.18);
+}
+
+.hub-actions,
+.settings-window-actions {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.hub-actions button,
+.settings-window-actions button {
+  width: 36px;
+  height: 36px;
+}
+
+.hub-actions svg,
+.settings-window-actions svg {
+  width: 16px;
+  height: 16px;
+}
+
+.settings-window-actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+
+.settings-window-actions button {
+  grid-row: auto;
+}
+
+.activity-hub.is-minimized,
+.history-panel.is-minimized {
+  bottom: auto;
+  height: 58px;
+  min-height: 58px;
+  grid-template-rows: 58px;
+}
+
+.activity-hub.is-minimized .hub-orbit-map,
+.activity-hub.is-minimized .hub-modules,
+.history-panel.is-minimized .message-list,
+.settings-panel.is-minimized .settings-block,
+.settings-panel.is-minimized .settings-actions {
+  display: none;
+}
+
+.settings-panel.is-minimized {
+  max-height: 64px;
+  overflow: hidden;
+}
+
+@media (max-width: 760px) {
+  .draggable-panel {
+    transform: none !important;
+    will-change: auto;
+  }
+
+  .panel-drag-handle {
+    cursor: default;
+    touch-action: auto;
+  }
+}
