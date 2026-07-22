@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import CinematicOrb from "./components/orb/CinematicOrb";
 import HudOverlay from "./components/orb/HudOverlay";
 import BootScreen from "./components/BootScreen.jsx";
-import CommandCenter from "./components/CommandCenter.jsx";
 import HermesChat from "./components/HermesChat.jsx";
 import MissionControlDeck from "./components/MissionControlDeck.jsx";
 import AuthScreen from "./components/AuthScreen.jsx";
@@ -20,7 +19,7 @@ import MemoryTab from "./components/MemoryTab.jsx";
 import TerminalTab from "./components/TerminalTab.jsx";
 
 export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
-export type EnergyPalette = "gold" | "blue" | "green" | "red" | "violet" | "orange" | "neutral";
+export type EnergyPalette = "gold" | "blue" | "green" | "red" | "violet" | "orange";
 
 export default function App() {
   const [booting, setBooting] = useState(true);
@@ -81,7 +80,7 @@ export default function App() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() === "h") setHudVisible((visible) => !visible);
       if (event.key === "Escape") {
-        setEnergyPalette("neutral");
+        setEnergyPalette("gold");
         setChatOpen(false);
       }
       if (event.key === "1") setActivity("idle");
@@ -171,7 +170,6 @@ export default function App() {
             activity={activity}
             palette={energyPalette}
             resetSignal={resetViewSignal}
-            onRealmSelect={setEnergyPalette}
           />
         </div>
 
@@ -206,15 +204,6 @@ export default function App() {
 
           <main className="min-w-0 flex-1 overflow-auto p-4 lg:p-6">
             {activeDeck === "command" ? (
-              energyPalette === "neutral" ? (
-                /* Neutral Chamber View */
-                <CommandCenter
-                  data={data}
-                  currentTime={currentTime}
-                  onStoneClick={handleStoneClick}
-                  onOpenChat={() => setChatOpen(true)}
-                />
-              ) : (
                 /* Active Realm View */
                 <div className="active-realm-container flex flex-col h-full">
                   <div className="flex items-center justify-between mb-4 bg-slate-950/80 p-3 rounded border border-cyan-300/20 backdrop-blur-md">
@@ -222,7 +211,7 @@ export default function App() {
                       <button
                         onClick={() => {
                           soundManager.play("beep");
-                          setEnergyPalette("neutral");
+                          setEnergyPalette("gold");
                         }}
                         className="hud-button primary px-4 py-2 font-mono text-xs uppercase"
                       >
@@ -341,7 +330,6 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-              )
             ) : (
               /* Administrative Deck View */
               <MissionControlDeck
@@ -363,17 +351,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Bottom quick chat trigger */}
-          {activeDeck === "command" && energyPalette === "neutral" && (
-            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30">
-              <button
-                onClick={() => setChatOpen(true)}
-                className="hud-button primary px-6 py-3 font-mono text-sm tracking-wider uppercase shadow-lg shadow-cyan-950/80"
-              >
-                💬 Kích hoạt Hermes
-              </button>
-            </div>
-          )}
         </div>
 
         {hudVisible && (

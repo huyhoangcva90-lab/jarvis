@@ -1058,6 +1058,11 @@ body.is-reactor-dragging .orb-webgl canvas {
   box-shadow: 0 0 16px rgba(179, 92, 255, 0.55);
 }
 
+.palette-grid button:nth-child(6) i {
+  background: #ff7a18;
+  box-shadow: 0 0 16px rgba(255, 122, 24, 0.55);
+}
+
 .toggle-row {
   grid-template-columns: 1fr auto;
   align-items: center;

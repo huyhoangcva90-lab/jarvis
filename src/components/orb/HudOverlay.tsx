@@ -36,11 +36,10 @@ const BACKCHANNELS = new Set([
 const paletteLabels: Record<Palette, string> = {
   gold: "Gold Core",
   blue: "Stark Tech",
-  green: "Alien Grid",
-  red: "Transfer",
-  violet: "Neon Violet",
-  orange: "Cosmic Soul",
-  neutral: "Infinity Orbit"
+  green: "Agamotto Time",
+  red: "Reality Legacy",
+  violet: "Power Legacy",
+  orange: "Cosmic Soul"
 };
 
 const activityLabels: Record<AiActivity, string> = {

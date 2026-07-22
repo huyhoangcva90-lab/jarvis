@@ -6,16 +6,15 @@ import * as THREE from "three";
 
 import type { AiActivity, EnergyPalette } from "../App";
 import RealmTransition from "./RealmTransition";
-import JarvisNeutralCore from "./JarvisNeutralCore";
 import { MindScene } from "../realms/mind/MindScene";
 import { SpaceScene } from "../realms/space/SpaceScene";
 import { RealityScene } from "../realms/reality/RealityScene";
+import { TimeScene } from "../realms/time/TimeScene";
 
 type JarvisCanvasProps = {
   activity: AiActivity;
   palette: EnergyPalette;
   resetSignal?: number;
-  onRealmSelect?: (palette: EnergyPalette) => void;
 };
 
 const CLEAR_COLORS: Record<string, string> = {
@@ -25,11 +24,10 @@ const CLEAR_COLORS: Record<string, string> = {
   red: "#080002",
   violet: "#040008",
   orange: "#080300",
-  neutral: "#020617",
 };
 
 function getClearColor(palette: string) {
-  return CLEAR_COLORS[palette] || CLEAR_COLORS.neutral;
+  return CLEAR_COLORS[palette] || CLEAR_COLORS.gold;
 }
 
 function CanvasPaletteBackground({ palette }: { palette: string }) {
@@ -198,7 +196,7 @@ function PostFX({ activity, palette }: { activity: AiActivity; palette: string }
   );
 }
 
-export default function JarvisCanvas({ activity, palette, resetSignal = 0, onRealmSelect }: JarvisCanvasProps) {
+export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: JarvisCanvasProps) {
   return (
     <div className="orb-webgl" aria-hidden="true">
       <Canvas
@@ -226,7 +224,7 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0, onRea
                 return <MindScene activity={activity} palette="gold" />;
               }
               if (activePalette === "green") {
-                return <MindScene activity={activity} palette="green" />;
+                return <TimeScene activity={activity} />;
               }
               if (activePalette === "blue") {
                 return <SpaceScene activity={activity} />;
@@ -240,7 +238,7 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0, onRea
               if (activePalette === "orange") {
                 return <MindScene activity={activity} palette="orange" />;
               }
-              return <JarvisNeutralCore onSelectRealm={onRealmSelect} />;
+              return <MindScene activity={activity} palette="gold" />;
             }}
           </RealmTransition>
         </SceneRig>
