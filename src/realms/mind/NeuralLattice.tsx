@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef, useState, useEffect } from "react";
-import type { AiActivity } from "../../App";
+import type { AiActivity } from "../../types/orb";
 import type { LegacyOrbPalette } from "./MindScene";
 
 // Colors (Gold Palette)

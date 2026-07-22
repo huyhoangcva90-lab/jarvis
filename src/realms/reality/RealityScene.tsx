@@ -1,141 +1,108 @@
-import React, { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { FinancialCitadel } from "./FinancialCitadel";
+import type { AiActivity } from "../../types/orb";
+import { LivingOrb } from "../../core/LivingOrb";
 
-interface RealitySceneProps {
-  activity?: "idle" | "listening" | "thinking" | "speaking";
+const TAU = Math.PI * 2;
+
+function speedFor(activity: AiActivity) {
+  return activity === "speaking" ? 2.05 : activity === "thinking" ? 1.48 : activity === "listening" ? 0.6 : 1;
 }
 
-function seeded(index: number, salt: number) {
-  return Math.abs(Math.sin(index * 91.733 + salt * 37.19) * 43758.5453) % 1;
+function makeWorldTree() {
+  const points: THREE.Vector3[] = [];
+  const add = (a: [number, number, number], b: [number, number, number]) => points.push(new THREE.Vector3(...a), new THREE.Vector3(...b));
+  add([0, -1.15, 0], [0, 1.12, 0]);
+  add([0, 0.42, 0], [-0.62, 0.96, 0.08]);
+  add([0, 0.42, 0], [0.62, 0.96, -0.08]);
+  add([0, 0.05, 0], [-0.86, 0.52, -0.06]);
+  add([0, 0.05, 0], [0.86, 0.52, 0.06]);
+  add([0, -0.86, 0], [-0.58, -1.35, 0.08]);
+  add([0, -0.86, 0], [0.58, -1.35, -0.08]);
+  return new THREE.BufferGeometry().setFromPoints(points);
 }
 
-function CosmicEmbers({ activity }: RealitySceneProps) {
-  const pointsRef = useRef<THREE.Points>(null);
-  const positions = useMemo(() => {
-    const count = 360;
-    const data = new Float32Array(count * 3);
-    for (let i = 0; i < count; i += 1) {
-      const radius = 4.8 + seeded(i, 1) * 9;
-      const theta = seeded(i, 2) * Math.PI * 2;
-      const y = (seeded(i, 3) - 0.5) * 10;
-      data[i * 3] = Math.cos(theta) * radius;
-      data[i * 3 + 1] = y;
-      data[i * 3 + 2] = Math.sin(theta) * radius - 3;
+export function RealityScene({ activity = "idle" }: { activity?: AiActivity }) {
+  const root = useRef<THREE.Group>(null);
+  const crowns = useRef<THREE.Group>(null);
+  const realmRing = useRef<THREE.Group>(null);
+  const runes = useRef<THREE.InstancedMesh>(null);
+  const core = useRef<THREE.Mesh>(null);
+  const runeGeometry = useMemo(() => new THREE.TetrahedronGeometry(0.105, 0), []);
+  const treeGeometry = useMemo(makeWorldTree, []);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  useEffect(() => {
+    if (runes.current) {
+      for (let index = 0; index < 32; index += 1) {
+        const angle = (index / 32) * TAU;
+        const radius = index % 2 ? 2.08 : 1.87;
+        dummy.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius, Math.sin(index * 1.7) * 0.1);
+        dummy.rotation.set(angle * 0.2, angle * 0.15, angle + Math.PI / 4);
+        dummy.scale.set(index % 4 === 0 ? 1.45 : 0.72, index % 3 === 0 ? 0.45 : 0.82, 0.42);
+        dummy.updateMatrix();
+        runes.current.setMatrixAt(index, dummy.matrix);
+      }
+      runes.current.instanceMatrix.needsUpdate = true;
     }
-    return data;
-  }, []);
-
-  useFrame(({ clock }) => {
-    if (!pointsRef.current) return;
-    const multiplier = activity === "thinking" ? 2.1 : activity === "speaking" ? 1.6 : 1;
-    pointsRef.current.rotation.y = clock.elapsedTime * 0.018 * multiplier;
-    pointsRef.current.rotation.z = Math.sin(clock.elapsedTime * 0.08) * 0.025;
-  });
-
-  return (
-    <points ref={pointsRef}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <pointsMaterial
-        color="#ff3b18"
-        size={0.045}
-        transparent
-        opacity={0.58}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
-  );
-}
-
-function YggdrasilConstellation() {
-  const geometry = useMemo(() => {
-    const branches = [
-      [[0, -2.5, -3.4], [0, 3.8, -3.4]],
-      [[0, 2.2, -3.4], [-2.5, 4.5, -3.7]],
-      [[0, 2.2, -3.4], [2.5, 4.5, -3.7]],
-      [[0, 1.2, -3.4], [-3.4, 2.7, -4]],
-      [[0, 1.2, -3.4], [3.4, 2.7, -4]],
-      [[0, -2.2, -3.4], [-2.6, -4.1, -3.8]],
-      [[0, -2.2, -3.4], [2.6, -4.1, -3.8]],
-    ];
-    const points = branches.flatMap((branch) => branch.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
-    return new THREE.BufferGeometry().setFromPoints(points);
-  }, []);
-
-  return (
-    <lineSegments geometry={geometry}>
-      <lineBasicMaterial color="#ff6a1a" transparent opacity={0.19} blending={THREE.AdditiveBlending} />
-    </lineSegments>
-  );
-}
-
-export const RealityScene: React.FC<RealitySceneProps> = ({ activity = "idle" }) => {
-  const celestialRef = useRef<THREE.Group>(null);
-  const stormRef = useRef<THREE.Group>(null);
+    return () => { runeGeometry.dispose(); treeGeometry.dispose(); };
+  }, [dummy, runeGeometry, treeGeometry]);
 
   useFrame(({ clock }, delta) => {
-    const speed = activity === "thinking" ? 2.4 : activity === "speaking" ? 1.8 : activity === "listening" ? 0.55 : 1;
-    if (celestialRef.current) {
-      celestialRef.current.rotation.z += delta * 0.018 * speed;
-      celestialRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.12) * 0.08;
+    const t = clock.elapsedTime;
+    const speed = speedFor(activity);
+    if (root.current) {
+      root.current.rotation.y += delta * 0.055 * speed;
+      root.current.rotation.x = 0.12 + Math.sin(t * 0.19) * 0.045;
     }
-    if (stormRef.current) {
-      const pulse = activity === "speaking" ? 1.18 + Math.sin(clock.elapsedTime * 6) * 0.12 : 1;
-      stormRef.current.scale.setScalar(pulse);
-      stormRef.current.rotation.y -= delta * 0.08 * speed;
+    if (crowns.current) crowns.current.rotation.z -= delta * 0.105 * speed;
+    if (realmRing.current) realmRing.current.rotation.z += delta * 0.048 * speed;
+    if (runes.current) runes.current.rotation.z -= delta * 0.032 * speed;
+    if (core.current) {
+      const thunder = activity === "speaking" ? Math.sin(t * 8.6) * 0.14 : Math.pow(0.5 + 0.5 * Math.sin(t * 1.35), 6) * 0.06;
+      core.current.scale.setScalar(1 + thunder);
     }
   });
 
   return (
-    <group name="reality-asgardian-olympus">
-      <ambientLight intensity={0.13} color="#9f1239" />
-      <directionalLight position={[4, 8, 5]} intensity={0.82} color="#ffd4a3" />
-      <pointLight position={[0, 2.2, 1.8]} intensity={2.8} color="#ff2400" distance={13} decay={2} />
+    <LivingOrb activity={activity} color="#ff314e" accent="#ffd36b">
+      <group ref={root} scale={0.92}>
+        <group ref={realmRing}>
+          {[1.76, 2.12, 2.48].map((radius, index) => (
+            <mesh key={radius} rotation={[index * 0.76, index * 0.48, index * 0.41]}>
+              <torusGeometry args={[radius, index === 1 ? 0.025 : 0.012, 5, 144]} />
+              <meshBasicMaterial blending={THREE.AdditiveBlending} color={index === 1 ? "#ffd15b" : "#f7354d"} depthWrite={false} opacity={0.58 - index * 0.09} toneMapped={false} transparent />
+            </mesh>
+          ))}
+        </group>
+        <instancedMesh ref={runes} args={[runeGeometry, undefined, 32]}>
+          <meshBasicMaterial blending={THREE.AdditiveBlending} color="#ffcb58" depthWrite={false} opacity={0.72} toneMapped={false} transparent />
+        </instancedMesh>
 
-      {/* Layer 01: distant cosmos and the World Tree constellation. */}
-      <CosmicEmbers activity={activity} />
-      <YggdrasilConstellation />
+        <group ref={crowns}>
+          {Array.from({ length: 12 }, (_, index) => {
+            const angle = (index / 12) * TAU;
+            return (
+              <mesh key={index} position={[Math.cos(angle) * 1.37, Math.sin(angle) * 1.37, Math.sin(index * 0.9) * 0.16]} rotation={[0, angle * 0.15, angle - Math.PI / 2]}>
+                <coneGeometry args={[index % 3 === 0 ? 0.2 : 0.12, index % 3 === 0 ? 0.68 : 0.44, 3]} />
+                <meshBasicMaterial blending={THREE.AdditiveBlending} color={index % 3 === 0 ? "#ffe295" : "#ff4356"} depthWrite={false} opacity={0.7} toneMapped={false} transparent wireframe />
+              </mesh>
+            );
+          })}
+        </group>
 
-      {/* Layer 02: celestial armillary / nine-realm rune cage. */}
-      <group ref={celestialRef} position={[0, 0.35, -1.1]}>
-        {[3.6, 4.25, 5.05].map((radius, index) => (
-          <mesh key={radius} rotation={[index * 0.72, index * 0.48, index * 0.31]}>
-            <torusGeometry args={[radius, index === 0 ? 0.035 : 0.018, 8, 96]} />
-            <meshBasicMaterial
-              color={index === 1 ? "#fbbf24" : "#ef2b2d"}
-              transparent
-              opacity={0.3 - index * 0.055}
-              depthWrite={false}
-              blending={THREE.AdditiveBlending}
-            />
-          </mesh>
-        ))}
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[5.45, 5.52, 48]} />
-          <meshBasicMaterial color="#ff421d" transparent opacity={0.16} side={THREE.DoubleSide} />
+        <lineSegments geometry={treeGeometry} position={[0, 0, 0.22]} scale={0.72}>
+          <lineBasicMaterial blending={THREE.AdditiveBlending} color="#ffe4a0" depthWrite={false} opacity={0.76} toneMapped={false} transparent />
+        </lineSegments>
+        <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[1.05, 0.025, 5, 96]} /><meshBasicMaterial color="#ffcf65" opacity={0.62} transparent toneMapped={false} /></mesh>
+        <mesh rotation={[0, Math.PI / 2, 0]}><torusGeometry args={[1.18, 0.012, 5, 96]} /><meshBasicMaterial color="#ff4253" opacity={0.48} transparent toneMapped={false} /></mesh>
+        <mesh ref={core}>
+          <octahedronGeometry args={[0.3, 0]} />
+          <meshBasicMaterial color="#fff4d5" toneMapped={false} />
         </mesh>
+        <pointLight color="#ff3c39" distance={7} intensity={2.2} />
       </group>
-
-      {/* Layer 03–05: Olympus colonnade, Asgardian spires and divine reactor. */}
-      <FinancialCitadel activity={activity} />
-
-      {/* Layer 06: foreground storm seal and Bifrost landing glyph. */}
-      <group ref={stormRef} position={[0, -2.55, 0.35]} rotation={[-Math.PI / 2, 0, 0]}>
-        <mesh>
-          <ringGeometry args={[2.25, 2.31, 12]} />
-          <meshBasicMaterial color="#ff351e" transparent opacity={0.42} side={THREE.DoubleSide} />
-        </mesh>
-        <mesh rotation={[0, 0, Math.PI / 12]}>
-          <ringGeometry args={[2.72, 2.77, 6]} />
-          <meshBasicMaterial color="#f59e0b" transparent opacity={0.2} side={THREE.DoubleSide} />
-        </mesh>
-      </group>
-
-      <fog attach="fog" args={["#090001", 7.5, 24]} />
-    </group>
+    </LivingOrb>
   );
-};
+}
