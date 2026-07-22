@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 interface HypercubeSystemProps {
-  activity?: 'idle' | 'thinking' | 'speaking';
+  activity?: 'idle' | 'listening' | 'thinking' | 'speaking';
 }
 
 export const HypercubeSystem: React.FC<HypercubeSystemProps> = ({ activity = 'idle' }) => {
