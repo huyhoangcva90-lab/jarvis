@@ -1,18 +1,19 @@
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef, useState, useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { AiActivity } from "../../types/orb";
 import type { LegacyOrbPalette } from "./MindScene";
 
 // Colors (Gold Palette)
 const WHITE_HOT = new THREE.Color("#fff8d6");
 const COPPER_GLOW = new THREE.Color("#d65f10");
+const SYNAPSE_GLOW = new THREE.Color("#ffc858");
 
-const LATTICE_COLORS: Record<LegacyOrbPalette, [string, string]> = {
-  gold: ["#fff8d6", "#d65f10"],
-  green: ["#f5fff6", "#18bd58"],
-  violet: ["#fff6ff", "#7f35ff"],
-  orange: ["#fff5de", "#ed5f12"],
+const LATTICE_COLORS: Record<LegacyOrbPalette, [string, string, string]> = {
+  gold: ["#fff8d6", "#d65f10", "#ffc858"],
+  green: ["#f5fff6", "#18bd58", "#b9ffc9"],
+  violet: ["#fff6ff", "#7f35ff", "#e8b7ff"],
+  orange: ["#fff5de", "#ed5f12", "#ffc46b"],
 };
 
 function seededRandom(seed: number) {
@@ -154,10 +155,18 @@ function CoreSpokes({ activity, flashRef }: { activity: AiActivity, flashRef: Re
 function TriangularMindCage({ activity, flashRef }: { activity: AiActivity, flashRef: React.MutableRefObject<number> }) {
   const outer = useRef<THREE.LineSegments>(null);
   const inner = useRef<THREE.LineSegments>(null);
+  const mid = useRef<THREE.LineSegments>(null);
   const outerMaterial = useRef<THREE.LineBasicMaterial>(null);
   const innerMaterial = useRef<THREE.LineBasicMaterial>(null);
-  const geometry = useMemo(() => {
+  const midMaterial = useRef<THREE.LineBasicMaterial>(null);
+  const outerGeometry = useMemo(() => {
     const source = new THREE.IcosahedronGeometry(2.02, 2);
+    const wireframe = new THREE.WireframeGeometry(source);
+    source.dispose();
+    return wireframe;
+  }, []);
+  const midGeometry = useMemo(() => {
+    const source = new THREE.IcosahedronGeometry(1.54, 1);
     const wireframe = new THREE.WireframeGeometry(source);
     source.dispose();
     return wireframe;
@@ -169,13 +178,21 @@ function TriangularMindCage({ activity, flashRef }: { activity: AiActivity, flas
     const energy = activityEnergy(activity);
     const speakingPulse = activity === "speaking" ? Math.sin(t * 7.2) * 0.035 : 0;
     const thinkingPulse = activity === "thinking" ? Math.sin(t * 3.4) * 0.018 : 0;
+    const thinkingShake = activity === "thinking" ? Math.sin(t * 11) * 0.004 : 0;
     const scale = 1 + speakingPulse + thinkingPulse + flashRef.current * 0.075;
 
     if (outer.current) {
       outer.current.rotation.x += delta * 0.035 * speed;
       outer.current.rotation.y += delta * 0.052 * speed;
-      outer.current.rotation.z -= delta * 0.018 * speed;
+      outer.current.rotation.z -= delta * 0.018 * speed + thinkingShake;
       outer.current.scale.setScalar(scale);
+    }
+    if (mid.current) {
+      mid.current.rotation.x += delta * 0.042 * speed;
+      mid.current.rotation.y -= delta * 0.035 * speed;
+      mid.current.rotation.z += delta * 0.028 * speed;
+      const midScale = 0.96 + speakingPulse * 0.5 - thinkingPulse * 0.3 + flashRef.current * 0.05;
+      mid.current.scale.setScalar(midScale);
     }
     if (inner.current) {
       inner.current.rotation.x -= delta * 0.026 * speed;
@@ -186,6 +203,9 @@ function TriangularMindCage({ activity, flashRef }: { activity: AiActivity, flas
     if (outerMaterial.current) {
       outerMaterial.current.opacity = 0.2 + energy * 0.13 + flashRef.current * 0.24;
     }
+    if (midMaterial.current) {
+      midMaterial.current.opacity = 0.12 + energy * 0.1 + flashRef.current * 0.18;
+    }
     if (innerMaterial.current) {
       innerMaterial.current.opacity = 0.08 + energy * 0.075 + flashRef.current * 0.12;
     }
@@ -193,7 +213,7 @@ function TriangularMindCage({ activity, flashRef }: { activity: AiActivity, flas
 
   return (
     <group rotation={[0.08, -0.18, 0.06]}>
-      <lineSegments ref={outer} geometry={geometry}>
+      <lineSegments ref={outer} geometry={outerGeometry}>
         <lineBasicMaterial
           ref={outerMaterial}
           blending={THREE.AdditiveBlending}
@@ -204,7 +224,18 @@ function TriangularMindCage({ activity, flashRef }: { activity: AiActivity, flas
           transparent
         />
       </lineSegments>
-      <lineSegments ref={inner} geometry={geometry}>
+      <lineSegments ref={mid} geometry={midGeometry}>
+        <lineBasicMaterial
+          ref={midMaterial}
+          blending={THREE.AdditiveBlending}
+          color={SYNAPSE_GLOW}
+          depthWrite={false}
+          opacity={0.18}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+      <lineSegments ref={inner} geometry={outerGeometry}>
         <lineBasicMaterial
           ref={innerMaterial}
           blending={THREE.AdditiveBlending}
@@ -219,37 +250,155 @@ function TriangularMindCage({ activity, flashRef }: { activity: AiActivity, flas
   );
 }
 
+/* --- New: Synapse Wave Ring â€” flowing neural impulse ring --- */
+function SynapseWaveRing({ activity, flashRef }: { activity: AiActivity, flashRef: React.MutableRefObject<number> }) {
+  const ring = useRef<THREE.Group>(null);
+  const points = useRef<THREE.Points>(null);
+
+  const { geometry, count } = useMemo(() => {
+    const random = seededRandom(77432);
+    const n = 320;
+    const positions = new Float32Array(n * 3);
+    const phases = new Float32Array(n);
+    const sizes = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const angle = (i / n) * Math.PI * 2;
+      const radius = 1.68 + Math.sin(angle * 5 + random() * 3) * 0.18 + random() * 0.12;
+      const y = Math.sin(angle * 7 + random() * 2) * 0.12;
+      positions[i * 3] = Math.cos(angle) * radius;
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = Math.sin(angle) * radius;
+      phases[i] = angle + random() * 6.28;
+      sizes[i] = 1.4 + random() * 3.2;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("aPhase", new THREE.BufferAttribute(phases, 1));
+    geo.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
+    return { geometry: geo, count: n };
+  }, []);
+
+  const shader = useMemo(
+    () => ({
+      uniforms: {
+        uTime: { value: 0 },
+        uEnergy: { value: 1 },
+        uColor: { value: SYNAPSE_GLOW }
+      },
+      vertexShader: `
+        attribute float aPhase;
+        attribute float aSize;
+        uniform float uTime;
+        uniform float uEnergy;
+        varying float vAlpha;
+        void main() {
+          vec3 p = position;
+          float spin = uTime * (0.22 + fract(aPhase * 0.16) * 0.06) * uEnergy;
+          float c = cos(spin);
+          float s = sin(spin);
+          p.xz = mat2(c, -s, s, c) * p.xz;
+          p.y += sin(uTime * 2.8 + aPhase * 3.0) * 0.032 * uEnergy;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = aSize * (18.0 / max(1.0, -mv.z));
+          float wave = pow(0.5 + 0.5 * sin(uTime * 3.5 + aPhase * 5.0), 3.0);
+          vAlpha = (0.22 + 0.78 * wave) * uEnergy;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uColor;
+        varying float vAlpha;
+        void main() {
+          float mask = smoothstep(0.5, 0.05, length(gl_PointCoord - 0.5));
+          gl_FragColor = vec4(uColor, mask * vAlpha * 0.62);
+        }
+      `
+    }),
+    []
+  );
+
+  const shaderRef = useRef<THREE.ShaderMaterial>(null);
+
+  useFrame(({ clock }, delta) => {
+    const speed = activitySpeed(activity);
+    const energy = activityEnergy(activity) * (1 + flashRef.current * 1.5);
+    if (ring.current) {
+      ring.current.rotation.y += delta * 0.04 * speed;
+      ring.current.rotation.x = 0.52 + Math.sin(clock.elapsedTime * 0.15) * 0.04;
+    }
+    if (shaderRef.current) {
+      shaderRef.current.uniforms.uTime.value = clock.elapsedTime;
+      shaderRef.current.uniforms.uEnergy.value = energy;
+      shaderRef.current.uniforms.uColor.value.copy(SYNAPSE_GLOW);
+    }
+  });
+
+  return (
+    <group ref={ring}>
+      <points ref={points} geometry={geometry}>
+        <shaderMaterial
+          ref={shaderRef}
+          args={[shader]}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+          transparent
+        />
+      </points>
+    </group>
+  );
+}
+
 export function NeuralLattice({ activity, palette = "gold" }: { activity: AiActivity; palette?: LegacyOrbPalette }) {
-  const [white, copper] = LATTICE_COLORS[palette];
-  WHITE_HOT.set(white);
-  COPPER_GLOW.set(copper);
-  const [flash, setFlash] = useState(0);
+  const colors = LATTICE_COLORS[palette];
+  WHITE_HOT.set(colors[0]);
+  COPPER_GLOW.set(colors[1]);
+  SYNAPSE_GLOW.set(colors[2]);
   const flashRef = useRef(0);
+  const flashTargetRef = useRef(0);
 
   useEffect(() => {
-    let timer: any;
+    let flashTimer: ReturnType<typeof setTimeout>;
+    let resetTimer: ReturnType<typeof setTimeout>;
+
     const triggerFlash = () => {
-      setFlash(1);
-      setTimeout(() => setFlash(0), 100);
+      flashTargetRef.current = 1;
+      resetTimer = setTimeout(() => {
+        flashTargetRef.current = 0;
+      }, 100);
+
       const nextTime = 500 + Math.random() * 2500;
       if (activity === 'thinking') {
-        timer = setTimeout(triggerFlash, nextTime * 0.5);
+        flashTimer = setTimeout(triggerFlash, nextTime * 0.5);
+      } else if (activity === 'speaking') {
+        flashTimer = setTimeout(triggerFlash, nextTime * 0.35);
       } else {
-        timer = setTimeout(triggerFlash, nextTime);
+        flashTimer = setTimeout(triggerFlash, nextTime);
       }
     };
-    timer = setTimeout(triggerFlash, 1000);
-    return () => clearTimeout(timer);
+
+    flashTimer = setTimeout(triggerFlash, 1000);
+    return () => {
+      clearTimeout(flashTimer);
+      clearTimeout(resetTimer);
+      flashTargetRef.current = 0;
+    };
   }, [activity]);
 
   useFrame((_, delta) => {
-    flashRef.current = THREE.MathUtils.lerp(flashRef.current, flash, delta * 8);
+    flashRef.current = THREE.MathUtils.damp(
+      flashRef.current,
+      flashTargetRef.current,
+      8,
+      delta,
+    );
   });
 
   return (
     <group scale={[1.3, 0.8, 1.1]} position={[0.1, -0.05, 0]} rotation={[0.2, 0.1, -0.1]}>
       <CoreSpokes activity={activity} flashRef={flashRef} />
       <TriangularMindCage activity={activity} flashRef={flashRef} />
+      <SynapseWaveRing activity={activity} flashRef={flashRef} />
     </group>
   );
 }
