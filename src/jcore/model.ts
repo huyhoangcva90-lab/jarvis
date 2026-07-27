@@ -1,4 +1,4 @@
-export type AiEmotion = "calm" | "listening" | "thinking" | "speaking" | "alert" | "creative";
+export type AiEmotion = "calm" | "listening" | "thinking" | "speaking" | "alert" | "creative" | "web";
 
 export type ModuleId =
   | "chat"
@@ -6,6 +6,7 @@ export type ModuleId =
   | "missions"
   | "agents"
   | "openclaw"
+  | "web"
   | "office"
   | "memory"
   | "router"
@@ -19,6 +20,7 @@ export type OfficeRoomId =
   | "strategy"
   | "workshop"
   | "intel"
+  | "webops"
   | "archive"
   | "monitor"
   | "launch";
@@ -95,6 +97,14 @@ export type OpenClawNode = {
   status: "ready" | "syncing" | "needs-token" | "offline";
 };
 
+export type WebOpsCard = {
+  id: string;
+  label: string;
+  value: string;
+  detail: string;
+  status: "ready" | "watching" | "queued" | "blocked";
+};
+
 export const emotions: Record<AiEmotion, EmotionState> = {
   calm: {
     label: "Calm",
@@ -136,6 +146,13 @@ export const emotions: Record<AiEmotion, EmotionState> = {
     description: "Đang thiết kế, tưởng tượng, tạo phương án.",
     color: "#ff74d4",
     rgb: "255,116,212",
+    tempo: "fast"
+  },
+  web: {
+    label: "Web",
+    description: "Đang bám web, dò liên kết, bắt tín hiệu và chạy browser ops.",
+    color: "#ff4d5f",
+    rgb: "255,77,95",
     tempo: "fast"
   }
 };
@@ -200,6 +217,18 @@ export const modules: JCoreModule[] = [
     summary: "OpenClaw gateway/control UI: agent fleet, ws/http URL, gateway token và live events.",
     signal: "bridge planned",
     metric: "gateway json"
+  },
+  {
+    id: "web",
+    label: "Web Ops",
+    eyebrow: "Spider mode",
+    realm: "Web-Slinger",
+    color: "#ff4d5f",
+    rgb: "255,77,95",
+    icon: "WEB",
+    summary: "Dạng lấy cảm hứng Người Nhện: web research, browser automation, crawling, link graph và signal watch.",
+    signal: "crawler ready",
+    metric: "18 links mapped"
   },
   {
     id: "office",
@@ -297,6 +326,14 @@ export const officeRooms: OfficeRoom[] = [
     rgb: "255,111,156"
   },
   {
+    id: "webops",
+    floor: "L62",
+    label: "Web Ops Nest",
+    purpose: "Browser automation, link graph, crawling, SERP, web monitors.",
+    color: "#ff4d5f",
+    rgb: "255,77,95"
+  },
+  {
     id: "workshop",
     floor: "L58",
     label: "Workshop",
@@ -364,6 +401,20 @@ export const agents: AgentProfile[] = [
     runtime: "openclaw",
     heartbeat: "21s ago",
     tool: "browser/research"
+  },
+  {
+    id: "parker",
+    name: "Parker",
+    character: "Spider Agent",
+    role: "Web / Browser Ops",
+    room: "webops",
+    status: "working",
+    color: "#ff4d5f",
+    load: 57,
+    task: "Dò link graph, kiểm tra page state và web signal",
+    runtime: "openclaw",
+    heartbeat: "5s ago",
+    tool: "browser/web"
   },
   {
     id: "strange",
@@ -533,5 +584,36 @@ export const openClawNodes: OpenClawNode[] = [
     label: "Agent fleet",
     value: "roles + heartbeat",
     status: "ready"
+  }
+];
+
+export const webOpsCards: WebOpsCard[] = [
+  {
+    id: "browser",
+    label: "Browser agent",
+    value: "ready",
+    detail: "Mở trang, đọc DOM, kiểm tra UI flow, lấy screenshot và báo state.",
+    status: "ready"
+  },
+  {
+    id: "link-graph",
+    label: "Link graph",
+    value: "18 mapped",
+    detail: "Map page, source, route, API endpoint, outbound references.",
+    status: "watching"
+  },
+  {
+    id: "watch",
+    label: "Web monitor",
+    value: "3 watches",
+    detail: "Theo dõi quota, dashboard, docs, deploy URL và thay đổi quan trọng.",
+    status: "queued"
+  },
+  {
+    id: "approval",
+    label: "Safety web",
+    value: "human gate",
+    detail: "Form submit, purchase, public post, deploy/tunnel đều cần approval.",
+    status: "blocked"
   }
 ];

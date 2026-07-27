@@ -66,6 +66,7 @@ Bottom
 | Speaking | Replying / streaming | wave pulses | green |
 | Alert | Approval / error / risky action | sharper pulse | red |
 | Creative | Image/design/ideation | aurora swirl | magenta |
+| Web | Browser ops / link graph / web monitoring | web-net pulse | red + cyan |
 
 The orb must not just glow randomly. Its motion should communicate system state.
 
@@ -119,6 +120,7 @@ Each iteration should improve one of:
 - Add Hermes dashboard-like module: API server, dashboard, sessions, skills, cron, logs. **Done in local v3 mock UI.**
 - Add 9Router quota/provider/fallback module. **Done in local v3 mock UI.**
 - Add OpenClaw fleet/gateway module. **Done in local v3 mock UI.**
+- Add Spider-inspired Web Ops form: browser agent, link graph, monitor and human-gated web actions. **Done in local v4 mock UI.**
 - Add HermesAdapter mock/real switch.
 - Add OpenClawAdapter mock/real switch.
 - Add RouterAdapter mock/real switch.

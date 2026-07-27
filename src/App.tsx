@@ -9,6 +9,7 @@ import {
   officeRooms,
   routerProviders,
   statusCopy,
+  webOpsCards,
   type AiEmotion,
   type JCoreModule,
   type ModuleId,
@@ -291,6 +292,42 @@ function OpenClawDashboard() {
   );
 }
 
+function WebOpsDashboard() {
+  return (
+    <div className="webops-dashboard">
+      <section className="webops-hero">
+        <div>
+          <span>Spider-inspired Web Ops</span>
+          <h2>Web signal net</h2>
+          <p>
+            Một dạng riêng cho J-Core: nhanh, linh hoạt, bám link, kiểm tra web UI, browser automation và monitor quota/dashboard.
+          </p>
+        </div>
+        <div className="web-diagram" aria-hidden="true">
+          <i className="web-node node-a" />
+          <i className="web-node node-b" />
+          <i className="web-node node-c" />
+          <i className="web-node node-d" />
+          <i className="web-line line-a" />
+          <i className="web-line line-b" />
+          <i className="web-line line-c" />
+          <i className="web-line line-d" />
+        </div>
+      </section>
+
+      <div className="webops-grid">
+        {webOpsCards.map((card) => (
+          <article key={card.id} className={`webops-${card.status}`}>
+            <span>{card.label}</span>
+            <b>{card.value}</b>
+            <p>{card.detail}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PurpleOffice({
   selectedRoomId,
   setSelectedRoomId
@@ -300,6 +337,18 @@ function PurpleOffice({
 }) {
   const selectedRoom = officeRooms.find((room) => room.id === selectedRoomId) ?? officeRooms[officeRooms.length - 1];
   const roomAgents = selectedRoomId === "lobby" ? agents : agents.filter((agent) => agent.room === selectedRoomId);
+  const officePositions =
+    selectedRoomId === "lobby"
+      ? [
+          [18, 36],
+          [45, 31],
+          [72, 36],
+          [18, 67],
+          [45, 63],
+          [72, 67],
+          [45, 83]
+        ]
+      : [[50, 58]];
 
   return (
     <div
@@ -346,8 +395,8 @@ function PurpleOffice({
             style={
               {
                 "--agent": agent.color,
-                left: `${18 + (index % 3) * 30}%`,
-                top: `${38 + Math.floor(index / 3) * 32}%`
+                left: `${officePositions[index % officePositions.length][0]}%`,
+                top: `${officePositions[index % officePositions.length][1]}%`
               } as React.CSSProperties
             }
             aria-label={`${agent.character}, ${agent.role}, ${statusCopy[agent.status]}`}
@@ -405,6 +454,8 @@ function ModuleDeck({
         <HermesDashboard />
       ) : activeModule.id === "router" ? (
         <RouterDashboard />
+      ) : activeModule.id === "web" ? (
+        <WebOpsDashboard />
       ) : activeModule.id === "openclaw" || activeModule.id === "agents" ? (
         <OpenClawDashboard />
       ) : (
@@ -482,6 +533,7 @@ function CommandComposer({ setEmotion }: { setEmotion: (emotion: AiEmotion) => v
       </div>
       <button onClick={() => setEmotion("thinking")}>Think</button>
       <button onClick={() => setEmotion("speaking")}>Reply</button>
+      <button className="web-command" onClick={() => setEmotion("web")}>Web</button>
     </section>
   );
 }

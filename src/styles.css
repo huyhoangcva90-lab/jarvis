@@ -587,6 +587,14 @@ a:focus-visible {
   overflow: auto;
 }
 
+.webops-dashboard {
+  min-height: 0;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  overflow: auto;
+}
+
 .runtime-hero,
 .router-summary {
   display: grid;
@@ -833,6 +841,142 @@ a:focus-visible {
   font: 600 8px "IBM Plex Mono";
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.webops-hero {
+  position: relative;
+  min-height: 250px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 18px;
+  padding: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(var(--module-rgb), 0.24);
+  background:
+    radial-gradient(circle at 82% 42%, rgba(99, 204, 255, 0.18), transparent 38%),
+    radial-gradient(circle at 16% 4%, rgba(255, 77, 95, 0.22), transparent 44%),
+    rgba(255, 255, 255, 0.028);
+}
+
+.webops-hero span {
+  color: #7f909c;
+  font: 700 8px "IBM Plex Mono";
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.webops-hero h2 {
+  margin: 9px 0;
+  color: #fff4f6;
+  font-size: 52px;
+  line-height: 0.86;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.webops-hero p {
+  max-width: 500px;
+  margin: 0;
+  color: #a8b6c0;
+  font: 500 11px/1.65 "IBM Plex Mono";
+}
+
+.web-diagram {
+  position: relative;
+  min-height: 210px;
+  border: 1px solid rgba(255, 77, 95, 0.2);
+  background:
+    linear-gradient(30deg, transparent 49.5%, rgba(255, 77, 95, 0.16) 50%, transparent 50.5%),
+    linear-gradient(-30deg, transparent 49.5%, rgba(99, 204, 255, 0.13) 50%, transparent 50.5%),
+    rgba(4, 7, 12, 0.62);
+  background-size: 58px 58px;
+}
+
+.web-node {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #ff4d5f;
+  box-shadow: 0 0 18px #ff4d5f;
+}
+
+.node-a { left: 18%; top: 22%; }
+.node-b { right: 18%; top: 28%; background: #63ccff; box-shadow: 0 0 18px #63ccff; }
+.node-c { left: 34%; bottom: 18%; }
+.node-d { right: 28%; bottom: 24%; background: #63ccff; box-shadow: 0 0 18px #63ccff; }
+
+.web-line {
+  position: absolute;
+  left: 18%;
+  top: 50%;
+  width: 66%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.58), transparent);
+  transform-origin: center;
+}
+
+.line-a { transform: rotate(18deg); }
+.line-b { transform: rotate(-24deg); }
+.line-c { transform: rotate(52deg); }
+.line-d { transform: rotate(-58deg); }
+
+.webops-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.webops-grid article {
+  min-height: 142px;
+  padding: 14px;
+  border: 1px solid rgba(255, 77, 95, 0.18);
+  background:
+    radial-gradient(circle at 20% 0, rgba(255, 77, 95, 0.14), transparent 46%),
+    rgba(255, 255, 255, 0.026);
+}
+
+.webops-grid article::before {
+  content: "";
+  display: block;
+  width: 34px;
+  height: 22px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(99, 204, 255, 0.45);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 25% 50%, #ff4d5f 0 12%, transparent 13%),
+    radial-gradient(circle at 75% 50%, #63ccff 0 12%, transparent 13%);
+}
+
+.webops-grid span {
+  color: #7f909c;
+  font: 700 8px "IBM Plex Mono";
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.webops-grid b {
+  display: block;
+  margin: 8px 0;
+  color: #ff7280;
+  font: 700 22px/1 "Barlow Condensed";
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.webops-grid p {
+  margin: 0;
+  color: #91a1ad;
+  font: 500 10px/1.55 "IBM Plex Mono";
+}
+
+.webops-watching b {
+  color: #63ccff;
+}
+
+.webops-blocked {
+  border-color: rgba(255, 210, 119, 0.22) !important;
 }
 
 .mission-timeline {
@@ -1283,7 +1427,7 @@ a:focus-visible {
 .command-composer {
   grid-area: command;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px 92px;
+  grid-template-columns: minmax(0, 1fr) repeat(3, 92px);
   gap: 10px;
   align-items: center;
   margin: 0 18px 18px;
@@ -1322,6 +1466,22 @@ a:focus-visible {
 .command-composer button:hover {
   background: rgba(var(--emotion-rgb), 0.18);
   box-shadow: 0 0 18px rgba(var(--emotion-rgb), 0.12);
+}
+
+.command-composer .web-command {
+  border-color: rgba(255, 77, 95, 0.42);
+  background: rgba(255, 77, 95, 0.1);
+}
+
+.emotion-web .ring-1,
+.emotion-web .ring-2 {
+  border-style: dotted;
+}
+
+.emotion-web .living-orb-card::before {
+  background:
+    radial-gradient(circle, rgba(255, 77, 95, 0.2), transparent 58%),
+    linear-gradient(30deg, transparent 49%, rgba(99, 204, 255, 0.1) 50%, transparent 51%);
 }
 
 @keyframes aura-breathe {
@@ -1437,7 +1597,8 @@ a:focus-visible {
 
   .runtime-grid,
   .openclaw-grid,
-  .fleet-roster {
+  .fleet-roster,
+  .webops-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1536,7 +1697,9 @@ a:focus-visible {
   .router-summary,
   .runtime-grid,
   .openclaw-grid,
-  .fleet-roster {
+  .fleet-roster,
+  .webops-hero,
+  .webops-grid {
     grid-template-columns: 1fr;
   }
 
