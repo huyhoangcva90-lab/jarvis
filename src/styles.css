@@ -74,10 +74,10 @@ a:focus-visible {
   min-height: 100dvh;
   display: grid;
   grid-template:
-    "rail top top top" 72px
-    "rail states states side" 56px
+    "rail top top top" 68px
+    "rail states states side" 52px
     "rail main main side" minmax(0, 1fr)
-    "rail command command side" 82px / 86px minmax(360px, 0.9fr) minmax(440px, 1.25fr) 330px;
+    "rail command command side" 76px / 78px minmax(360px, 0.9fr) minmax(440px, 1.25fr) 320px;
   color: var(--text);
   background:
     linear-gradient(rgba(134, 190, 215, 0.028) 1px, transparent 1px),
@@ -106,8 +106,8 @@ a:focus-visible {
   grid-area: rail;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 10px 14px;
+  gap: 7px;
+  padding: 8px 8px 12px;
   border-right: 1px solid var(--line);
   background: rgba(3, 6, 11, 0.82);
   overflow-y: auto;
@@ -116,9 +116,9 @@ a:focus-visible {
 .rail-brand {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 58px;
-  margin-bottom: 8px;
+  width: 60px;
+  height: 54px;
+  margin-bottom: 6px;
   border: 1px solid rgba(245, 183, 63, 0.42);
   background:
     radial-gradient(circle, rgba(245, 183, 63, 0.24), transparent 56%),
@@ -128,7 +128,7 @@ a:focus-visible {
 
 .rail-brand span {
   color: #ffd277;
-  font-size: 34px;
+  font-size: 30px;
   font-weight: 800;
   font-style: italic;
   line-height: 1;
@@ -138,10 +138,10 @@ a:focus-visible {
 .module-rail button {
   --module: #f5b73f;
   --module-rgb: 245, 183, 63;
-  min-height: 58px;
+  min-height: 52px;
   display: grid;
   place-items: center;
-  gap: 2px;
+  gap: 4px;
   border: 1px solid transparent;
   background: transparent;
   color: #526371;
@@ -156,17 +156,26 @@ a:focus-visible {
     rgba(255, 255, 255, 0.02);
   color: var(--module);
   box-shadow: 0 0 22px rgba(var(--module-rgb), 0.09);
+  transform: translateX(1px);
 }
 
 .module-rail b {
-  font: 700 21px/1 "IBM Plex Mono";
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 19px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font: 700 9px/1 "IBM Plex Mono";
+  letter-spacing: 0.04em;
+  opacity: 0.92;
 }
 
 .module-rail span {
-  max-width: 56px;
+  max-width: 58px;
   overflow: hidden;
   color: inherit;
-  font: 600 8px/1.1 "IBM Plex Mono";
+  font: 600 7.5px/1.1 "IBM Plex Mono";
   letter-spacing: 0.06em;
   text-overflow: ellipsis;
   text-transform: uppercase;
@@ -179,7 +188,7 @@ a:focus-visible {
   align-items: center;
   justify-content: space-between;
   min-width: 0;
-  padding: 0 24px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--line);
   background: rgba(4, 7, 12, 0.72);
   backdrop-filter: blur(18px);
@@ -205,7 +214,7 @@ a:focus-visible {
 
 .jcore-topbar b {
   color: #f2fbff;
-  font-size: 24px;
+  font-size: 22px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -245,8 +254,8 @@ a:focus-visible {
   grid-area: states;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
+  gap: 7px;
+  padding: 9px 16px;
   border-bottom: 1px solid var(--soft-line);
   background: rgba(5, 8, 13, 0.54);
 }
@@ -254,11 +263,11 @@ a:focus-visible {
 .emotion-switcher button {
   --state: #f5b73f;
   --state-rgb: 245, 183, 63;
-  min-height: 34px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px;
+  padding: 0 11px;
   border: 1px solid rgba(var(--state-rgb), 0.18);
   border-radius: 999px;
   background: rgba(var(--state-rgb), 0.045);
@@ -296,8 +305,8 @@ a:focus-visible {
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.1fr);
-  gap: 18px;
-  padding: 18px;
+  gap: 16px;
+  padding: 16px;
 }
 
 .living-orb-card,
@@ -321,7 +330,7 @@ a:focus-visible {
   display: grid;
   grid-template-rows: auto minmax(260px, 1fr) auto;
   align-items: center;
-  padding: 22px;
+  padding: 20px;
   overflow: hidden;
 }
 
@@ -338,7 +347,7 @@ a:focus-visible {
 .living-orb-r3f {
   position: relative;
   z-index: 1;
-  width: min(82%, 440px);
+  width: min(78%, 400px);
   aspect-ratio: 1;
   margin: auto;
   filter: drop-shadow(0 0 34px rgba(var(--emotion-rgb), 0.28));
@@ -507,7 +516,7 @@ a:focus-visible {
   animation-duration: 1.2s;
 }
 
-.emotion-alert .living-orb-card::before {
+.living-orb-card.emotion-alert::before {
   animation-duration: 1.5s;
 }
 
@@ -524,15 +533,15 @@ a:focus-visible {
   min-height: 0;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 18px;
-  padding: 22px;
+  gap: 16px;
+  padding: 20px;
   overflow: hidden;
 }
 
 .deck-heading h1 {
   margin: 7px 0 8px;
   color: #f6fbff;
-  font-size: clamp(38px, 5vw, 72px);
+  font-size: clamp(34px, 4.4vw, 64px);
   line-height: 0.85;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -542,31 +551,45 @@ a:focus-visible {
   max-width: 590px;
   margin: 0;
   color: #93a7b0;
-  font: 500 13px/1.6 "IBM Plex Mono";
+  font: 500 12px/1.55 "IBM Plex Mono";
 }
 
 .signal-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  gap: 10px;
   align-content: start;
 }
 
 .signal-grid article {
-  min-height: 190px;
-  padding: 18px;
+  min-height: 156px;
+  padding: 15px;
   border: 1px solid rgba(var(--module-rgb), 0.19);
   background:
     radial-gradient(circle at 30% 10%, rgba(var(--module-rgb), 0.14), transparent 46%),
     rgba(255, 255, 255, 0.03);
+  transition: border-color 180ms ease, transform 180ms ease, background 180ms ease;
+}
+
+.signal-grid article:hover,
+.runtime-grid article:hover,
+.provider-list article:hover,
+.openclaw-grid article:hover,
+.fleet-roster article:hover,
+.webops-grid article:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--module-rgb), 0.34);
+  background:
+    radial-gradient(circle at 28% 0, rgba(var(--module-rgb), 0.12), transparent 45%),
+    rgba(255, 255, 255, 0.04);
 }
 
 .signal-grid b {
   display: block;
   margin: 16px 0 10px;
   color: var(--module);
-  font: 700 25px/1.05 "Barlow Condensed";
+  font: 700 22px/1.05 "Barlow Condensed";
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -599,8 +622,8 @@ a:focus-visible {
 .router-summary {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 230px;
-  gap: 16px;
-  padding: 18px;
+  gap: 14px;
+  padding: 16px;
   border: 1px solid rgba(var(--module-rgb), 0.2);
   background:
     radial-gradient(circle at 10% 0, rgba(var(--module-rgb), 0.16), transparent 46%),
@@ -619,7 +642,7 @@ a:focus-visible {
 .router-summary h2 {
   margin: 8px 0;
   color: #f6fbff;
-  font-size: 38px;
+  font-size: 32px;
   line-height: 0.9;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -660,13 +683,13 @@ a:focus-visible {
 
 .runtime-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
 }
 
 .runtime-grid article {
-  min-height: 130px;
-  padding: 14px;
+  min-height: 118px;
+  padding: 13px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.026);
 }
@@ -727,7 +750,7 @@ a:focus-visible {
 }
 
 .provider-list article {
-  padding: 14px;
+  padding: 13px;
   border: 1px solid rgba(var(--module-rgb), 0.18);
   background: rgba(255, 255, 255, 0.026);
 }
@@ -785,12 +808,12 @@ a:focus-visible {
 
 .openclaw-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
   gap: 10px;
 }
 
 .openclaw-grid article {
-  padding: 14px;
+  padding: 13px;
   border: 1px solid rgba(138, 223, 255, 0.17);
   background: rgba(138, 223, 255, 0.04);
 }
@@ -804,7 +827,7 @@ a:focus-visible {
 
 .fleet-roster {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 10px;
 }
 
@@ -845,11 +868,11 @@ a:focus-visible {
 
 .webops-hero {
   position: relative;
-  min-height: 250px;
+  min-height: 220px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
-  gap: 18px;
-  padding: 20px;
+  gap: 16px;
+  padding: 18px;
   overflow: hidden;
   border: 1px solid rgba(var(--module-rgb), 0.24);
   background:
@@ -868,7 +891,7 @@ a:focus-visible {
 .webops-hero h2 {
   margin: 9px 0;
   color: #fff4f6;
-  font-size: 52px;
+  font-size: 44px;
   line-height: 0.86;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -883,7 +906,7 @@ a:focus-visible {
 
 .web-diagram {
   position: relative;
-  min-height: 210px;
+  min-height: 184px;
   border: 1px solid rgba(255, 77, 95, 0.2);
   background:
     linear-gradient(30deg, transparent 49.5%, rgba(255, 77, 95, 0.16) 50%, transparent 50.5%),
@@ -899,6 +922,7 @@ a:focus-visible {
   border-radius: 50%;
   background: #ff4d5f;
   box-shadow: 0 0 18px #ff4d5f;
+  animation: web-node-pulse 2.8s ease-in-out infinite;
 }
 
 .node-a { left: 18%; top: 22%; }
@@ -914,6 +938,7 @@ a:focus-visible {
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.58), transparent);
   transform-origin: center;
+  animation: web-line-flow 3.2s ease-in-out infinite;
 }
 
 .line-a { transform: rotate(18deg); }
@@ -923,13 +948,13 @@ a:focus-visible {
 
 .webops-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
 }
 
 .webops-grid article {
-  min-height: 142px;
-  padding: 14px;
+  min-height: 126px;
+  padding: 13px;
   border: 1px solid rgba(255, 77, 95, 0.18);
   background:
     radial-gradient(circle at 20% 0, rgba(255, 77, 95, 0.14), transparent 46%),
@@ -981,7 +1006,7 @@ a:focus-visible {
 
 .mission-timeline {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(72px, 1fr));
   gap: 8px;
   padding-top: 14px;
   border-top: 1px solid var(--soft-line);
@@ -1013,8 +1038,8 @@ a:focus-visible {
 .purple-office-preview {
   min-height: 0;
   display: grid;
-  grid-template-columns: 154px minmax(0, 1fr) 190px;
-  gap: 14px;
+  grid-template-columns: 148px minmax(0, 1fr) 178px;
+  gap: 12px;
   --room: #b56dff;
   --room-rgb: 181, 109, 255;
 }
@@ -1023,8 +1048,8 @@ a:focus-visible {
   display: flex;
   flex-direction: column;
   flex-flow: column-reverse;
-  gap: 6px;
-  padding: 12px;
+  gap: 5px;
+  padding: 10px;
   border: 1px solid rgba(181, 109, 255, 0.28);
   background:
     linear-gradient(180deg, rgba(181, 109, 255, 0.16), rgba(181, 109, 255, 0.035)),
@@ -1034,7 +1059,7 @@ a:focus-visible {
 .office-tower-map button {
   --room: #b56dff;
   --room-rgb: 181, 109, 255;
-  min-height: 40px;
+  min-height: 38px;
   display: grid;
   grid-template-columns: 34px 1fr;
   gap: 8px;
@@ -1086,15 +1111,15 @@ a:focus-visible {
 .room-title {
   position: absolute;
   z-index: 2;
-  top: 18px;
-  left: 18px;
+  top: 16px;
+  left: 16px;
   display: grid;
   gap: 6px;
 }
 
 .room-title b {
   color: #f3e5ff;
-  font-size: 28px;
+  font-size: 24px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1132,14 +1157,14 @@ a:focus-visible {
 }
 
 .office-console-wall {
-  top: 22%;
-  right: 5%;
-  min-width: 118px;
+  top: 18%;
+  right: 4%;
+  min-width: 108px;
 }
 
 .office-approval-gate {
-  left: 6%;
-  bottom: 12%;
+  left: 5%;
+  bottom: 10%;
 }
 
 .office-console-wall b,
@@ -1171,8 +1196,8 @@ a:focus-visible {
   --agent: #b56dff;
   position: absolute;
   z-index: 3;
-  width: 112px;
-  min-height: 96px;
+  width: 96px;
+  min-height: 84px;
   display: grid;
   justify-items: center;
   gap: 4px;
@@ -1191,8 +1216,8 @@ a:focus-visible {
 }
 
 .chibi-card i {
-  width: 42px;
-  height: 52px;
+  width: 38px;
+  height: 48px;
   border-radius: 18px 18px 12px 12px;
   background:
     radial-gradient(circle at 34% 30%, #fff 0 4%, transparent 5%),
@@ -1204,14 +1229,14 @@ a:focus-visible {
 
 .chibi-card b {
   color: var(--agent);
-  font: 700 10px "IBM Plex Mono";
+  font: 700 9px "IBM Plex Mono";
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .chibi-card span {
   color: #a896bb;
-  font: 600 8px "IBM Plex Mono";
+  font: 600 7.5px "IBM Plex Mono";
 }
 
 .chibi-card.status-working i {
@@ -1251,7 +1276,7 @@ a:focus-visible {
 
 .office-room-inspector {
   min-height: 0;
-  padding: 16px;
+  padding: 14px;
   border: 1px solid rgba(var(--room-rgb), 0.24);
   background:
     radial-gradient(circle at 20% 0, rgba(var(--room-rgb), 0.14), transparent 44%),
@@ -1268,7 +1293,7 @@ a:focus-visible {
 .office-room-inspector h3 {
   margin: 12px 0 8px;
   color: #f4e8ff;
-  font-size: 28px;
+  font-size: 24px;
   line-height: 0.95;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1306,22 +1331,22 @@ a:focus-visible {
   min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto auto;
-  gap: 14px;
-  padding: 18px 18px 18px 0;
+  gap: 12px;
+  padding: 16px 16px 16px 0;
   overflow: hidden;
 }
 
 .context-rail section {
   min-width: 0;
   min-height: 0;
-  padding: 16px;
+  padding: 14px;
   overflow: hidden;
 }
 
 .agent-stack {
   display: grid;
-  gap: 9px;
-  margin-top: 14px;
+  gap: 8px;
+  margin-top: 12px;
   overflow: auto;
   max-height: 100%;
 }
@@ -1332,7 +1357,7 @@ a:focus-visible {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
-  padding: 12px;
+  padding: 11px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.07);
   background: rgba(255, 255, 255, 0.025);
@@ -1427,11 +1452,11 @@ a:focus-visible {
 .command-composer {
   grid-area: command;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) repeat(3, 92px);
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) repeat(3, 84px);
+  gap: 9px;
   align-items: center;
-  margin: 0 18px 18px;
-  padding: 12px;
+  margin: 0 16px 16px;
+  padding: 10px;
 }
 
 .command-composer div {
@@ -1441,7 +1466,7 @@ a:focus-visible {
 
 .command-composer input {
   width: 100%;
-  min-height: 42px;
+  min-height: 44px;
   border: 1px solid rgba(var(--emotion-rgb), 0.24);
   background: rgba(255, 255, 255, 0.035);
   color: #f1fbff;
@@ -1454,7 +1479,7 @@ a:focus-visible {
 }
 
 .command-composer button {
-  min-height: 48px;
+  min-height: 46px;
   border: 1px solid rgba(var(--emotion-rgb), 0.35);
   background: rgba(var(--emotion-rgb), 0.1);
   color: #f4fbff;
@@ -1478,7 +1503,7 @@ a:focus-visible {
   border-style: dotted;
 }
 
-.emotion-web .living-orb-card::before {
+.living-orb-card.emotion-web::before {
   background:
     radial-gradient(circle, rgba(255, 77, 95, 0.2), transparent 58%),
     linear-gradient(30deg, transparent 49%, rgba(99, 204, 255, 0.1) 50%, transparent 51%);
@@ -1547,6 +1572,28 @@ a:focus-visible {
   }
   50% {
     transform: translateY(-5px);
+  }
+}
+
+@keyframes web-node-pulse {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.72;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
+@keyframes web-line-flow {
+  0%,
+  100% {
+    opacity: 0.28;
+  }
+  50% {
+    opacity: 0.72;
   }
 }
 

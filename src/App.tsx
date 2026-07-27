@@ -140,7 +140,7 @@ function ModuleRail({
           onClick={() => setActiveModule(module.id)}
           aria-label={module.label}
         >
-          <b>{module.icon}</b>
+          <b aria-hidden="true">{module.icon}</b>
           <span>{module.label}</span>
         </button>
       ))}
@@ -343,10 +343,10 @@ function PurpleOffice({
           [18, 36],
           [45, 31],
           [72, 36],
-          [18, 67],
-          [45, 63],
-          [72, 67],
-          [45, 83]
+          [18, 64],
+          [45, 60],
+          [72, 64],
+          [45, 76]
         ]
       : [[50, 58]];
 
@@ -531,8 +531,8 @@ function CommandComposer({ setEmotion }: { setEmotion: (emotion: AiEmotion) => v
           onBlur={() => setEmotion("calm")}
         />
       </div>
-      <button onClick={() => setEmotion("thinking")}>Think</button>
-      <button onClick={() => setEmotion("speaking")}>Reply</button>
+      <button onClick={() => setEmotion("thinking")}>Plan</button>
+      <button onClick={() => setEmotion("speaking")}>Speak</button>
       <button className="web-command" onClick={() => setEmotion("web")}>Web</button>
     </section>
   );
