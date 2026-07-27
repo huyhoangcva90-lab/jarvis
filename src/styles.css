@@ -1493,17 +1493,17 @@ a:focus-visible {
   box-shadow: 0 0 18px rgba(var(--emotion-rgb), 0.12);
 }
 
-.command-composer .web-command {
+.command-composer .spider-command {
   border-color: rgba(255, 77, 95, 0.42);
   background: rgba(255, 77, 95, 0.1);
 }
 
-.emotion-web .ring-1,
-.emotion-web .ring-2 {
+.emotion-spider .ring-1,
+.emotion-spider .ring-2 {
   border-style: dotted;
 }
 
-.living-orb-card.emotion-web::before {
+.living-orb-card.emotion-spider::before {
   background:
     radial-gradient(circle, rgba(255, 77, 95, 0.2), transparent 58%),
     linear-gradient(30deg, transparent 49%, rgba(99, 204, 255, 0.1) 50%, transparent 51%);

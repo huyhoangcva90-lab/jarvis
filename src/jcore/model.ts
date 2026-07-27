@@ -1,4 +1,4 @@
-export type AiEmotion = "calm" | "listening" | "thinking" | "speaking" | "alert" | "creative" | "web";
+export type AiEmotion = "calm" | "listening" | "thinking" | "speaking" | "alert" | "creative" | "spider";
 
 export type ModuleId =
   | "chat"
@@ -148,9 +148,9 @@ export const emotions: Record<AiEmotion, EmotionState> = {
     rgb: "255,116,212",
     tempo: "fast"
   },
-  web: {
-    label: "Web",
-    description: "Đang bám web, dò liên kết, bắt tín hiệu và chạy browser ops.",
+  spider: {
+    label: "Spider Core",
+    description: "Spider-sense bật: bám link graph, quét web signal và phản xạ nhanh.",
     color: "#ff4d5f",
     rgb: "255,77,95",
     tempo: "fast"
@@ -220,15 +220,15 @@ export const modules: JCoreModule[] = [
   },
   {
     id: "web",
-    label: "Web",
-    eyebrow: "Spider mode",
-    realm: "Web-Slinger",
+    label: "Spider",
+    eyebrow: "Spider Core",
+    realm: "Spider-Sense",
     color: "#ff4d5f",
     rgb: "255,77,95",
-    icon: "WEB",
-    summary: "Dạng lấy cảm hứng Người Nhện: web research, browser automation, crawling, link graph và signal watch.",
-    signal: "crawler ready",
-    metric: "18 links mapped"
+    icon: "SPDR",
+    summary: "Core mode lấy cảm hứng phim Người Nhện: spider-sense, browser automation, crawling, link graph và web monitor.",
+    signal: "sense ready",
+    metric: "18 web nodes"
   },
   {
     id: "office",
@@ -328,8 +328,8 @@ export const officeRooms: OfficeRoom[] = [
   {
     id: "webops",
     floor: "L62",
-    label: "Web Ops Nest",
-    purpose: "Browser automation, link graph, crawling, SERP, web monitors.",
+    label: "Spider Nest",
+    purpose: "Spider Core: browser automation, link graph, crawling, SERP, web monitors.",
     color: "#ff4d5f",
     rgb: "255,77,95"
   },
@@ -405,13 +405,13 @@ export const agents: AgentProfile[] = [
   {
     id: "parker",
     name: "Parker",
-    character: "Spider Agent",
-    role: "Web / Browser Ops",
+    character: "Spider Core",
+    role: "Spider-Sense / Browser Ops",
     room: "webops",
     status: "working",
     color: "#ff4d5f",
     load: 57,
-    task: "Dò link graph, kiểm tra page state và web signal",
+    task: "Bật spider-sense, dò link graph và kiểm tra page state",
     runtime: "openclaw",
     heartbeat: "5s ago",
     tool: "browser/web"
@@ -590,28 +590,28 @@ export const openClawNodes: OpenClawNode[] = [
 export const webOpsCards: WebOpsCard[] = [
   {
     id: "browser",
-    label: "Browser agent",
+    label: "Spider swing",
     value: "ready",
     detail: "Mở trang, đọc DOM, kiểm tra UI flow, lấy screenshot và báo state.",
     status: "ready"
   },
   {
     id: "link-graph",
-    label: "Link graph",
+    label: "Web lattice",
     value: "18 mapped",
     detail: "Map page, source, route, API endpoint, outbound references.",
     status: "watching"
   },
   {
     id: "watch",
-    label: "Web monitor",
+    label: "Spider-sense",
     value: "3 watches",
     detail: "Theo dõi quota, dashboard, docs, deploy URL và thay đổi quan trọng.",
     status: "queued"
   },
   {
     id: "approval",
-    label: "Safety web",
+    label: "Safety gate",
     value: "human gate",
     detail: "Form submit, purchase, public post, deploy/tunnel đều cần approval.",
     status: "blocked"

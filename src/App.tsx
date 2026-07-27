@@ -64,7 +64,8 @@ function readUiState(): PersistedUiState {
 function sanitizeUiState(state: PersistedUiState) {
   const activeModuleId: ModuleId =
     state.activeModuleId && moduleIds.includes(state.activeModuleId) ? state.activeModuleId : "chat";
-  const emotion: AiEmotion = state.emotion && emotionIds.includes(state.emotion) ? state.emotion : "calm";
+  const persistedEmotion = (state.emotion as string | undefined) === "web" ? "spider" : state.emotion;
+  const emotion: AiEmotion = persistedEmotion && emotionIds.includes(persistedEmotion) ? persistedEmotion : "calm";
   const selectedRoomId: OfficeRoomId =
     state.selectedRoomId && roomIds.includes(state.selectedRoomId) ? state.selectedRoomId : "lobby";
 
@@ -297,8 +298,8 @@ function WebOpsDashboard() {
     <div className="webops-dashboard">
       <section className="webops-hero">
         <div>
-          <span>Spider-inspired Web Ops</span>
-          <h2>Web signal net</h2>
+          <span>Spider Core</span>
+          <h2>Spider-sense web net</h2>
           <p>
             Một dạng riêng cho J-Core: nhanh, linh hoạt, bám link, kiểm tra web UI, browser automation và monitor quota/dashboard.
           </p>
@@ -533,7 +534,7 @@ function CommandComposer({ setEmotion }: { setEmotion: (emotion: AiEmotion) => v
       </div>
       <button onClick={() => setEmotion("thinking")}>Plan</button>
       <button onClick={() => setEmotion("speaking")}>Speak</button>
-      <button className="web-command" onClick={() => setEmotion("web")}>Web</button>
+      <button className="spider-command" onClick={() => setEmotion("spider")}>Spider</button>
     </section>
   );
 }
