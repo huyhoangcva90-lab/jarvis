@@ -2,8 +2,10 @@ export type AiEmotion = "calm" | "listening" | "thinking" | "speaking" | "alert"
 
 export type ModuleId =
   | "chat"
+  | "hermes"
   | "missions"
   | "agents"
+  | "openclaw"
   | "office"
   | "memory"
   | "router"
@@ -52,6 +54,9 @@ export type AgentProfile = {
   color: string;
   load: number;
   task: string;
+  runtime: "hermes" | "openclaw" | "codex" | "claude" | "local";
+  heartbeat: string;
+  tool: string;
 };
 
 export type OfficeRoom = {
@@ -61,6 +66,33 @@ export type OfficeRoom = {
   purpose: string;
   color: string;
   rgb: string;
+};
+
+export type HermesPanel = {
+  id: string;
+  label: string;
+  value: string;
+  detail: string;
+  health: "ok" | "warn" | "bad";
+};
+
+export type RouterProvider = {
+  id: string;
+  name: string;
+  tier: "Subscription" | "Cheap" | "Free" | "Local";
+  status: "ready" | "limited" | "fallback" | "offline";
+  quota: number;
+  used: number;
+  latency: string;
+  cost: string;
+  models: string;
+};
+
+export type OpenClawNode = {
+  id: string;
+  label: string;
+  value: string;
+  status: "ready" | "syncing" | "needs-token" | "offline";
 };
 
 export const emotions: Record<AiEmotion, EmotionState> = {
@@ -122,6 +154,18 @@ export const modules: JCoreModule[] = [
     metric: "1 active session"
   },
   {
+    id: "hermes",
+    label: "Hermes",
+    eyebrow: "Agent runtime",
+    realm: "Core Brain",
+    color: "#ffd277",
+    rgb: "255,210,119",
+    icon: "H",
+    summary: "Hermes dashboard layer: sessions, API, logs, cron, skills, config và usage.",
+    signal: "api planned",
+    metric: "port 8642 / 9119"
+  },
+  {
     id: "missions",
     label: "Missions",
     eyebrow: "Execution",
@@ -144,6 +188,18 @@ export const modules: JCoreModule[] = [
     summary: "Quản lý đội agent: vai trò, heartbeat, task, trạng thái và năng lực.",
     signal: "6 online",
     metric: "63% load"
+  },
+  {
+    id: "openclaw",
+    label: "OpenClaw",
+    eyebrow: "Agent gateway",
+    realm: "Fleet Bridge",
+    color: "#8adfff",
+    rgb: "138,223,255",
+    icon: "OC",
+    summary: "OpenClaw gateway/control UI: agent fleet, ws/http URL, gateway token và live events.",
+    signal: "bridge planned",
+    metric: "gateway json"
   },
   {
     id: "office",
@@ -276,7 +332,10 @@ export const agents: AgentProfile[] = [
     status: "working",
     color: "#ff6048",
     load: 82,
-    task: "Thiết kế shell và module registry"
+    task: "Thiết kế shell và module registry",
+    runtime: "codex",
+    heartbeat: "8s ago",
+    tool: "apply_patch"
   },
   {
     id: "rogers",
@@ -287,7 +346,10 @@ export const agents: AgentProfile[] = [
     status: "thinking",
     color: "#6ea8ff",
     load: 61,
-    task: "Chốt tiêu chí hoàn thành"
+    task: "Chốt tiêu chí hoàn thành",
+    runtime: "hermes",
+    heartbeat: "12s ago",
+    tool: "mission planner"
   },
   {
     id: "romanoff",
@@ -298,7 +360,10 @@ export const agents: AgentProfile[] = [
     status: "review",
     color: "#ff6f9c",
     load: 48,
-    task: "Kiểm chứng nguồn và rủi ro"
+    task: "Kiểm chứng nguồn và rủi ro",
+    runtime: "openclaw",
+    heartbeat: "21s ago",
+    tool: "browser/research"
   },
   {
     id: "strange",
@@ -309,7 +374,10 @@ export const agents: AgentProfile[] = [
     status: "idle",
     color: "#b56dff",
     load: 35,
-    task: "Giữ timeline nâng cấp"
+    task: "Giữ timeline nâng cấp",
+    runtime: "hermes",
+    heartbeat: "idle",
+    tool: "cron/timeline"
   },
   {
     id: "banner",
@@ -320,7 +388,10 @@ export const agents: AgentProfile[] = [
     status: "blocked",
     color: "#70e06e",
     load: 29,
-    task: "Chờ dữ liệu test thật"
+    task: "Chờ dữ liệu test thật",
+    runtime: "local",
+    heartbeat: "blocked",
+    tool: "test runner"
   },
   {
     id: "thor",
@@ -331,7 +402,10 @@ export const agents: AgentProfile[] = [
     status: "idle",
     color: "#8adfff",
     load: 42,
-    task: "Chuẩn bị tunnel/Ubuntu flow"
+    task: "Chuẩn bị tunnel/Ubuntu flow",
+    runtime: "openclaw",
+    heartbeat: "16s ago",
+    tool: "gateway/deploy"
   }
 ];
 
@@ -342,3 +416,122 @@ export const statusCopy: Record<AgentStatus, string> = {
   blocked: "Blocked",
   review: "Review"
 };
+
+export const hermesPanels: HermesPanel[] = [
+  {
+    id: "api",
+    label: "API Server",
+    value: "localhost:8642",
+    detail: "Sessions API, chat/stream, fork, messages. Cần API_SERVER_KEY.",
+    health: "warn"
+  },
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    value: "localhost:9119",
+    detail: "Status, config, env, sessions, logs, analytics, cron, skills.",
+    health: "warn"
+  },
+  {
+    id: "sessions",
+    label: "Sessions",
+    value: "20 recent",
+    detail: "Source: CLI, Telegram, API, cron, J-Core. Có token/tool metadata.",
+    health: "ok"
+  },
+  {
+    id: "skills",
+    label: "Skills",
+    value: "toggleable",
+    detail: "Skill catalog + toolsets, sau này map vào J-Core Skill Hub.",
+    health: "ok"
+  },
+  {
+    id: "cron",
+    label: "Cron Jobs",
+    value: "scheduled",
+    detail: "Night crew, daily review, Telegram/Discord/local delivery.",
+    health: "ok"
+  },
+  {
+    id: "logs",
+    label: "Logs",
+    value: "live tail",
+    detail: "agent/errors/gateway logs, filter by level/component.",
+    health: "ok"
+  }
+];
+
+export const routerProviders: RouterProvider[] = [
+  {
+    id: "subscription",
+    name: "Claude / Codex / Gemini",
+    tier: "Subscription",
+    status: "ready",
+    quota: 100,
+    used: 68,
+    latency: "1.4s",
+    cost: "included",
+    models: "coding, reasoning"
+  },
+  {
+    id: "cheap",
+    name: "GLM / MiniMax / Kimi",
+    tier: "Cheap",
+    status: "fallback",
+    quota: 100,
+    used: 24,
+    latency: "1.9s",
+    cost: "low",
+    models: "draft, summarize"
+  },
+  {
+    id: "free",
+    name: "Qwen / iFlow / Kiro",
+    tier: "Free",
+    status: "ready",
+    quota: 100,
+    used: 12,
+    latency: "2.8s",
+    cost: "free",
+    models: "light tasks"
+  },
+  {
+    id: "local",
+    name: "Ollama / local",
+    tier: "Local",
+    status: "limited",
+    quota: 100,
+    used: 41,
+    latency: "local",
+    cost: "hardware",
+    models: "private/offline"
+  }
+];
+
+export const openClawNodes: OpenClawNode[] = [
+  {
+    id: "dashboard-json",
+    label: "dashboard --json",
+    value: "url/httpUrl/wsUrl/port",
+    status: "ready"
+  },
+  {
+    id: "gateway-token",
+    label: "Gateway token",
+    value: "SecretRef / redacted",
+    status: "needs-token"
+  },
+  {
+    id: "events",
+    label: "Live events",
+    value: "WebSocket planned",
+    status: "syncing"
+  },
+  {
+    id: "fleet",
+    label: "Agent fleet",
+    value: "roles + heartbeat",
+    status: "ready"
+  }
+];

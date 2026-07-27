@@ -3,8 +3,11 @@ import LivingOrb3D from "./jcore/LivingOrb3D";
 import {
   agents,
   emotions,
+  hermesPanels,
   modules,
+  openClawNodes,
   officeRooms,
+  routerProviders,
   statusCopy,
   type AiEmotion,
   type JCoreModule,
@@ -166,6 +169,128 @@ function SignalGrid({ activeModule }: { activeModule: JCoreModule }) {
   );
 }
 
+function HermesDashboard() {
+  return (
+    <div className="hermes-dashboard">
+      <section className="runtime-hero">
+        <div>
+          <span>Hermes Control Plane</span>
+          <h2>Local-first agent brain</h2>
+          <p>
+            J-Core sẽ đọc status, sessions, config, env, analytics, cron, skills và logs từ Hermes API/dashboard.
+          </p>
+        </div>
+        <div className="runtime-endpoints">
+          <b>API</b>
+          <code>http://127.0.0.1:8642</code>
+          <b>Dashboard</b>
+          <code>http://127.0.0.1:9119</code>
+        </div>
+      </section>
+
+      <div className="runtime-grid">
+        {hermesPanels.map((panel) => (
+          <article key={panel.id} className={`health-${panel.health}`}>
+            <span>{panel.label}</span>
+            <b>{panel.value}</b>
+            <p>{panel.detail}</p>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RouterDashboard() {
+  const totalUsed = Math.round(
+    routerProviders.reduce((sum, provider) => sum + provider.used, 0) / routerProviders.length
+  );
+
+  return (
+    <div className="router-dashboard">
+      <section className="router-summary">
+        <div>
+          <span>9Router quota & fallback</span>
+          <h2>{totalUsed}%</h2>
+          <p>Mock quota hiện tại. Sau này adapter sẽ gọi local 9Router/OpenAI-compatible gateway.</p>
+        </div>
+        <div>
+          <b>Endpoint</b>
+          <code>http://127.0.0.1:20128/v1</code>
+          <small>Hermes nên trỏ model provider về endpoint này.</small>
+        </div>
+      </section>
+
+      <div className="provider-list">
+        {routerProviders.map((provider) => (
+          <article key={provider.id} className={`provider-${provider.status}`}>
+            <header>
+              <span>{provider.tier}</span>
+              <b>{provider.name}</b>
+              <em>{provider.status}</em>
+            </header>
+            <div className="quota-bar">
+              <i style={{ width: `${provider.used}%` }} />
+            </div>
+            <footer>
+              <p>{provider.models}</p>
+              <p>{provider.latency}</p>
+              <p>{provider.cost}</p>
+            </footer>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OpenClawDashboard() {
+  return (
+    <div className="openclaw-dashboard">
+      <section className="runtime-hero openclaw-hero">
+        <div>
+          <span>OpenClaw Gateway</span>
+          <h2>Fleet bridge</h2>
+          <p>
+            J-Core sẽ đọc `openclaw dashboard --json`, lấy Control UI URL, HTTP URL, WS URL, port và trạng thái token.
+          </p>
+        </div>
+        <div className="runtime-endpoints">
+          <b>CLI</b>
+          <code>openclaw dashboard --json</code>
+          <b>Events</b>
+          <code>wsUrl → J-Core event bus</code>
+        </div>
+      </section>
+
+      <div className="openclaw-grid">
+        {openClawNodes.map((node) => (
+          <article key={node.id} className={`node-${node.status}`}>
+            <i />
+            <span>{node.label}</span>
+            <b>{node.value}</b>
+            <em>{node.status}</em>
+          </article>
+        ))}
+      </div>
+
+      <div className="fleet-roster">
+        {agents.map((agent) => (
+          <article key={agent.id} style={{ "--agent": agent.color } as React.CSSProperties}>
+            <div>
+              <span>{agent.runtime}</span>
+              <b>{agent.character}</b>
+              <p>{agent.task}</p>
+            </div>
+            <em>{agent.heartbeat}</em>
+            <small>{agent.tool}</small>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PurpleOffice({
   selectedRoomId,
   setSelectedRoomId
@@ -202,6 +327,16 @@ function PurpleOffice({
           <small>{selectedRoom.purpose}</small>
         </div>
         <div className="holo-table" />
+        <div className="office-console-wall">
+          <b>runtime</b>
+          <span>Hermes</span>
+          <span>OpenClaw</span>
+          <span>9Router</span>
+        </div>
+        <div className="office-approval-gate">
+          <b>Human Gate</b>
+          <span>2 pending</span>
+        </div>
         <div className="room-grid-lines" />
 
         {roomAgents.map((agent, index) => (
@@ -266,6 +401,12 @@ function ModuleDeck({
 
       {activeModule.id === "office" ? (
         <PurpleOffice selectedRoomId={selectedRoomId} setSelectedRoomId={setSelectedRoomId} />
+      ) : activeModule.id === "hermes" ? (
+        <HermesDashboard />
+      ) : activeModule.id === "router" ? (
+        <RouterDashboard />
+      ) : activeModule.id === "openclaw" || activeModule.id === "agents" ? (
+        <OpenClawDashboard />
       ) : (
         <SignalGrid activeModule={activeModule} />
       )}

@@ -116,8 +116,12 @@ Each iteration should improve one of:
 
 ### v3
 
+- Add Hermes dashboard-like module: API server, dashboard, sessions, skills, cron, logs. **Done in local v3 mock UI.**
+- Add 9Router quota/provider/fallback module. **Done in local v3 mock UI.**
+- Add OpenClaw fleet/gateway module. **Done in local v3 mock UI.**
 - Add HermesAdapter mock/real switch.
-- Add 9Router status card.
+- Add OpenClawAdapter mock/real switch.
+- Add RouterAdapter mock/real switch.
 - Add mission timeline from real data contract.
 
 ### v4
