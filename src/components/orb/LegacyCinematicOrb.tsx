@@ -122,7 +122,16 @@ function applyOrbPalette(palette: LegacyEnergyPalette) {
 
 function isInteractiveTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
-  return Boolean(target.closest(".hud-dock, .history-panel, .settings-panel, .activity-hub, .prompt-shell, button, input, textarea, select"));
+  return Boolean(target.closest(".hud-dock, .history-panel, .settings-panel, .activity-hub, .prompt-shell, .draggable-panel, .os-taskbar, .os-minimized-dock, button, input, textarea, select"));
+}
+
+function isPointInOrbInteractionZone(event: { clientX: number; clientY: number }, element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  const radius = Math.min(rect.width, rect.height) * 0.38;
+  if (radius <= 0) return false;
+  const normalizedX = (event.clientX - (rect.left + rect.width / 2)) / radius;
+  const normalizedY = (event.clientY - (rect.top + rect.height / 2)) / (radius * 0.94);
+  return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
 }
 const FILAMENTS: FilamentSpec[] = [
   { radius: 0.72, seed: 1, span: 5.2, speed: 0.21, tilt: [0.2, 0.4, 0.1] },
@@ -1757,7 +1766,7 @@ function CameraOrbitController({ resetSignal = 0 }: Pick<CinematicOrbProps, "res
     controls.enableDamping = true;
     controls.dampingFactor = 0.075;
     controls.enablePan = false;
-    controls.enableZoom = true;
+    controls.enableZoom = false;
     controls.enableRotate = false;
     controls.rotateSpeed = 0;
     controls.zoomSpeed = 0.48;
@@ -1765,8 +1774,26 @@ function CameraOrbitController({ resetSignal = 0 }: Pick<CinematicOrbProps, "res
     controls.maxDistance = size.width / size.height < 0.72 ? 15 : 8.6;
     controls.target.set(0, 0, 0);
     gl.domElement.classList.add("is-orbit-enabled");
+    const updateInteractionZone = (event: PointerEvent | WheelEvent) => {
+      const enabled =
+        !document.body.classList.contains("hud-dragging") &&
+        isPointInOrbInteractionZone(event, gl.domElement);
+      controls.enableZoom = enabled;
+      gl.domElement.classList.toggle("orb-hit-active", enabled);
+    };
+    const disableInteractionZone = () => {
+      controls.enableZoom = false;
+      gl.domElement.classList.remove("orb-hit-active");
+    };
+    gl.domElement.addEventListener("pointermove", updateInteractionZone, { passive: true });
+    gl.domElement.addEventListener("pointerleave", disableInteractionZone);
+    gl.domElement.addEventListener("wheel", updateInteractionZone, { capture: true, passive: true });
     return () => {
       gl.domElement.classList.remove("is-orbit-enabled");
+      gl.domElement.classList.remove("orb-hit-active");
+      gl.domElement.removeEventListener("pointermove", updateInteractionZone);
+      gl.domElement.removeEventListener("pointerleave", disableInteractionZone);
+      gl.domElement.removeEventListener("wheel", updateInteractionZone, true);
       controls.dispose();
     };
   }, [controls, gl.domElement, size]);
@@ -1861,7 +1888,8 @@ function ResponsePulseRings({ activity }: CinematicOrbProps) {
 
 function SceneRig({ activity, palette = "gold", resetSignal = 0, triangularCore = false }: CinematicOrbProps) {
   const root = useRef<THREE.Group>(null);
-  const { pointer, size } = useThree();
+  const { pointer, size, gl } = useThree();
+  const hovered = useRef(false);
   const drag = useRef({
     active: false,
     x: 0,
@@ -1874,7 +1902,14 @@ function SceneRig({ activity, palette = "gold", resetSignal = 0, triangularCore 
 
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
-      if (event.button !== 0 || isInteractiveTarget(event.target)) return;
+      if (
+        event.button !== 0 ||
+        event.target !== gl.domElement ||
+        isInteractiveTarget(event.target) ||
+        document.body.classList.contains("hud-dragging") ||
+        !isPointInOrbInteractionZone(event, gl.domElement)
+      ) return;
+      hovered.current = true;
       drag.current.active = true;
       drag.current.lastX = event.clientX;
       drag.current.lastY = event.clientY;
@@ -1882,6 +1917,10 @@ function SceneRig({ activity, palette = "gold", resetSignal = 0, triangularCore 
     };
 
     const handlePointerMove = (event: PointerEvent) => {
+      hovered.current =
+        event.target === gl.domElement &&
+        !document.body.classList.contains("hud-dragging") &&
+        isPointInOrbInteractionZone(event, gl.domElement);
       if (!drag.current.active) return;
       const dx = event.clientX - drag.current.lastX;
       const dy = event.clientY - drag.current.lastY;
@@ -1908,7 +1947,7 @@ function SceneRig({ activity, palette = "gold", resetSignal = 0, triangularCore 
       window.removeEventListener("pointercancel", stopDragging);
       document.body.classList.remove("is-reactor-dragging");
     };
-  }, []);
+  }, [gl.domElement]);
 
   useEffect(() => {
     drag.current.x = 0;
@@ -1929,7 +1968,7 @@ function SceneRig({ activity, palette = "gold", resetSignal = 0, triangularCore 
           (activity === "speaking" ? 0.026 : 0.009) *
           activityEnergy(activity);
       root.current.scale.setScalar(breath);
-      const hoverLean = narrow ? 0 : 0.08;
+      const hoverLean = narrow || !hovered.current || document.body.classList.contains("hud-dragging") ? 0 : 0.08;
       root.current.rotation.x = THREE.MathUtils.lerp(root.current.rotation.x, drag.current.x - pointer.y * hoverLean, 0.045);
       root.current.rotation.y = THREE.MathUtils.lerp(root.current.rotation.y, drag.current.y + pointer.x * hoverLean, 0.045);
       root.current.rotation.z = Math.sin(t * 0.12) * 0.016;

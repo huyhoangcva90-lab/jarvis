@@ -75,6 +75,7 @@ export function StoneStateProvider({ children, data }) {
     hermes: false,
     openclaw: false,
     nineRouter: false,
+    claude: false,
     lastCheckedAt: null,
     error: null,
   });
@@ -86,6 +87,7 @@ export function StoneStateProvider({ children, data }) {
       let hOnline = false;
       let oOnline = false;
       let nOnline = false;
+      let cOnline = false;
 
       try {
         const health = await gatewayFetch(data, "/health", { method: "GET", timeoutMs: 5000 });
@@ -93,11 +95,13 @@ export function StoneStateProvider({ children, data }) {
         hOnline = !!health.services?.hermes?.online && health.services?.hermes?.configured !== false;
         oOnline = !!health.services?.openclaw?.online && health.services?.openclaw?.configured !== false;
         nOnline = !!health.services?.nineRouter?.online && health.services?.nineRouter?.configured !== false;
+        cOnline = !!health.services?.claude?.online && health.services?.claude?.configured !== false;
         setConnections({
           gateway: true,
           hermes: hOnline,
           openclaw: oOnline,
           nineRouter: nOnline,
+          claude: cOnline,
           lastCheckedAt: new Date().toISOString(),
           error: null,
         });
@@ -108,6 +112,7 @@ export function StoneStateProvider({ children, data }) {
           hermes: false,
           openclaw: false,
           nineRouter: false,
+          claude: false,
           lastCheckedAt: new Date().toISOString(),
           error: error?.message || "Gateway offline",
         });

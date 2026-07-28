@@ -100,3 +100,41 @@ curl.exe https://jarvisidhuykl.huykl.id.vn/health
 
 `services.*.online` cho biết tiến trình upstream có chạy hay không.
 `services.*.configured` cho biết gateway đã có URL chat/task thật hay chưa.
+
+## 8. Bật phản hồi AI thật
+
+J-Core gửi hội thoại tới `/api/ai/chat`. Gateway thử lần lượt:
+
+1. Hermes (`HERMES_CHAT_URL`)
+2. 9Router (`NINEROUTER_CHAT_URL`)
+3. Claude bridge (`CLAUDE_CHAT_URL`)
+
+Chỉ cần ít nhất một endpoint chat hoạt động là J-Core có thể trả lời. OpenClaw
+không phải chat backend; nó nhận nhiệm vụ qua `OPENCLAW_TASK_URL`.
+
+Ví dụ cấu hình tối thiểu nếu 9Router cung cấp API tương thích OpenAI:
+
+```env
+NINEROUTER_BASE_URL=http://127.0.0.1:9000
+NINEROUTER_HEALTH_URL=http://127.0.0.1:9000/health
+NINEROUTER_CHAT_URL=http://127.0.0.1:9000/v1/chat/completions
+NINEROUTER_API_KEY=<token-neu-co>
+```
+
+Claude Code CLI không tự mở HTTP API. Không cho gateway public chạy trực tiếp
+lệnh shell `claude`. Nếu cần dùng Claude Code, hãy dựng một local bridge có xác
+thực ở `127.0.0.1`, sau đó mới điền `CLAUDE_*`.
+
+Sau khi sửa `.env.local` trên Ubuntu:
+
+```bash
+git pull origin main
+sudo systemctl restart j-core-gateway
+curl https://jarvisidhuykl.huykl.id.vn/health
+```
+
+Kết quả sẵn sàng phải có ít nhất một dịch vụ chat với:
+
+```json
+{ "online": true, "configured": true }
+```

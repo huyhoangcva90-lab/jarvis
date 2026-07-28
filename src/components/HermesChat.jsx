@@ -70,10 +70,10 @@ export default function HermesChat({ data, addLog, onClose }) {
     setInput('');
     setIsTyping(true);
 
-    if (addLog) addLog(`Hermes chat: "${text.substring(0, 30)}..."`);
+    if (addLog) addLog(`AI chat: "${text.substring(0, 30)}..."`);
 
     try {
-      const result = await gatewayFetch(data, "/api/hermes/chat", {
+      const result = await gatewayFetch(data, "/api/ai/chat", {
         method: "POST",
         body: JSON.stringify({
           message: text,
@@ -83,9 +83,9 @@ export default function HermesChat({ data, addLog, onClose }) {
       });
       const reply = getGatewayReply(result);
       if (result.source === "mock") {
-        throw new Error(reply || "Hermes upstream chưa được cấu hình trên gateway.");
+        throw new Error(reply || "Chưa có AI upstream nào được cấu hình trên gateway.");
       }
-      streamReply(reply || "Hermes đã phản hồi nhưng không có nội dung văn bản.");
+      streamReply(reply || "AI upstream đã phản hồi nhưng không có nội dung văn bản.");
     } catch (error) {
       streamReply(`[Gateway error: ${error.message}]`);
     }
@@ -120,7 +120,7 @@ export default function HermesChat({ data, addLog, onClose }) {
       <div className="flex items-center justify-between border-b border-cyan-300/20 bg-void/80 p-4">
         <div className="flex items-center gap-3">
           <div className="h-2 w-2 animate-pulseCore rounded-full bg-cyanCore" />
-          <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-cyanCore">Hermes Link</h2>
+          <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-cyanCore">AI Link</h2>
         </div>
         <button
           type="button"

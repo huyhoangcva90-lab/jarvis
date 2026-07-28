@@ -47,6 +47,12 @@ const services = {
     chat: process.env.NINEROUTER_CHAT_URL || "",
     apiKey: process.env.NINEROUTER_API_KEY || "",
   },
+  claude: {
+    base: process.env.CLAUDE_BASE_URL || "http://127.0.0.1:3001",
+    health: process.env.CLAUDE_HEALTH_URL || "http://127.0.0.1:3001/health",
+    chat: process.env.CLAUDE_CHAT_URL || "",
+    apiKey: process.env.CLAUDE_API_KEY || "",
+  },
 };
 
 function getCorsOrigin(req) {
@@ -168,10 +174,11 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url || "/", `http://${req.headers.host}`);
 
     if (req.method === "GET" && url.pathname === "/health") {
-      const [hermes, openclaw, nineRouter] = await Promise.all([
+      const [hermes, openclaw, nineRouter, claude] = await Promise.all([
         probe(services.hermes.health),
         probe(services.openclaw.health),
         probe(services.nineRouter.health),
+        probe(services.claude.health),
       ]);
       return sendJson(req, res, 200, {
         gateway: { online: true, host: HOST, port: PORT },
@@ -179,7 +186,41 @@ const server = createServer(async (req, res) => {
           hermes: { ...hermes, configured: Boolean(services.hermes.chat) },
           openclaw: { ...openclaw, configured: Boolean(services.openclaw.task) },
           nineRouter: { ...nineRouter, configured: Boolean(services.nineRouter.chat) },
+          claude: { ...claude, configured: Boolean(services.claude.chat) },
         },
+      });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/ai/chat") {
+      const body = await readJson(req);
+      const candidates = [
+        ["hermes", services.hermes.chat, services.hermes.apiKey],
+        ["nineRouter", services.nineRouter.chat, services.nineRouter.apiKey],
+        ["claude", services.claude.chat, services.claude.apiKey],
+      ].filter(([, endpoint]) => Boolean(endpoint));
+
+      if (!candidates.length) {
+        return sendJson(req, res, 503, { error: "ai_not_configured" });
+      }
+
+      const attempts = [];
+      for (const [name, endpoint, apiKey] of candidates) {
+        const result = await proxyJson(endpoint, body, apiKey);
+        attempts.push({ source: name, status: result.status });
+        if (result.ok) {
+          return sendJson(req, res, 200, {
+            reply: normalizeReply(result.data),
+            upstreamStatus: result.status,
+            raw: result.data,
+            source: name,
+            attempts,
+          });
+        }
+      }
+
+      return sendJson(req, res, 502, {
+        error: "all_ai_upstreams_failed",
+        attempts,
       });
     }
 
@@ -211,6 +252,20 @@ const server = createServer(async (req, res) => {
       });
     }
 
+    if (req.method === "POST" && url.pathname === "/api/claude/chat") {
+      const body = await readJson(req);
+      if (!services.claude.chat) {
+        return sendJson(req, res, 503, { error: "claude_not_configured" });
+      }
+      const result = await proxyJson(services.claude.chat, body, services.claude.apiKey);
+      return sendJson(req, res, result.ok ? 200 : 502, {
+        reply: normalizeReply(result.data),
+        upstreamStatus: result.status,
+        raw: result.data,
+        source: "claude",
+      });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/openclaw/task") {
       const body = await readJson(req);
       if (!services.openclaw.task) {
@@ -237,4 +292,5 @@ server.listen(PORT, HOST, () => {
   console.log(`Hermes: ${services.hermes.base}`);
   console.log(`OpenClaw: ${services.openclaw.base}`);
   console.log(`9Router: ${services.nineRouter.base}`);
+  console.log(`Claude bridge: ${services.claude.base}`);
 });

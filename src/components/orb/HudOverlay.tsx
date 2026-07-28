@@ -1,4 +1,4 @@
-import { FormEvent, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiActivity, EnergyPalette } from "../../App";
 import { gatewayFetch, getGatewayReply } from "../../utils/gatewayClient.js";
 import { useStoneState } from "../../utils/stoneState.jsx";
@@ -160,6 +160,8 @@ function OsWindow({
   onClose,
   onToggleMinimize,
 }: OsWindowProps) {
+  if (minimized) return null;
+
   return (
     <aside
       ref={drag.panelRef}
@@ -168,14 +170,24 @@ function OsWindow({
       aria-label={title}
       onPointerDown={onActivate}
     >
-      <div className="os-window-head panel-drag-handle" {...drag.dragHandleProps} onDoubleClick={drag.resetPosition}>
+      <div
+        className="os-window-head panel-drag-handle"
+        {...drag.dragHandleProps}
+        onDoubleClick={drag.resetPosition}
+        onWheel={(event) => {
+          if (window.innerWidth <= 760 || event.deltaY < 24) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onToggleMinimize();
+        }}
+      >
         <div className="os-window-title">
           <span>{code}</span>
           <b>{title}</b>
         </div>
         <div className="panel-actions">
-          <button type="button" aria-label={minimized ? `Khôi phục ${title}` : `Thu nhỏ ${title}`} onClick={onToggleMinimize}>
-            <Icon name={minimized ? "maximize" : "minimize"} />
+          <button type="button" aria-label={`Thu nhỏ ${title}`} onClick={onToggleMinimize}>
+            <Icon name="minimize" />
           </button>
           <button type="button" aria-label={`Đóng ${title}`} onClick={onClose}><Icon name="close" /></button>
         </div>
@@ -309,6 +321,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       hermes: boolean;
       openclaw: boolean;
       nineRouter: boolean;
+      claude: boolean;
       error?: string | null;
     };
   };
@@ -374,6 +387,13 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const agentsDrag = usePanelDrag();
   const routerDrag = usePanelDrag();
   const intelDrag = usePanelDrag();
+
+  const minimizeFromWheel = useCallback((event: ReactWheelEvent<HTMLElement>, minimize: () => void) => {
+    if (window.innerWidth <= 760 || event.deltaY < 24) return;
+    event.preventDefault();
+    event.stopPropagation();
+    minimize();
+  }, []);
 
   useEffect(() => {
     document.body.dataset.palette = palette;
@@ -456,7 +476,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     requestControllerRef.current = controller;
 
     try {
-      const response: any = await gatewayFetch(data, "/api/hermes/chat", {
+      const response: any = await gatewayFetch(data, "/api/ai/chat", {
         method: "POST",
         timeoutMs: 60000,
         signal: controller.signal,
@@ -469,24 +489,24 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       });
       const replyText = getGatewayReply(response);
       if (response.source === "mock") {
-        throw new Error(replyText || "Hermes upstream chưa được cấu hình trên gateway.");
+        throw new Error(replyText || "Chưa có AI upstream nào được cấu hình trên gateway.");
       }
-      if (!replyText) throw new Error("Hermes phản hồi nhưng không có nội dung.");
+      if (!replyText) throw new Error("AI upstream phản hồi nhưng không có nội dung.");
       const reply = { id: createId(), role: "assistant" as const, text: replyText, at: Date.now() };
       setMessages((current) => [...current, reply].slice(-80));
       speak(reply.text);
     } catch (error) {
       if (controller.signal.aborted) return;
-      const message = error instanceof Error ? error.message : "Không thể kết nối Hermes.";
+      const message = error instanceof Error ? error.message : "Không thể kết nối AI upstream.";
       const reply = {
         id: createId(),
         role: "assistant" as const,
-        text: `Gateway/Hermes đang lỗi: ${message}`,
+        text: `AI link đang lỗi: ${message}`,
         at: Date.now(),
       };
       setMessages((current) => [...current, reply].slice(-80));
       setActivity("idle");
-      setToast("Không thể nhận phản hồi từ Hermes.");
+      setToast("Không thể nhận phản hồi từ AI upstream.");
       scheduleVoiceRestart(1800);
     } finally {
       if (requestControllerRef.current === controller) requestControllerRef.current = null;
@@ -634,11 +654,12 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       { label: "HERMES", value: connections.hermes ? "AI READY" : "OFFLINE", detail: "Chat orchestrator qua gateway", tone: connections.hermes ? "online" : "offline" },
       { label: "OPENCLAW", value: connections.openclaw ? "ONLINE" : "OFFLINE", detail: "Agent workforce upstream", tone: connections.openclaw ? "online" : "offline" },
       { label: "9ROUTER", value: connections.nineRouter ? "ONLINE" : "OFFLINE", detail: "Multi-model routing upstream", tone: connections.nineRouter ? "online" : "offline" },
+      { label: "CLAUDE", value: connections.claude ? "AI READY" : "OFFLINE", detail: "Optional local Claude bridge", tone: connections.claude ? "online" : "offline" },
       { label: "VOICE", value: voiceMode ? "OPEN CHANNEL" : "STANDBY", detail: advisorMode ? "Co van, loc cau vu vo" : "Phan hoi moi cau nghe duoc" },
       { label: "MODE", value: paletteLabels[palette].toUpperCase(), detail: "Orb doi mau va cau truc" },
       { label: "MEMORY", value: `${messages.length} LOGS`, detail: "Luu cuc bo trong trinh duyet" }
     ],
-    [advisorMode, connections.gateway, connections.hermes, connections.nineRouter, connections.openclaw, data.endpoints?.gateway, messages.length, palette, voiceMode]
+    [advisorMode, connections.claude, connections.gateway, connections.hermes, connections.nineRouter, connections.openclaw, data.endpoints?.gateway, messages.length, palette, voiceMode]
   );
 
   const pushTerminal = (lines: string | string[]) => {
@@ -648,13 +669,34 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
   const openOsWindow = useCallback((windowId: string) => {
     setActiveWindow(windowId);
-    if (windowId === "system") setHubOpen(true);
-    if (windowId === "chat") setHistoryOpen(true);
-    if (windowId === "settings") setSettingsOpen(true);
-    if (windowId === "terminal") setTerminalOpen(true);
-    if (windowId === "agents") setAgentsOpen(true);
-    if (windowId === "router") setRouterOpen(true);
-    if (windowId === "intel") setIntelOpen(true);
+    if (windowId === "system") {
+      setHubOpen(true);
+      setHubMinimized(false);
+    }
+    if (windowId === "chat") {
+      setHistoryOpen(true);
+      setHistoryMinimized(false);
+    }
+    if (windowId === "settings") {
+      setSettingsOpen(true);
+      setSettingsMinimized(false);
+    }
+    if (windowId === "terminal") {
+      setTerminalOpen(true);
+      setTerminalMinimized(false);
+    }
+    if (windowId === "agents") {
+      setAgentsOpen(true);
+      setAgentsMinimized(false);
+    }
+    if (windowId === "router") {
+      setRouterOpen(true);
+      setRouterMinimized(false);
+    }
+    if (windowId === "intel") {
+      setIntelOpen(true);
+      setIntelMinimized(false);
+    }
   }, []);
 
   const activeIntelDocument = useMemo(
@@ -763,19 +805,45 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   }, [openOsWindow]);
 
   const toggleHistory = () => {
-    setHistoryOpen((current) => !current);
+    if (!historyOpen || historyMinimized) {
+      setHistoryOpen(true);
+      setHistoryMinimized(false);
+    } else {
+      setHistoryOpen(false);
+    }
     setActiveWindow("chat");
   };
 
   const toggleSettings = () => {
-    setSettingsOpen((current) => !current);
+    if (!settingsOpen || settingsMinimized) {
+      setSettingsOpen(true);
+      setSettingsMinimized(false);
+    } else {
+      setSettingsOpen(false);
+    }
     setActiveWindow("settings");
   };
 
   const toggleHub = () => {
-    setHubOpen((current) => !current);
+    if (!hubOpen || hubMinimized) {
+      setHubOpen(true);
+      setHubMinimized(false);
+    } else {
+      setHubOpen(false);
+    }
     setActiveWindow("system");
   };
+
+  const minimizedWindows = ([
+    hubOpen && hubMinimized ? { id: "system", label: "System Monitor", code: "SYS", icon: "hub" } : null,
+    historyOpen && historyMinimized ? { id: "chat", label: "Neural Chat", code: "CHAT", icon: "chat" } : null,
+    terminalOpen && terminalMinimized ? { id: "terminal", label: "Restricted Terminal", code: "TERM", icon: "terminal" } : null,
+    agentsOpen && agentsMinimized ? { id: "agents", label: "Agent Matrix", code: "AGNT", icon: "agents" } : null,
+    routerOpen && routerMinimized ? { id: "router", label: "Router Matrix", code: "ROUT", icon: "router" } : null,
+    intelOpen && intelMinimized ? { id: "intel", label: "Intel Library", code: "INTL", icon: "media" } : null,
+    settingsOpen && settingsMinimized ? { id: "settings", label: "Gateway Settings", code: "GATE", icon: "settings" } : null,
+  ] as Array<{ id: string; label: string; code: string; icon: IconName } | null>)
+    .filter((item): item is { id: string; label: string; code: string; icon: IconName } => Boolean(item));
 
   return (
     <div className="hud-overlay" aria-label="J-Core AI interface">
@@ -799,15 +867,33 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         </div>
       </nav>
 
-      {hubOpen && (
+      {minimizedWindows.length > 0 && (
+        <nav className="os-minimized-dock" aria-label="Cửa sổ đang thu nhỏ">
+          <span>HIDDEN</span>
+          {minimizedWindows.map((windowItem) => (
+            <button
+              type="button"
+              key={windowItem.id}
+              aria-label={`Khôi phục ${windowItem.label}`}
+              title={`Khôi phục ${windowItem.label}`}
+              onClick={() => openOsWindow(windowItem.id)}
+            >
+              <Icon name={windowItem.icon} />
+              <b>{windowItem.code}</b>
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {hubOpen && !hubMinimized && (
         <aside ref={hubDrag.panelRef} className={`activity-hub draggable-panel ${hubMinimized ? "is-minimized" : ""} ${activeWindow === "system" ? "is-active" : ""}`} style={{ transform: `translate3d(${hubDrag.offset.x}px, ${hubDrag.offset.y}px, 0)` }} aria-label="Activity hub" onPointerDown={() => setActiveWindow("system")}>
-          <div className="hub-title panel-drag-handle" {...hubDrag.dragHandleProps} onDoubleClick={hubDrag.resetPosition}>
+          <div className="hub-title panel-drag-handle" {...hubDrag.dragHandleProps} onDoubleClick={hubDrag.resetPosition} onWheel={(event) => minimizeFromWheel(event, () => setHubMinimized(true))}>
             <div className="hub-title-copy">
               <span>OPERATOR HUB</span>
               <b>{activity === "speaking" ? "RESPONDING" : activity === "thinking" ? "ANALYZING" : activity === "listening" ? "LISTENING" : "STANDBY"}</b>
             </div>
             <div className="panel-actions hub-actions">
-              <button type="button" aria-label={hubMinimized ? "Restore hub" : "Minimize hub"} onClick={() => setHubMinimized((current) => !current)}><Icon name={hubMinimized ? "maximize" : "minimize"} /></button>
+              <button type="button" aria-label="Minimize hub" onClick={() => setHubMinimized(true)}><Icon name="minimize" /></button>
               <button type="button" aria-label="Close hub" onClick={() => setHubOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
@@ -829,14 +915,14 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         </aside>
       )}
 
-      {historyOpen && (
+      {historyOpen && !historyMinimized && (
         <aside ref={historyDrag.panelRef} className={`history-panel draggable-panel ${historyMinimized ? "is-minimized" : ""} ${activeWindow === "chat" ? "is-active" : ""}`} style={{ transform: `translate3d(${historyDrag.offset.x}px, ${historyDrag.offset.y}px, 0)` }} aria-label="Lịch sử chat" onPointerDown={() => setActiveWindow("chat")}>
-          <div className="panel-head panel-drag-handle" {...historyDrag.dragHandleProps} onDoubleClick={historyDrag.resetPosition}>
+          <div className="panel-head panel-drag-handle" {...historyDrag.dragHandleProps} onDoubleClick={historyDrag.resetPosition} onWheel={(event) => minimizeFromWheel(event, () => setHistoryMinimized(true))}>
             <div><i className={`status-dot ${activity}`} /><span>ĐỐI THOẠI</span></div>
             <div className="panel-actions">
               <button type="button" aria-label="Copy lịch sử" onClick={copyContext}><Icon name="copy" /></button>
               <button type="button" aria-label="Xóa lịch sử" onClick={clearChat}><Icon name="trash" /></button>
-              <button type="button" aria-label={historyMinimized ? "Khôi phục chat" : "Thu nhỏ chat"} onClick={() => setHistoryMinimized((current) => !current)}><Icon name={historyMinimized ? "maximize" : "minimize"} /></button>
+              <button type="button" aria-label="Thu nhỏ chat" onClick={() => setHistoryMinimized(true)}><Icon name="minimize" /></button>
               <button type="button" aria-label="Đóng lịch sử" onClick={() => setHistoryOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
@@ -852,12 +938,12 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         </aside>
       )}
 
-      {settingsOpen && (
+      {settingsOpen && !settingsMinimized && (
         <aside ref={settingsDrag.panelRef} className={`settings-panel draggable-panel ${settingsMinimized ? "is-minimized" : ""} ${activeWindow === "settings" ? "is-active" : ""}`} style={{ transform: `translate3d(${settingsDrag.offset.x}px, ${settingsDrag.offset.y}px, 0)` }} aria-label="Cài đặt" onPointerDown={() => setActiveWindow("settings")}>
-          <div className="settings-hero panel-drag-handle" {...settingsDrag.dragHandleProps} onDoubleClick={settingsDrag.resetPosition}>
+          <div className="settings-hero panel-drag-handle" {...settingsDrag.dragHandleProps} onDoubleClick={settingsDrag.resetPosition} onWheel={(event) => minimizeFromWheel(event, () => setSettingsMinimized(true))}>
             <div><span>HỆ THỐNG</span><b>{connections.gateway ? "GATEWAY ONLINE" : "GATEWAY OFFLINE"}</b></div>
             <div className="panel-actions settings-window-actions">
-              <button type="button" aria-label={settingsMinimized ? "Khôi phục cài đặt" : "Thu nhỏ cài đặt"} onClick={() => setSettingsMinimized((current) => !current)}><Icon name={settingsMinimized ? "maximize" : "minimize"} /></button>
+              <button type="button" aria-label="Thu nhỏ cài đặt" onClick={() => setSettingsMinimized(true)}><Icon name="minimize" /></button>
               <button type="button" aria-label="Đóng cài đặt" onClick={() => setSettingsOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
@@ -936,7 +1022,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           className="terminal-os-window"
           onActivate={() => setActiveWindow("terminal")}
           onClose={() => setTerminalOpen(false)}
-          onToggleMinimize={() => setTerminalMinimized((current) => !current)}
+          onToggleMinimize={() => setTerminalMinimized(true)}
         >
           <div className="os-terminal-stream" aria-live="polite">
             {terminalLines.map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}
@@ -965,7 +1051,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           className="agents-os-window"
           onActivate={() => setActiveWindow("agents")}
           onClose={() => setAgentsOpen(false)}
-          onToggleMinimize={() => setAgentsMinimized((current) => !current)}
+          onToggleMinimize={() => setAgentsMinimized(true)}
         >
           <div className="os-status-banner">
             <i className={connections.openclaw ? "online" : "offline"} />
@@ -976,6 +1062,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               ["FRIDAY", "Orchestration", connections.hermes],
               ["OPENCLAW", "Agent runtime", connections.openclaw],
               ["HERMES", "Reasoning core", connections.hermes],
+              ["CLAUDE", "Code/reasoning bridge", connections.claude],
               ["GATEWAY", "Secure transport", connections.gateway],
             ].map(([name, role, online]) => (
               <article className={online ? "online" : "offline"} key={String(name)}>
@@ -999,7 +1086,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           className="router-os-window"
           onActivate={() => setActiveWindow("router")}
           onClose={() => setRouterOpen(false)}
-          onToggleMinimize={() => setRouterMinimized((current) => !current)}
+          onToggleMinimize={() => setRouterMinimized(true)}
         >
           <div className="router-flow" aria-label="Luồng định tuyến">
             <div><span>01</span><b>BROWSER</b><small>J-Core OS</small></div>
@@ -1026,7 +1113,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           className="intel-os-window"
           onActivate={() => setActiveWindow("intel")}
           onClose={() => setIntelOpen(false)}
-          onToggleMinimize={() => setIntelMinimized((current) => !current)}
+          onToggleMinimize={() => setIntelMinimized(true)}
         >
           <div className="intel-shell">
             <header className="intel-toolbar">
