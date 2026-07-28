@@ -78,9 +78,11 @@ export function StoneStateProvider({ children }) {
   useEffect(() => {
     const checkConnections = async () => {
       let endpoints = {
+        gateway: 'http://127.0.0.1:8787',
         hermes: 'http://localhost:8080',
         openclaw: 'http://localhost:18789',
         nineRouter: 'http://localhost:9000',
+        gatewayToken: '',
       };
       
       try {
@@ -93,21 +95,36 @@ export function StoneStateProvider({ children }) {
         // Fallback
       }
 
-      const ping = async (url) => {
+      const ping = async (url, headers = {}) => {
         try {
           const controller = new AbortController();
           const id = setTimeout(() => controller.abort(), 1000);
-          await fetch(url, { method: "HEAD", mode: "no-cors", signal: controller.signal });
+          const result = await fetch(url, { method: "GET", headers, signal: controller.signal });
           clearTimeout(id);
-          return true;
+          return result.ok;
         } catch {
           return false;
         }
       };
 
-      const hOnline = await ping(endpoints.hermes);
-      const oOnline = await ping(endpoints.openclaw);
-      const nOnline = await ping(endpoints.nineRouter);
+      let hOnline = false;
+      let oOnline = false;
+      let nOnline = false;
+
+      try {
+        const headers = endpoints.gatewayToken ? { authorization: `Bearer ${endpoints.gatewayToken}` } : {};
+        const response = await fetch(`${(endpoints.gateway || "http://127.0.0.1:8787").replace(/\/+$/, "")}/health`, { headers });
+        if (response.ok) {
+          const health = await response.json();
+          hOnline = !!health.services?.hermes?.online;
+          oOnline = !!health.services?.openclaw?.online;
+          nOnline = !!health.services?.nineRouter?.online;
+        }
+      } catch {
+        hOnline = await ping(endpoints.hermes);
+        oOnline = await ping(endpoints.openclaw);
+        nOnline = await ping(endpoints.nineRouter);
+      }
 
       setConnections({
         hermes: hOnline,

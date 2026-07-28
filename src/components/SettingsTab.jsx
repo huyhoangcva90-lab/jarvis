@@ -119,6 +119,14 @@ export default function SettingsTab({ data, updateData, hardReset, addLog }) {
         <Panel title="External Adapter Endpoints" kicker="Service routing URLs">
           <div className="space-y-3 font-mono">
             <label className="field-label">
+              J-Core Local Gateway URL
+              <input className="hud-input text-xs" value={data.endpoints?.gateway || ""} onChange={(e) => updateEndpoint("gateway", e.target.value)} />
+            </label>
+            <label className="field-label">
+              Gateway Token optional
+              <input className="hud-input text-xs" type="password" value={data.endpoints?.gatewayToken || ""} onChange={(e) => updateEndpoint("gatewayToken", e.target.value)} />
+            </label>
+            <label className="field-label">
               Hermes Orchestrator Core URL
               <input className="hud-input text-xs" value={data.endpoints?.hermes || ""} onChange={(e) => updateEndpoint("hermes", e.target.value)} />
             </label>

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --open /index.dev.html",
+    "gateway": "node server/gateway.mjs",
     "typecheck": "tsc --noEmit",
     "build": "node scripts/build-pages.mjs",
     "build:vite": "vite build",

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { soundManager } from '../utils/soundManager.js';
+import { gatewayFetch } from '../utils/gatewayClient.js';
 
 const AI_RESPONSES = [
   'I understand. Let me check the relevant systems.',
@@ -71,7 +72,7 @@ export default function HermesChat({ data, addLog, onClose }) {
     }, 30 + Math.random() * 15);
   };
 
-  const handleSend = (forcedText) => {
+  const handleSend = async (forcedText) => {
     const text = (forcedText || input).trim();
     if (!text) return;
 
@@ -82,10 +83,20 @@ export default function HermesChat({ data, addLog, onClose }) {
 
     if (addLog) addLog(`Hermes chat: "${text.substring(0, 30)}..."`);
 
-    window.setTimeout(() => {
-      const randomResponse = AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)];
-      streamReply(randomResponse);
-    }, 1000 + Math.random() * 500);
+    try {
+      const result = await gatewayFetch(data, "/api/hermes/chat", {
+        method: "POST",
+        body: JSON.stringify({
+          message: text,
+          messages: [...messages, { role: "user", content: text }],
+          operator: data?.username || "Operator",
+        }),
+      });
+      streamReply(result.reply || result.message || result.raw || "Hermes responded without text.");
+    } catch (error) {
+      const fallback = AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)];
+      streamReply(`${fallback}\n\n[Local gateway offline: ${error.message}]`);
+    }
   };
 
   const startRecording = (e) => {

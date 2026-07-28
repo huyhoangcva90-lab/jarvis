@@ -43,9 +43,11 @@ export const defaultData = {
     "Mission control standing by."
   ],
   endpoints: {
+    gateway: 'http://127.0.0.1:8787',
     hermes: 'http://localhost:8080',
     openclaw: 'http://localhost:18789',
     nineRouter: 'http://localhost:9000',
+    gatewayToken: '',
   },
   auth: {
     pinEnabled: false,
