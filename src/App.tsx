@@ -12,8 +12,8 @@ import { defaultData, loadData, resetData, saveData } from "./utils/storage.js";
 import { soundManager } from "./utils/soundManager.js";
 
 // Import Realm dashboards
-import NineRouterDashboard from "./components/nineRouterDashboard.jsx";
-import OpenclawDashboard from "./components/openclawDashboard.jsx";
+import NineRouterDashboard from "./components/NineRouterDashboard.jsx";
+import OpenclawDashboard from "./components/OpenclawDashboard.jsx";
 import CoreTab from "./components/CoreTab.jsx";
 import MemoryTab from "./components/MemoryTab.jsx";
 import TerminalTab from "./components/TerminalTab.jsx";

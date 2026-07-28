@@ -10,8 +10,8 @@ import TerminalTab from './TerminalTab.jsx';
 import ToolsTab from './ToolsTab.jsx';
 import SettingsTab from './SettingsTab.jsx';
 
-import NineRouterDashboard from './nineRouterDashboard.jsx';
-import OpenclawDashboard from './openclawDashboard.jsx';
+import NineRouterDashboard from './NineRouterDashboard.jsx';
+import OpenclawDashboard from './OpenclawDashboard.jsx';
 
 const TABS = [
   'OVERVIEW', 'MISSIONS', 'AGENTS', 'ROUTER', 'SCHEDULE',
