@@ -1,5 +1,5 @@
 /**
- * Jarvis Infinity System — Sound FX Manager (Web Audio API Synthesizer)
+ * Jarvis Six Realms — Sound FX Manager (Web Audio API Synthesizer)
  *
  * Tổng hợp trực tiếp các tiếng click cơ học và âm thanh sci-fi.
  * Không phụ thuộc vào tài nguyên tệp âm thanh bên ngoài (.mp3/.wav).

@@ -5,11 +5,15 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as THREE from "three";
 
 import type { AiActivity, EnergyPalette } from "../App";
+import PerformanceMonitor from "./PerformanceMonitor";
 import RealmTransition from "./RealmTransition";
+import JarvisNeutralCore from "./JarvisNeutralCore";
 import { MindScene } from "../realms/mind/MindScene";
+import { TimeScene } from "../realms/time/TimeScene";
 import { SpaceScene } from "../realms/space/SpaceScene";
 import { RealityScene } from "../realms/reality/RealityScene";
-import { TimeScene } from "../realms/time/TimeScene";
+import { PowerScene } from "../realms/power/PowerScene";
+import { SoulScene } from "../realms/soul/SoulScene";
 
 type JarvisCanvasProps = {
   activity: AiActivity;
@@ -24,10 +28,11 @@ const CLEAR_COLORS: Record<string, string> = {
   red: "#080002",
   violet: "#040008",
   orange: "#080300",
+  neutral: "#020617",
 };
 
 function getClearColor(palette: string) {
-  return CLEAR_COLORS[palette] || CLEAR_COLORS.gold;
+  return CLEAR_COLORS[palette] || CLEAR_COLORS.neutral;
 }
 
 function CanvasPaletteBackground({ palette }: { palette: string }) {
@@ -79,7 +84,7 @@ function isInteractiveTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
   return Boolean(
     target.closest(
-      ".hud-dock, .history-panel, .chat-side-panel, .settings-panel, .activity-hub, .prompt-shell, button, input, textarea, select"
+      ".hud-dock, .history-panel, .settings-panel, .activity-hub, .prompt-shell, button, input, textarea, select"
     )
   );
 }
@@ -217,11 +222,12 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: Jar
       >
         <CanvasPaletteBackground palette={palette} />
         <CameraOrbitController resetSignal={resetSignal} />
+        <PerformanceMonitor />
         <SceneRig activity={activity} palette={palette} resetSignal={resetSignal}>
           <RealmTransition palette={palette}>
             {(activePalette) => {
               if (activePalette === "gold") {
-                return <MindScene activity={activity} palette="gold" />;
+                return <MindScene activity={activity} />;
               }
               if (activePalette === "green") {
                 return <TimeScene activity={activity} />;
@@ -233,12 +239,12 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: Jar
                 return <RealityScene activity={activity} />;
               }
               if (activePalette === "violet") {
-                return <MindScene activity={activity} palette="violet" />;
+                return <PowerScene activity={activity} />;
               }
               if (activePalette === "orange") {
-                return <MindScene activity={activity} palette="orange" />;
+                return <SoulScene activity={activity} />;
               }
-              return <MindScene activity={activity} palette="gold" />;
+              return <JarvisNeutralCore />;
             }}
           </RealmTransition>
         </SceneRig>

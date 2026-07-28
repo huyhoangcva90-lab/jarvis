@@ -11,24 +11,6 @@ const WHITE_HOT = new THREE.Color("#fff8d6");
 const DEEP_AMBER = new THREE.Color("#b8490b");
 const COPPER_GLOW = new THREE.Color("#d65f10");
 
-export type LegacyOrbPalette = "gold" | "green" | "violet" | "orange";
-
-const LEGACY_ORB_COLORS: Record<LegacyOrbPalette, [string, string, string, string, string]> = {
-  gold: ["#ff8a18", "#ffd15c", "#fff8d6", "#b8490b", "#d65f10"],
-  green: ["#4cff85", "#b9ffc9", "#f5fff6", "#0b4f24", "#18bd58"],
-  violet: ["#b35cff", "#e8b7ff", "#fff6ff", "#2d0f58", "#7f35ff"],
-  orange: ["#ff7a18", "#ffc46b", "#fff5de", "#7a2608", "#ed5f12"],
-};
-
-function applyLegacyOrbPalette(palette: LegacyOrbPalette) {
-  const [plasma, hot, white, deep, copper] = LEGACY_ORB_COLORS[palette];
-  PLASMA.set(plasma);
-  HOT_PLASMA.set(hot);
-  WHITE_HOT.set(white);
-  DEEP_AMBER.set(deep);
-  COPPER_GLOW.set(copper);
-}
-
 type OrbitSpec = {
   radiusX: number;
   radiusZ: number;
@@ -682,12 +664,11 @@ function FresnelVolume({ activity }: { activity: AiActivity }) {
   );
 }
 
-export function MindScene({ activity, palette = "gold" }: { activity: AiActivity; palette?: LegacyOrbPalette }) {
-  applyLegacyOrbPalette(palette);
+export function MindScene({ activity }: { activity: AiActivity }) {
   return (
     <group>
       <FresnelVolume activity={activity} />
-      <NeuralLattice activity={activity} palette={palette} />
+      <NeuralLattice activity={activity} />
       <ModeConduits activity={activity} />
       <CoreVortex activity={activity} />
       <AccretionBelt activity={activity} />

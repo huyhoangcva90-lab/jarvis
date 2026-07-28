@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Panel from "./Panel.jsx";
 import { loadMissions, saveMissions, addMission, removeMission, patchMission, completeMissionById } from "../utils/missionEngine.js";
-import { useStoneState } from "../utils/stoneState.jsx";
+import { useStoneState } from "../utils/stoneState.js";
 import { STONE_META } from "../types/stones.js";
 import { MISSION_PRIORITY, MISSION_STATUS } from "../types/mission.js";
 import { soundManager } from "../utils/soundManager.js";
@@ -235,7 +235,7 @@ export default function MissionTab({ data, updateData, addLog }) {
               </label>
 
               <label className="field-label">
-                Infinity Stone / Domain
+                Realm Gate / Domain
                 <select
                   className="hud-input"
                   value={domain}
