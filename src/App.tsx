@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { TesseractProvider, useTesseract } from "./tesseract/useTesseract";
 import ModuleRail from "./components/shell/ModuleRail";
 import EmotionSwitcher from "./components/shell/EmotionSwitcher";
@@ -7,8 +8,6 @@ import ContextRail from "./components/shell/ContextRail";
 import CommandComposer from "./components/shell/CommandComposer";
 
 // Legacy 3D tower/office components still import this shared shape during typecheck.
-// The new shell does not render them directly, but keeping the contract prevents
-// old modules from breaking while we migrate them into proper J-Core modules.
 export type Agent = {
   id: string;
   codename: string;
@@ -29,10 +28,12 @@ export type Agent = {
 
 function AppShell() {
   const { activeModule, emotionState, clock } = useTesseract();
+  const [isHudHidden, setIsHudHidden] = useState(false);
+  const [isHoverRevealed, setIsHoverRevealed] = useState(false);
 
   return (
     <main
-      className="jcore-shell"
+      className={`jcore-shell ${isHudHidden ? "hud-collapsed" : ""} ${isHoverRevealed ? "hover-revealed" : ""}`}
       style={
         {
           "--active": activeModule.color,
@@ -53,6 +54,23 @@ function AppShell() {
           <b>TESSERACT AI Command System</b>
         </div>
         <div className="topbar-status">
+          <button
+            onClick={() => setIsHudHidden(!isHudHidden)}
+            style={{
+              background: isHudHidden ? 'rgba(105, 232, 255, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(175, 220, 240, 0.25)',
+              color: '#eef7fb',
+              padding: '3px 10px',
+              borderRadius: '4px',
+              fontFamily: 'IBM Plex Mono, monospace',
+              fontSize: '11px',
+              cursor: 'pointer',
+              marginRight: '8px'
+            }}
+            title="Ẩn/Hiện HUD thanh điều khiển"
+          >
+            {isHudHidden ? '👁️ SHOW HUD' : '👁️ HIDE HUD'}
+          </button>
           <p>
             <i /> Local UI
           </p>
@@ -69,7 +87,24 @@ function AppShell() {
         <ModuleDeck />
       </div>
 
-      <ContextRail />
+      {/* Right Hover Trigger Zone when HUD is hidden */}
+      {isHudHidden && (
+        <div
+          className="right-hover-trigger-zone"
+          onMouseEnter={() => setIsHoverRevealed(true)}
+          onMouseLeave={() => setIsHoverRevealed(false)}
+          title="Hover sang phải để hiện HUD"
+        />
+      )}
+
+      <div
+        className="hud-context-wrapper"
+        onMouseEnter={() => isHudHidden && setIsHoverRevealed(true)}
+        onMouseLeave={() => isHudHidden && setIsHoverRevealed(false)}
+      >
+        <ContextRail />
+      </div>
+
       <CommandComposer />
     </main>
   );

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTesseract } from '../../tesseract/useTesseract';
 import { 
   modules, 
@@ -18,6 +19,7 @@ import type {
 
 export default function ModuleDeck() {
   const { activeModuleId, selectedRoomId, setRoom } = useTesseract();
+  const [showOfficeModal, setShowOfficeModal] = useState(false);
   const activeModule = modules.find((module) => module.id === activeModuleId) ?? modules[0];
   const blueprint = modeBlueprints[activeModule.id];
 
@@ -35,7 +37,9 @@ export default function ModuleDeck() {
       <ModeBlueprintPanel blueprint={blueprint} />
 
       {activeModule.id === "office" ? (
-        <PurpleOffice selectedRoomId={selectedRoomId} setSelectedRoomId={setRoom} />
+        <OfficeSubAppLauncher onOpenModal={() => setShowOfficeModal(true)} />
+      ) : activeModule.id === "settings" ? (
+        <BalancedSettingsDashboard />
       ) : activeModule.id === "hermes" ? (
         <HermesDashboard />
       ) : activeModule.id === "router" ? (
@@ -43,9 +47,53 @@ export default function ModuleDeck() {
       ) : activeModule.id === "web" ? (
         <WebOpsDashboard />
       ) : activeModule.id === "openclaw" || activeModule.id === "agents" ? (
-        <OpenClawDashboard />
+        <OpenClawDashboard onLaunchOffice={() => setShowOfficeModal(true)} />
       ) : (
         <SignalGrid activeModule={activeModule} />
+      )}
+
+      {/* Avengers Virtual Office Modal Sub-App */}
+      {showOfficeModal && (
+        <div 
+          className="office-subapp-modal-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            background: 'rgba(5, 7, 12, 0.88)',
+            backdropFilter: 'blur(16px)',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '24px'
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div>
+              <span style={{ color: '#b56dff', fontSize: '11px', fontFamily: 'IBM Plex Mono, monospace', textTransform: 'uppercase' }}>
+                🟣 Power Realm Sub-App
+              </span>
+              <h2 style={{ margin: 0, fontSize: '20px', color: '#eef7fb' }}>Avengers Agent Virtual Office</h2>
+            </div>
+            <button
+              onClick={() => setShowOfficeModal(false)}
+              style={{
+                background: 'rgba(255, 105, 120, 0.2)',
+                border: '1px solid rgba(255, 105, 120, 0.4)',
+                color: '#ff6978',
+                padding: '6px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontFamily: 'IBM Plex Mono, monospace',
+                fontSize: '12px'
+              }}
+            >
+              ✕ Close Sub-App
+            </button>
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <PurpleOffice selectedRoomId={selectedRoomId} setSelectedRoomId={setRoom} />
+          </div>
+        </div>
       )}
 
       <div className="mission-timeline" aria-label="J-Core upgrade timeline">
@@ -57,6 +105,162 @@ export default function ModuleDeck() {
         ))}
       </div>
     </section>
+  );
+}
+
+function OfficeSubAppLauncher({ onOpenModal }: { onOpenModal: () => void }) {
+  return (
+    <div style={{
+      padding: '24px',
+      background: 'rgba(181, 109, 255, 0.08)',
+      border: '1px solid rgba(181, 109, 255, 0.25)',
+      borderRadius: '8px',
+      textAlign: 'center',
+      margin: '16px 0'
+    }}>
+      <span style={{ color: '#b56dff', fontSize: '11px', fontFamily: 'IBM Plex Mono', textTransform: 'uppercase' }}>
+        Sub-App Direct Trực Thuộc Module Tím (Power Realm)
+      </span>
+      <h3 style={{ color: '#eef7fb', margin: '8px 0 12px 0' }}>Avengers Virtual Office Sub-App</h3>
+      <p style={{ color: '#778996', fontSize: '13px', maxWidth: '480px', margin: '0 auto 16px auto' }}>
+        Ứng dụng 2D Chibi Virtual Office là sub-app trực thuộc Module Tím (Power/Agents). 
+        Bấm nút bên dưới để mở toàn bộ sơ đồ phòng làm việc của biệt đội Agent.
+      </p>
+      <button
+        onClick={onOpenModal}
+        style={{
+          background: 'linear-gradient(135deg, #b56dff 0%, #7d33ff 100%)',
+          color: '#ffffff',
+          border: 'none',
+          padding: '10px 24px',
+          borderRadius: '6px',
+          fontFamily: 'IBM Plex Mono, monospace',
+          fontSize: '13px',
+          fontWeight: 700,
+          cursor: 'pointer',
+          boxShadow: '0 4px 20px rgba(181, 109, 255, 0.4)'
+        }}
+      >
+        🍇 Launch Virtual Office Sub-App
+      </button>
+    </div>
+  );
+}
+
+function BalancedSettingsDashboard() {
+  const { setEmotion } = useTesseract();
+  const [username, setUsername] = useState('Operator Huy');
+  const [persona, setPersona] = useState('JARVIS Tesseract');
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [pinEnabled, setPinEnabled] = useState(false);
+  const [pinCode, setPinCode] = useState('1234');
+  const [hermesUrl, setHermesUrl] = useState('http://127.0.0.1:8642');
+  const [routerUrl, setRouterUrl] = useState('http://127.0.0.1:20128/v1');
+  const [openclawUrl, setOpenclawUrl] = useState('http://127.0.0.1:18789');
+
+  return (
+    <div className="settings-balanced-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', margin: '16px 0' }}>
+      {/* Box 1: Profile & Audio */}
+      <article style={{ background: 'rgba(9, 13, 21, 0.65)', border: '1px solid rgba(175, 220, 240, 0.15)', padding: '16px', borderRadius: '6px' }}>
+        <header style={{ borderBottom: '1px solid rgba(175, 220, 240, 0.1)', paddingBottom: '8px', marginBottom: '12px' }}>
+          <span style={{ fontSize: '10px', color: '#778996', fontFamily: 'IBM Plex Mono', textTransform: 'uppercase' }}>Console Identity</span>
+          <h4 style={{ margin: '2px 0 0 0', color: '#69e8ff' }}>Operator Profile</h4>
+        </header>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px', fontFamily: 'IBM Plex Mono' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            Username
+            <input 
+              value={username} 
+              onChange={(e) => setUsername(e.target.value)} 
+              style={{ background: 'rgba(5, 7, 12, 0.8)', border: '1px solid rgba(175, 220, 240, 0.2)', color: '#eef7fb', padding: '6px 10px', borderRadius: '4px' }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            AI Persona Name
+            <input 
+              value={persona} 
+              onChange={(e) => setPersona(e.target.value)} 
+              style={{ background: 'rgba(5, 7, 12, 0.8)', border: '1px solid rgba(175, 220, 240, 0.2)', color: '#eef7fb', padding: '6px 10px', borderRadius: '4px' }}
+            />
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', cursor: 'pointer' }}>
+            <input 
+              type="checkbox" 
+              checked={soundEnabled} 
+              onChange={(e) => setSoundEnabled(e.target.checked)} 
+            />
+            Enable Web Audio Sound FX Cues
+          </label>
+        </div>
+      </article>
+
+      {/* Box 2: Security Lock */}
+      <article style={{ background: 'rgba(9, 13, 21, 0.65)', border: '1px solid rgba(175, 220, 240, 0.15)', padding: '16px', borderRadius: '6px' }}>
+        <header style={{ borderBottom: '1px solid rgba(175, 220, 240, 0.1)', paddingBottom: '8px', marginBottom: '12px' }}>
+          <span style={{ fontSize: '10px', color: '#778996', fontFamily: 'IBM Plex Mono', textTransform: 'uppercase' }}>Security Protocol</span>
+          <h4 style={{ margin: '2px 0 0 0', color: '#f5b73f' }}>Console Lock & PIN</h4>
+        </header>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px', fontFamily: 'IBM Plex Mono' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            <input 
+              type="checkbox" 
+              checked={pinEnabled} 
+              onChange={(e) => setPinEnabled(e.target.checked)} 
+            />
+            Bật khóa bảo mật PIN khi mở
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            Mã PIN Bảo Mật (4 số)
+            <input 
+              maxLength={4}
+              value={pinCode} 
+              onChange={(e) => setPinCode(e.target.value)} 
+              style={{ background: 'rgba(5, 7, 12, 0.8)', border: '1px solid rgba(175, 220, 240, 0.2)', color: '#f5b73f', padding: '6px 10px', borderRadius: '4px', letterSpacing: '4px' }}
+            />
+          </label>
+          <button
+            onClick={() => setEmotion('alert')}
+            style={{
+              marginTop: '6px',
+              background: 'rgba(245, 183, 63, 0.15)',
+              border: '1px solid rgba(245, 183, 63, 0.3)',
+              color: '#f5b73f',
+              padding: '6px 12px',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            🔒 Test Security Lock Alert
+          </button>
+        </div>
+      </article>
+
+      {/* Box 3: Adapter Endpoints */}
+      <article style={{ background: 'rgba(9, 13, 21, 0.65)', border: '1px solid rgba(175, 220, 240, 0.15)', padding: '16px', borderRadius: '6px' }}>
+        <header style={{ borderBottom: '1px solid rgba(175, 220, 240, 0.1)', paddingBottom: '8px', marginBottom: '12px' }}>
+          <span style={{ fontSize: '10px', color: '#778996', fontFamily: 'IBM Plex Mono', textTransform: 'uppercase' }}>Service Endpoints</span>
+          <h4 style={{ margin: '2px 0 0 0', color: '#5df3a4' }}>Local Adapters</h4>
+        </header>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px', fontFamily: 'IBM Plex Mono' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            Hermes Orchestrator API
+            <input 
+              value={hermesUrl} 
+              onChange={(e) => setHermesUrl(e.target.value)} 
+              style={{ background: 'rgba(5, 7, 12, 0.8)', border: '1px solid rgba(175, 220, 240, 0.2)', color: '#5df3a4', padding: '6px 10px', borderRadius: '4px' }}
+            />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            9Router Multi-Model Gateway
+            <input 
+              value={routerUrl} 
+              onChange={(e) => setRouterUrl(e.target.value)} 
+              style={{ background: 'rgba(5, 7, 12, 0.8)', border: '1px solid rgba(175, 220, 240, 0.2)', color: '#69e8ff', padding: '6px 10px', borderRadius: '4px' }}
+            />
+          </label>
+        </div>
+      </article>
+    </div>
   );
 }
 
@@ -89,7 +293,7 @@ function ModeBlueprintPanel({ blueprint }: { blueprint: ModeBlueprint }) {
       aria-label={`${blueprint.codename} visual blueprint`}
     >
       <div className="blueprint-identity">
-        <span>Visual grammar</span>
+        <span>Visual energy signature</span>
         <b>{blueprint.codename}</b>
         <p>{blueprint.inspiration}</p>
       </div>
@@ -194,7 +398,7 @@ function RouterDashboard() {
   );
 }
 
-function OpenClawDashboard() {
+function OpenClawDashboard({ onLaunchOffice }: { onLaunchOffice?: () => void }) {
   return (
     <div className="openclaw-dashboard">
       <section className="runtime-hero openclaw-hero">
@@ -208,8 +412,24 @@ function OpenClawDashboard() {
         <div className="runtime-endpoints">
           <b>CLI</b>
           <code>openclaw dashboard --json</code>
-          <b>Events</b>
-          <code>wsUrl → J-Core event bus</code>
+          {onLaunchOffice && (
+            <button 
+              onClick={onLaunchOffice}
+              style={{
+                marginTop: '6px',
+                background: '#b56dff',
+                color: '#fff',
+                border: 'none',
+                padding: '4px 10px',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontFamily: 'IBM Plex Mono',
+                cursor: 'pointer'
+              }}
+            >
+              🍇 Launch Virtual Office Sub-App
+            </button>
+          )}
         </div>
       </section>
 
