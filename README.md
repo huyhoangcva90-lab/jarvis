@@ -21,6 +21,11 @@ npm run build
 
 The production files will be generated in `dist/`.
 
-## Notes
+## Gateway
 
-This is a React + Vite + Tailwind CSS app. User data is saved in LocalStorage. There is no backend and no AI API integration yet.
+The online console uses `https://jarvisidhuykl.huykl.id.vn` as its default gateway.
+Hermes chat, OpenClaw tasks, 9Router chat, and health checks all go through that
+gateway. Configure the Ubuntu service with `.env.local`; never put upstream API
+keys in the React app.
+
+See `docs/LOCAL_ONLINE_RUNBOOK.md` for the full local and online setup.

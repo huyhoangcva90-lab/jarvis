@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useReducer, useState, useEffect } from "react";
 import { ALL_STONES, STONE_STATES } from "../types/stones.js";
+import { gatewayFetch } from "./gatewayClient.js";
 
 // ─── Initial State ───────────────────────────────────────────
 function buildInitialStates() {
@@ -67,70 +68,50 @@ function stoneReducer(state, action) {
 // ─── Context ─────────────────────────────────────────────────
 const StoneStateContext = createContext(null);
 
-export function StoneStateProvider({ children }) {
+export function StoneStateProvider({ children, data }) {
   const [stones, dispatch] = useReducer(stoneReducer, null, buildInitialStates);
   const [connections, setConnections] = useState({
-    hermes: true,
+    gateway: false,
+    hermes: false,
     openclaw: false,
-    nineRouter: false
+    nineRouter: false,
+    lastCheckedAt: null,
+    error: null,
   });
 
   useEffect(() => {
+    let cancelled = false;
+
     const checkConnections = async () => {
-      let endpoints = {
-        gateway: 'http://127.0.0.1:8787',
-        hermes: 'http://localhost:8080',
-        openclaw: 'http://localhost:18789',
-        nineRouter: 'http://localhost:9000',
-        gatewayToken: '',
-      };
-      
-      try {
-        const raw = localStorage.getItem("j-core-console:data:v1");
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed.endpoints) endpoints = parsed.endpoints;
-        }
-      } catch (e) {
-        // Fallback
-      }
-
-      const ping = async (url, headers = {}) => {
-        try {
-          const controller = new AbortController();
-          const id = setTimeout(() => controller.abort(), 1000);
-          const result = await fetch(url, { method: "GET", headers, signal: controller.signal });
-          clearTimeout(id);
-          return result.ok;
-        } catch {
-          return false;
-        }
-      };
-
       let hOnline = false;
       let oOnline = false;
       let nOnline = false;
 
       try {
-        const headers = endpoints.gatewayToken ? { authorization: `Bearer ${endpoints.gatewayToken}` } : {};
-        const response = await fetch(`${(endpoints.gateway || "http://127.0.0.1:8787").replace(/\/+$/, "")}/health`, { headers });
-        if (response.ok) {
-          const health = await response.json();
-          hOnline = !!health.services?.hermes?.online;
-          oOnline = !!health.services?.openclaw?.online;
-          nOnline = !!health.services?.nineRouter?.online;
-        }
-      } catch {
-        hOnline = await ping(endpoints.hermes);
-        oOnline = await ping(endpoints.openclaw);
-        nOnline = await ping(endpoints.nineRouter);
+        const health = await gatewayFetch(data, "/health", { method: "GET", timeoutMs: 5000 });
+        if (cancelled) return;
+        hOnline = !!health.services?.hermes?.online && health.services?.hermes?.configured !== false;
+        oOnline = !!health.services?.openclaw?.online && health.services?.openclaw?.configured !== false;
+        nOnline = !!health.services?.nineRouter?.online && health.services?.nineRouter?.configured !== false;
+        setConnections({
+          gateway: true,
+          hermes: hOnline,
+          openclaw: oOnline,
+          nineRouter: nOnline,
+          lastCheckedAt: new Date().toISOString(),
+          error: null,
+        });
+      } catch (error) {
+        if (cancelled) return;
+        setConnections({
+          gateway: false,
+          hermes: false,
+          openclaw: false,
+          nineRouter: false,
+          lastCheckedAt: new Date().toISOString(),
+          error: error?.message || "Gateway offline",
+        });
       }
-
-      setConnections({
-        hermes: hOnline,
-        openclaw: oOnline,
-        nineRouter: nOnline
-      });
 
       // Cập nhật các stone tương ứng
       dispatch({
@@ -162,9 +143,12 @@ export function StoneStateProvider({ children }) {
     };
 
     checkConnections();
-    const interval = setInterval(checkConnections, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = setInterval(checkConnections, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [data?.endpoints?.gateway, data?.endpoints?.gatewayToken]);
 
   const setStoneStatus = useCallback((stoneId, status, extra = {}) => {
     dispatch({ type: "SET_STATUS", payload: { stoneId, status, ...extra } });

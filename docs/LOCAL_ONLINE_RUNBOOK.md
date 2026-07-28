@@ -64,3 +64,39 @@ Browser / Vercel web
   -> J-Core Local Gateway
   -> Hermes / OpenClaw / 9Router trên máy local
 ```
+
+## 7. Cấu hình production hiện tại
+
+Frontend mặc định dùng:
+
+```text
+https://jarvisidhuykl.huykl.id.vn
+```
+
+Trên Ubuntu, `JCORE_CORS_ORIGIN` phải chứa origin của GitHub Pages, không kèm
+đường dẫn `/jarvis`:
+
+```env
+JCORE_GATEWAY_HOST=0.0.0.0
+JCORE_GATEWAY_TOKEN=<device-token-dai-va-ngau-nhien>
+JCORE_CORS_ORIGIN=https://huyhoangcva90-lab.github.io
+```
+
+Gateway sẽ từ chối khởi động trên `0.0.0.0` nếu chưa đặt
+`JCORE_GATEWAY_TOKEN`. Đây là cơ chế fail-closed để tránh vô tình mở API ra
+Internet mà không có xác thực.
+
+Có thể cho phép cả local dev bằng danh sách phân cách bởi dấu phẩy:
+
+```env
+JCORE_CORS_ORIGIN=http://127.0.0.1:5173,https://huyhoangcva90-lab.github.io
+```
+
+Sau khi cập nhật code và `.env.local`, restart gateway rồi kiểm tra:
+
+```powershell
+curl.exe https://jarvisidhuykl.huykl.id.vn/health
+```
+
+`services.*.online` cho biết tiến trình upstream có chạy hay không.
+`services.*.configured` cho biết gateway đã có URL chat/task thật hay chưa.

@@ -1,8 +1,12 @@
+import { useState } from "react";
 import Panel from "./Panel.jsx";
 import { defaultData } from "../utils/storage.js";
 import { soundManager } from "../utils/soundManager.js";
+import { gatewayFetch } from "../utils/gatewayClient.js";
 
 export default function SettingsTab({ data, updateData, hardReset, addLog }) {
+  const [gatewayTest, setGatewayTest] = useState({ status: "idle", health: null, message: "" });
+
   const updateToolUrl = (name, value) => {
     updateData({ toolUrls: { ...data.toolUrls, [name]: value } });
   };
@@ -21,6 +25,20 @@ export default function SettingsTab({ data, updateData, hardReset, addLog }) {
     soundManager.setEnabled(val);
     if (val) soundManager.play("success");
     addLog(`Sound FX ${val ? "enabled" : "disabled"}.`);
+  };
+
+  const testGateway = async () => {
+    setGatewayTest({ status: "testing", health: null, message: "Đang kiểm tra gateway..." });
+    try {
+      const health = await gatewayFetch(data, "/health", { method: "GET", timeoutMs: 7000 });
+      setGatewayTest({ status: "success", health, message: "Gateway đã kết nối." });
+      addLog("Gateway connection test passed.");
+      soundManager.play("success");
+    } catch (error) {
+      setGatewayTest({ status: "error", health: null, message: error?.message || "Không thể kết nối gateway." });
+      addLog(`Gateway connection test failed: ${error?.message || "unknown error"}`);
+      soundManager.play("warning");
+    }
   };
 
   return (
@@ -119,25 +137,44 @@ export default function SettingsTab({ data, updateData, hardReset, addLog }) {
         <Panel title="External Adapter Endpoints" kicker="Service routing URLs">
           <div className="space-y-3 font-mono">
             <label className="field-label">
-              J-Core Local Gateway URL
+              J-Core Gateway URL
               <input className="hud-input text-xs" value={data.endpoints?.gateway || ""} onChange={(e) => updateEndpoint("gateway", e.target.value)} />
             </label>
             <label className="field-label">
-              Gateway Token optional
+              Gateway device token
               <input className="hud-input text-xs" type="password" value={data.endpoints?.gatewayToken || ""} onChange={(e) => updateEndpoint("gatewayToken", e.target.value)} />
             </label>
-            <label className="field-label">
-              Hermes Orchestrator Core URL
-              <input className="hud-input text-xs" value={data.endpoints?.hermes || ""} onChange={(e) => updateEndpoint("hermes", e.target.value)} />
-            </label>
-            <label className="field-label">
-              OpenClaw AI Gateway URL
-              <input className="hud-input text-xs" value={data.endpoints?.openclaw || ""} onChange={(e) => updateEndpoint("openclaw", e.target.value)} />
-            </label>
-            <label className="field-label">
-              9Router Gateway Core URL
-              <input className="hud-input text-xs" value={data.endpoints?.nineRouter || ""} onChange={(e) => updateEndpoint("nineRouter", e.target.value)} />
-            </label>
+            <p className="text-[11px] leading-relaxed text-cyan-100/50">
+              Hermes, OpenClaw và 9Router được định tuyến tại Ubuntu. Trình duyệt chỉ kết nối tới gateway này.
+            </p>
+            <button
+              type="button"
+              className="hud-button primary w-full text-xs uppercase"
+              disabled={gatewayTest.status === "testing"}
+              onClick={testGateway}
+            >
+              {gatewayTest.status === "testing" ? "Đang kiểm tra..." : "Kiểm tra gateway"}
+            </button>
+            {gatewayTest.status !== "idle" && (
+              <div className={`rounded border p-3 text-xs ${
+                gatewayTest.status === "success"
+                  ? "border-greenCore/30 bg-greenCore/10 text-greenCore"
+                  : gatewayTest.status === "error"
+                  ? "border-redCore/30 bg-redCore/10 text-redCore"
+                  : "border-cyanCore/20 bg-cyanCore/5 text-cyanCore"
+              }`}>
+                <p>{gatewayTest.message}</p>
+                {gatewayTest.health?.services && (
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] uppercase">
+                    {Object.entries(gatewayTest.health.services).map(([name, service]) => (
+                      <span key={name}>
+                        {name}: {service.online ? "online" : "offline"}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </Panel>
 

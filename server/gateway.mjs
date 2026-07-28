@@ -18,7 +18,15 @@ if (existsSync(envPath)) {
 const PORT = Number(process.env.JCORE_GATEWAY_PORT || 8787);
 const HOST = process.env.JCORE_GATEWAY_HOST || "127.0.0.1";
 const TOKEN = process.env.JCORE_GATEWAY_TOKEN || "";
-const CORS_ORIGIN = process.env.JCORE_CORS_ORIGIN || "*";
+const CORS_ORIGINS = (process.env.JCORE_CORS_ORIGIN || "*")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+const IS_LOOPBACK = new Set(["127.0.0.1", "localhost", "::1"]).has(HOST);
+
+if (!TOKEN && !IS_LOOPBACK) {
+  throw new Error("JCORE_GATEWAY_TOKEN is required when the gateway listens beyond localhost.");
+}
 
 const services = {
   hermes: {
@@ -41,12 +49,23 @@ const services = {
   },
 };
 
-function sendJson(res, status, payload) {
+function getCorsOrigin(req) {
+  const requestOrigin = (req.headers.origin || "").replace(/\/+$/, "");
+  if (CORS_ORIGINS.includes("*")) return "*";
+  if (requestOrigin && CORS_ORIGINS.includes(requestOrigin)) return requestOrigin;
+  return CORS_ORIGINS[0] || "null";
+}
+
+function sendJson(req, res, status, payload) {
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
-    "access-control-allow-origin": CORS_ORIGIN,
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
+    "access-control-allow-origin": getCorsOrigin(req),
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers": "content-type,authorization",
+    "access-control-max-age": "86400",
+    "vary": "Origin",
   });
   res.end(JSON.stringify(payload));
 }
@@ -58,7 +77,16 @@ function authorized(req) {
 
 async function readJson(req) {
   const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    totalBytes += chunk.length;
+    if (totalBytes > 1024 * 1024) {
+      const error = new Error("payload_too_large");
+      error.statusCode = 413;
+      throw error;
+    }
+    chunks.push(chunk);
+  }
   const raw = Buffer.concat(chunks).toString("utf8");
   if (!raw) return {};
   return JSON.parse(raw);
@@ -75,14 +103,12 @@ async function probe(url) {
       online: response.ok || response.status < 500,
       status: response.status,
       latencyMs: Date.now() - started,
-      url,
     };
   } catch (error) {
     return {
       online: false,
       status: 0,
       latencyMs: Date.now() - started,
-      url,
       error: error?.name === "AbortError" ? "timeout" : "offline",
     };
   }
@@ -106,28 +132,37 @@ function normalizeReply(data) {
 async function proxyJson(url, payload, apiKey = "") {
   const headers = { "content-type": "application/json" };
   if (apiKey) headers.authorization = `Bearer ${apiKey}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
-  const text = await response.text();
-  let data = text;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000);
   try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    // keep raw text
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    let data = text;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      // keep raw text
+    }
+    return { ok: response.ok, status: response.status, data };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      data: { error: error?.name === "AbortError" ? "upstream_timeout" : "upstream_offline" },
+    };
+  } finally {
+    clearTimeout(timeout);
   }
-  return { ok: response.ok, status: response.status, data };
-}
-
-function mockReply(message) {
-  return `J-Core local gateway online. Hermes thật chưa được cấu hình HERMES_CHAT_URL, nên mình đang trả lời mock cho: "${message || "ping"}".`;
 }
 
 const server = createServer(async (req, res) => {
-  if (req.method === "OPTIONS") return sendJson(res, 204, {});
-  if (!authorized(req)) return sendJson(res, 401, { error: "unauthorized" });
+  if (req.method === "OPTIONS") return sendJson(req, res, 204, {});
+  if (!authorized(req)) return sendJson(req, res, 401, { error: "unauthorized" });
 
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host}`);
@@ -138,19 +173,23 @@ const server = createServer(async (req, res) => {
         probe(services.openclaw.health),
         probe(services.nineRouter.health),
       ]);
-      return sendJson(res, 200, {
+      return sendJson(req, res, 200, {
         gateway: { online: true, host: HOST, port: PORT },
-        services: { hermes, openclaw, nineRouter },
+        services: {
+          hermes: { ...hermes, configured: Boolean(services.hermes.chat) },
+          openclaw: { ...openclaw, configured: Boolean(services.openclaw.task) },
+          nineRouter: { ...nineRouter, configured: Boolean(services.nineRouter.chat) },
+        },
       });
     }
 
     if (req.method === "POST" && url.pathname === "/api/hermes/chat") {
       const body = await readJson(req);
       if (!services.hermes.chat) {
-        return sendJson(res, 200, { reply: mockReply(body.message || body.prompt), source: "mock" });
+        return sendJson(req, res, 503, { error: "hermes_not_configured" });
       }
       const result = await proxyJson(services.hermes.chat, body, services.hermes.apiKey);
-      return sendJson(res, result.ok ? 200 : 502, {
+      return sendJson(req, res, result.ok ? 200 : 502, {
         reply: normalizeReply(result.data),
         upstreamStatus: result.status,
         raw: result.data,
@@ -161,24 +200,35 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/9router/chat") {
       const body = await readJson(req);
       if (!services.nineRouter.chat) {
-        return sendJson(res, 200, { reply: "9Router proxy chưa cấu hình NINEROUTER_CHAT_URL.", source: "mock" });
+        return sendJson(req, res, 503, { error: "ninerouter_not_configured" });
       }
       const result = await proxyJson(services.nineRouter.chat, body, services.nineRouter.apiKey);
-      return sendJson(res, result.ok ? 200 : 502, { upstreamStatus: result.status, raw: result.data, source: "nineRouter" });
+      return sendJson(req, res, result.ok ? 200 : 502, {
+        reply: normalizeReply(result.data),
+        upstreamStatus: result.status,
+        raw: result.data,
+        source: "nineRouter",
+      });
     }
 
     if (req.method === "POST" && url.pathname === "/api/openclaw/task") {
       const body = await readJson(req);
       if (!services.openclaw.task) {
-        return sendJson(res, 200, { ok: true, message: "OpenClaw proxy chưa cấu hình OPENCLAW_TASK_URL.", source: "mock" });
+        return sendJson(req, res, 503, { error: "openclaw_not_configured" });
       }
       const result = await proxyJson(services.openclaw.task, body, services.openclaw.apiKey);
-      return sendJson(res, result.ok ? 200 : 502, { upstreamStatus: result.status, raw: result.data, source: "openclaw" });
+      return sendJson(req, res, result.ok ? 200 : 502, {
+        reply: normalizeReply(result.data),
+        upstreamStatus: result.status,
+        raw: result.data,
+        source: "openclaw",
+      });
     }
 
-    return sendJson(res, 404, { error: "not_found" });
+    return sendJson(req, res, 404, { error: "not_found" });
   } catch (error) {
-    return sendJson(res, 500, { error: error?.message || "gateway_error" });
+    const status = Number(error?.statusCode) || (error instanceof SyntaxError ? 400 : 500);
+    return sendJson(req, res, status, { error: error?.message || "gateway_error" });
   }
 });
 

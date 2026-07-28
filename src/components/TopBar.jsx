@@ -11,6 +11,14 @@ export default function TopBar({ data, currentTime }) {
           <h1 className="font-mono text-xl uppercase text-cyan-50 sm:text-2xl">JARVIS</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase">
+          <span className={`flex items-center gap-1.5 rounded border px-2 py-1 status-dot ${
+            connections.gateway
+              ? "border-greenCore/30 bg-greenCore/10 text-greenCore"
+              : "border-redCore/30 bg-redCore/10 text-redCore"
+          }`} title={connections.error || data.endpoints?.gateway}>
+            <span className={`h-1.5 w-1.5 rounded-full ${connections.gateway ? "bg-greenCore animate-pulseCore" : "bg-redCore"}`}></span> GATEWAY
+          </span>
+
           {/* HERMES Status */}
           <span className={`flex items-center gap-1.5 rounded border px-2 py-1 status-dot ${
             connections.hermes 

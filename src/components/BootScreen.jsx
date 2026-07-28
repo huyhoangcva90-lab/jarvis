@@ -1,4 +1,8 @@
+import { useStoneState } from "../utils/stoneState.jsx";
+
 export default function BootScreen() {
+  const { connections } = useStoneState();
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-void text-cyan-100">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.16),transparent_34%),linear-gradient(rgba(34,211,238,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.05)_1px,transparent_1px)] bg-[size:auto,42px_42px,42px_42px]" />
@@ -16,7 +20,9 @@ export default function BootScreen() {
           <p>&gt; Initializing Hermes Orchestrator...</p>
           <p>&gt; Calibrating Infinity Stones...</p>
           <p>&gt; Establishing secure command surface...</p>
-          <p className="text-greenCore">&gt; All systems: ONLINE</p>
+          <p className={connections.gateway ? "text-greenCore" : "text-warningCore"}>
+            &gt; Gateway link: {connections.gateway ? "CONNECTED" : "CHECKING / OFFLINE"}
+          </p>
         </div>
         <div className="mt-6 h-1 overflow-hidden rounded-full bg-cyan-950">
           <div className="h-full w-full origin-left animate-[boot_1.9s_ease-out_both] bg-gradient-to-r from-cyanCore to-greenCore" />

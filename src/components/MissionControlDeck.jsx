@@ -52,9 +52,9 @@ export default function MissionControlDeck({ data, updateData, addLog, copyText,
       case 'MISSIONS':
         return <MissionTab data={data} updateData={updateData} addLog={addLog} />;
       case 'AGENTS':
-        return <OpenclawDashboard />;
+        return <OpenclawDashboard data={data} addLog={addLog} />;
       case 'ROUTER':
-        return <NineRouterDashboard />;
+        return <NineRouterDashboard data={data} addLog={addLog} />;
       case 'SCHEDULE':
         return (
           <Panel title="Time Stone Schedule" kicker="Personal OS · Phase 6">

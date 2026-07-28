@@ -94,30 +94,31 @@ export default function App() {
   }, []);
 
   const currentTime = useMemo(() => {
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat("vi-VN", {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
       weekday: "short",
+      hour12: false,
     }).format(now);
   }, [now]);
 
-  const intensityClass = {
+  const intensityClass = ({
     Low: "theme-low",
     Medium: "theme-medium",
     High: "theme-high",
-  }[data.themeIntensity] || "theme-medium";
+  } as Record<string, string>)[data.themeIntensity] || "theme-medium";
 
   const addLog = (message: string) => {
     const stamp = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date());
-    setData((current) => ({
+    setData((current: any) => ({
       ...current,
       logs: [...(current.logs || []), `[${stamp}] ${message}`].slice(-16),
     }));
   };
 
   const updateData = (patch: any) => {
-    setData((current) => ({ ...current, ...patch }));
+    setData((current: any) => ({ ...current, ...patch }));
   };
 
   const copyText = async (_text: string, _message: string) => {
@@ -162,7 +163,7 @@ export default function App() {
   }
 
   return (
-    <StoneStateProvider>
+    <StoneStateProvider data={data}>
       <main className={`jarvis-shell min-h-dvh overflow-hidden bg-void text-cyan-50 ${intensityClass}`}>
         {/* WebGL 3D Canvas Background */}
         <div className="orb-stage fixed inset-0 z-0">
@@ -247,13 +248,19 @@ export default function App() {
                       {energyPalette === "blue" && (
                         <div className="space-y-4">
                           <p className="font-mono text-sm text-cyan-100/60">🌌 SPACE REALM - 9ROUTER MULTI-MODEL GATEWAY</p>
-                          <NineRouterDashboard data={data} updateData={updateData} addLog={addLog} />
+                          <NineRouterDashboard data={data} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "green" && (
                         <div className="space-y-4">
                           <p className="font-mono text-sm text-cyan-100/60">⏳ TIME REALM - PERSONAL SCHEDULE & OS ENGINE</p>
-                          <TerminalTab data={data} addLog={addLog} updateData={updateData} />
+                          <TerminalTab
+                            data={data}
+                            addLog={addLog}
+                            updateData={updateData}
+                            copyText={copyText}
+                            onLock={() => setAuthenticated(false)}
+                          />
                         </div>
                       )}
                       {energyPalette === "red" && (
@@ -279,13 +286,13 @@ export default function App() {
                       {energyPalette === "violet" && (
                         <div className="space-y-4">
                           <p className="font-mono text-sm text-cyan-100/60">⚡ POWER REALM - OPENCLAW TACTICAL WORKFORCE</p>
-                          <OpenclawDashboard data={data} updateData={updateData} addLog={addLog} />
+                          <OpenclawDashboard data={data} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "orange" && (
                         <div className="space-y-4">
                           <p className="font-mono text-sm text-cyan-100/60">🔥 SOUL REALM - PERSONAL IDENTITY & INTEGRITY</p>
-                          <CoreTab data={data} updateData={updateData} />
+                          <CoreTab data={data} currentTime={currentTime} />
                         </div>
                       )}
                     </div>
@@ -300,7 +307,9 @@ export default function App() {
                           </div>
                           <div className="flex justify-between items-center bg-cyan-300/5 p-2 rounded">
                             <span>API Bridge:</span>
-                            <span>{data.endpoints?.hermes || "http://localhost:8080"}</span>
+                            <span className="max-w-[220px] truncate" title={data.endpoints?.gateway}>
+                              {data.endpoints?.gateway}
+                            </span>
                           </div>
                           <button
                             onClick={() => setChatOpen(true)}
@@ -355,7 +364,10 @@ export default function App() {
 
         {hudVisible && (
           <HudOverlay
+            currentTime={currentTime}
+            data={data}
             palette={energyPalette}
+            updateData={updateData}
             onActivityChange={setActivity}
             onPaletteChange={setEnergyPalette}
             onResetView={() => setResetViewSignal((signal) => signal + 1)}

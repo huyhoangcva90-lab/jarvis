@@ -1,17 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { soundManager } from '../utils/soundManager.js';
-import { gatewayFetch } from '../utils/gatewayClient.js';
-
-const AI_RESPONSES = [
-  'I understand. Let me check the relevant systems.',
-  'Analyzing your request across the Infinity Stones...',
-  'Processing. I will route this through the appropriate domain.',
-  'Noted. I have created a mission for this task.',
-  'All systems nominal. What would you like to focus on?',
-  'Understood. Delegating to the appropriate Stone module.',
-  'Running diagnostics across all connected nodes...',
-  'I have reviewed the current mission parameters. Here is my assessment.',
-];
+import { gatewayFetch, getGatewayReply } from '../utils/gatewayClient.js';
 
 const VOICE_COMMANDS = [
   "Check Space Stone latency status.",
@@ -56,7 +45,7 @@ export default function HermesChat({ data, addLog, onClose }) {
           const copy = [...prev];
           const last = copy[copy.length - 1];
           if (last && last.role === 'assistant') {
-            last.content = currentText;
+            copy[copy.length - 1] = { ...last, content: currentText };
           }
           return copy;
         });
@@ -92,10 +81,13 @@ export default function HermesChat({ data, addLog, onClose }) {
           operator: data?.username || "Operator",
         }),
       });
-      streamReply(result.reply || result.message || result.raw || "Hermes responded without text.");
+      const reply = getGatewayReply(result);
+      if (result.source === "mock") {
+        throw new Error(reply || "Hermes upstream chưa được cấu hình trên gateway.");
+      }
+      streamReply(reply || "Hermes đã phản hồi nhưng không có nội dung văn bản.");
     } catch (error) {
-      const fallback = AI_RESPONSES[Math.floor(Math.random() * AI_RESPONSES.length)];
-      streamReply(`${fallback}\n\n[Local gateway offline: ${error.message}]`);
+      streamReply(`[Gateway error: ${error.message}]`);
     }
   };
 

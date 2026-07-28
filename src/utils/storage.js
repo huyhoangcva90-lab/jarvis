@@ -1,3 +1,5 @@
+import { DEFAULT_GATEWAY_URL } from "./gatewayClient.js";
+
 export const STORAGE_KEY = "j-core-console:data:v1";
 
 export const defaultToolUrls = {
@@ -43,10 +45,7 @@ export const defaultData = {
     "Mission control standing by."
   ],
   endpoints: {
-    gateway: 'http://127.0.0.1:8787',
-    hermes: 'http://localhost:8080',
-    openclaw: 'http://localhost:18789',
-    nineRouter: 'http://localhost:9000',
+    gateway: DEFAULT_GATEWAY_URL,
     gatewayToken: '',
   },
   auth: {
@@ -76,12 +75,18 @@ export function resetData() {
 }
 
 function mergeData(base, saved) {
+  const savedGateway = saved.endpoints?.gateway;
+  const isOnlinePage = typeof window !== "undefined" && window.location.protocol === "https:";
+  const gateway = isOnlinePage && /^http:\/\/(127\.0\.0\.1|localhost):8787\/?$/.test(savedGateway || "")
+    ? DEFAULT_GATEWAY_URL
+    : savedGateway;
+
   return {
     ...base,
     ...saved,
     memory: { ...base.memory, ...(saved.memory || {}) },
     toolUrls: { ...base.toolUrls, ...(saved.toolUrls || {}) },
-    endpoints: { ...base.endpoints, ...(saved.endpoints || {}) },
+    endpoints: { ...base.endpoints, ...(saved.endpoints || {}), gateway: gateway || base.endpoints.gateway },
     auth: { ...base.auth, ...(saved.auth || {}) },
     activeDeck: saved.activeDeck || base.activeDeck,
     sectors: Array.isArray(saved.sectors) ? saved.sectors : base.sectors,

@@ -1,5 +1,7 @@
-import { FormEvent, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiActivity, EnergyPalette } from "../../App";
+import { gatewayFetch, getGatewayReply } from "../../utils/gatewayClient.js";
+import { useStoneState } from "../../utils/stoneState.jsx";
 
 type Message = {
   id: string;
@@ -9,7 +11,7 @@ type Message = {
 };
 
 type Palette = EnergyPalette;
-type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "maximize" | "mic" | "attach" | "screen" | "send";
+type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "maximize" | "mic" | "attach" | "screen" | "send" | "terminal" | "agents" | "router" | "media" | "document";
 
 const STORAGE_KEY = "jarvis.commandOrb.v2";
 const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
@@ -64,7 +66,12 @@ function Icon({ name }: { name: IconName }) {
     mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" /></>,
     attach: <path d="m20.5 11.5-8.7 8.7a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7L9 17.4a2 2 0 0 1-2.8-2.8l8.6-8.6" />,
     screen: <><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4" /><path d="m14 8 3 3-3 3M17 11H9" /></>,
-    send: <><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></>
+    send: <><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></>,
+    terminal: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="m7 9 3 3-3 3M13 15h4" /></>,
+    agents: <><circle cx="12" cy="8" r="3" /><path d="M6 20v-2a6 6 0 0 1 12 0v2M5 9H3v6h2M19 9h2v6h-2" /></>,
+    router: <><circle cx="5" cy="6" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="12" cy="18" r="2" /><path d="m7 7 4 9M17 7l-4 9M7 6h10" /></>,
+    media: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m10 9 5 3-5 3Z" /></>,
+    document: <><path d="M6 3h8l4 4v14H6Z" /><path d="M14 3v5h5M9 12h6M9 16h6" /></>
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
 }
@@ -128,25 +135,122 @@ function usePanelDrag() {
   };
 }
 
+type OsWindowProps = {
+  title: string;
+  code: string;
+  children: ReactNode;
+  drag: ReturnType<typeof usePanelDrag>;
+  minimized: boolean;
+  active: boolean;
+  className?: string;
+  onActivate: () => void;
+  onClose: () => void;
+  onToggleMinimize: () => void;
+};
+
+function OsWindow({
+  title,
+  code,
+  children,
+  drag,
+  minimized,
+  active,
+  className = "",
+  onActivate,
+  onClose,
+  onToggleMinimize,
+}: OsWindowProps) {
+  return (
+    <aside
+      ref={drag.panelRef}
+      className={`os-window draggable-panel ${minimized ? "is-minimized" : ""} ${active ? "is-active" : ""} ${className}`}
+      style={{ transform: `translate3d(${drag.offset.x}px, ${drag.offset.y}px, 0)` }}
+      aria-label={title}
+      onPointerDown={onActivate}
+    >
+      <div className="os-window-head panel-drag-handle" {...drag.dragHandleProps} onDoubleClick={drag.resetPosition}>
+        <div className="os-window-title">
+          <span>{code}</span>
+          <b>{title}</b>
+        </div>
+        <div className="panel-actions">
+          <button type="button" aria-label={minimized ? `Khôi phục ${title}` : `Thu nhỏ ${title}`} onClick={onToggleMinimize}>
+            <Icon name={minimized ? "maximize" : "minimize"} />
+          </button>
+          <button type="button" aria-label={`Đóng ${title}`} onClick={onClose}><Icon name="close" /></button>
+        </div>
+      </div>
+      <div className="os-window-body">{children}</div>
+    </aside>
+  );
+}
+
 function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function createReply(input: string) {
-  const text = input.toLowerCase();
-  if (text.includes("mệt") || text.includes("tired")) {
-    return "T nghe thấy năng lượng của bạn đang thấp. Hãy uống nước, chọn một việc nhỏ nhất và làm trong 12 phút trước.";
+const intelDocuments = [
+  {
+    id: "gateway",
+    code: "DOC-01",
+    title: "Gateway Protocol",
+    summary: "Luồng kết nối an toàn của J-Core.",
+    sections: [
+      ["ROUTE", "Mọi yêu cầu AI đi qua HTTPS Gateway; trình duyệt không gọi trực tiếp upstream."],
+      ["AUTH", "Gateway token được gửi bằng header và không hiển thị trong log giao diện."],
+      ["HEALTH", "Dùng Terminal với lệnh scan để kiểm tra Gateway, Hermes, OpenClaw và 9Router."],
+    ],
+  },
+  {
+    id: "shortcuts",
+    code: "DOC-02",
+    title: "Operator Shortcuts",
+    summary: "Bản đồ điều khiển nhanh cửa sổ.",
+    sections: [
+      ["ALT + 1…7", "Mở System, Chat, Terminal, Agents, Router, Gateway và Intel Library."],
+      ["DRAG", "Kéo thanh tiêu đề để di chuyển; nhấp đúp thanh tiêu đề để trả về vị trí gốc."],
+      ["MOBILE", "Trên màn hình nhỏ, cửa sổ tự khóa vào vùng an toàn để tránh thao tác nhầm."],
+    ],
+  },
+  {
+    id: "defense",
+    code: "DOC-03",
+    title: "Defense Rules",
+    summary: "Quy tắc vận hành hacker có trách nhiệm.",
+    sections: [
+      ["SCOPE", "Chỉ kiểm thử hệ thống, tài khoản và dữ liệu mà operator được phép truy cập."],
+      ["SECRETS", "Không dán token, mật khẩu hoặc khóa riêng tư vào video, chat hay tài liệu công khai."],
+      ["TERMINAL", "Terminal trong J-Core là môi trường allowlist, không thực thi shell thật trên máy chủ."],
+    ],
+  },
+  {
+    id: "mission",
+    code: "DOC-04",
+    title: "Mission Playbook",
+    summary: "Quy trình xử lý một tín hiệu mới.",
+    sections: [
+      ["01 / OBSERVE", "Thu thập trạng thái và ghi nhận dấu hiệu mà không làm thay đổi hệ thống."],
+      ["02 / VERIFY", "Đối chiếu nguồn, kiểm tra health và xác nhận phạm vi được phép."],
+      ["03 / ACT", "Thực hiện thay đổi nhỏ, có thể hoàn tác và kiểm tra lại sau mỗi bước."],
+    ],
+  },
+] as const;
+
+function extractYouTubeId(value: string) {
+  const candidate = value.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(candidate)) return candidate;
+  try {
+    const parsed = new URL(candidate);
+    const hostname = parsed.hostname.replace(/^www\./, "");
+    let id = "";
+    if (hostname === "youtu.be") id = parsed.pathname.split("/").filter(Boolean)[0] || "";
+    if (hostname.endsWith("youtube.com") || hostname.endsWith("youtube-nocookie.com")) {
+      id = parsed.searchParams.get("v") || parsed.pathname.match(/\/(?:embed|shorts)\/([a-zA-Z0-9_-]{11})/)?.[1] || "";
+    }
+    return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
+  } catch {
+    return null;
   }
-  if (text.includes("plan") || text.includes("kế hoạch") || text.includes("ngày")) {
-    return "Kế hoạch gọn: một nhiệm vụ chính, hai nhiệm vụ phụ và một khoảng nghỉ cố định. T có thể chuyển nó thành prompt để bạn gửi sang ChatGPT.";
-  }
-  if (text.includes("debug") || text.includes("lỗi")) {
-    return "Chế độ debug: gửi mô tả lỗi, bước tái hiện, log cuối cùng và kết quả mong đợi. T sẽ giúp bạn đóng khung vấn đề.";
-  }
-  if (text.includes("chatgpt")) {
-    return "T có thể mở ChatGPT Web. Bản này chưa có API thật nên phần phản hồi hiện vẫn chạy cục bộ trên trình duyệt.";
-  }
-  return "Đã nhận lệnh. T đang lưu lịch sử, nhận giọng nói, đọc phản hồi và điều khiển trạng thái lõi AI ngay trên thiết bị này.";
 }
 
 function normalizeIntentText(value: string) {
@@ -188,17 +292,29 @@ function loadState() {
 }
 
 type HudOverlayProps = {
+  currentTime: string;
+  data: any;
   palette: EnergyPalette;
+  updateData: (patch: any) => void;
   onActivityChange: (activity: AiActivity) => void;
   onPaletteChange: (palette: EnergyPalette) => void;
   onResetView: () => void;
 };
 
-export default function HudOverlay({ palette, onActivityChange, onPaletteChange, onResetView }: HudOverlayProps) {
+export default function HudOverlay({ currentTime, data, palette, updateData, onActivityChange, onPaletteChange, onResetView }: HudOverlayProps) {
   const initial = useMemo(() => (typeof window === "undefined" ? null : loadState()), []);
+  const { connections } = useStoneState() as {
+    connections: {
+      gateway: boolean;
+      hermes: boolean;
+      openclaw: boolean;
+      nineRouter: boolean;
+      error?: string | null;
+    };
+  };
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>(
-    () => initial?.messages?.length ? initial.messages : [{ id: createId(), role: "assistant", text: "Kết nối đã sẵn sàng. Bạn có thể chat hoặc nói trực tiếp với t.", at: Date.now() }]
+    () => initial?.messages?.length ? initial.messages : [{ id: createId(), role: "assistant", text: "Giao diện J-Core đã sẵn sàng. Đang kiểm tra kết nối Gateway và Hermes.", at: Date.now() }]
   );
 
   const [voiceReply, setVoiceReply] = useState(initial?.voiceReply ?? true);
@@ -211,10 +327,34 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const [historyMinimized, setHistoryMinimized] = useState(false);
   const [hubMinimized, setHubMinimized] = useState(false);
   const [settingsMinimized, setSettingsMinimized] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
+  const [agentsOpen, setAgentsOpen] = useState(false);
+  const [routerOpen, setRouterOpen] = useState(false);
+  const [intelOpen, setIntelOpen] = useState(false);
+  const [terminalMinimized, setTerminalMinimized] = useState(false);
+  const [agentsMinimized, setAgentsMinimized] = useState(false);
+  const [routerMinimized, setRouterMinimized] = useState(false);
+  const [intelMinimized, setIntelMinimized] = useState(false);
+  const [activeWindow, setActiveWindow] = useState("chat");
+  const [intelMode, setIntelMode] = useState<"youtube" | "docs">("youtube");
+  const [selectedIntelDocument, setSelectedIntelDocument] = useState("gateway");
+  const [youtubeDraft, setYoutubeDraft] = useState("https://www.youtube.com/watch?v=ciNHn38EyRc");
+  const [youtubeVideoId, setYoutubeVideoId] = useState("ciNHn38EyRc");
+  const [youtubeError, setYoutubeError] = useState("");
+  const [terminalInput, setTerminalInput] = useState("");
+  const [terminalLines, setTerminalLines] = useState([
+    "J-CORE KERNEL 0.2 // operator shell",
+    "Restricted command environment ready.",
+    "Type 'help' to list commands.",
+  ]);
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const [listening, setListening] = useState(false);
   const [activity, setActivity] = useState<AiActivity>("idle");
   const [toast, setToast] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [gatewayTest, setGatewayTest] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [gatewayDraft, setGatewayDraft] = useState(data.endpoints?.gateway || "");
+  const [gatewayTokenDraft, setGatewayTokenDraft] = useState(data.endpoints?.gatewayToken || "");
   const recognitionRef = useRef<any>(null);
   const voiceModeRef = useRef(false);
   const recognitionActiveRef = useRef(false);
@@ -222,7 +362,7 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const activityRef = useRef<AiActivity>("idle");
   const manualStopRef = useRef(false);
   const resultHandledRef = useRef(false);
-  const thinkingTimer = useRef<number | null>(null);
+  const requestControllerRef = useRef<AbortController | null>(null);
   const idleTimer = useRef<number | null>(null);
   const restartTimer = useRef<number | null>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
@@ -230,6 +370,10 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const hubDrag = usePanelDrag();
   const historyDrag = usePanelDrag();
   const settingsDrag = usePanelDrag();
+  const terminalDrag = usePanelDrag();
+  const agentsDrag = usePanelDrag();
+  const routerDrag = usePanelDrag();
+  const intelDrag = usePanelDrag();
 
   useEffect(() => {
     document.body.dataset.palette = palette;
@@ -238,6 +382,10 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   }, [advisorMode, handsFree, messages, onPaletteChange, palette, voiceReply]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
+  useEffect(() => {
+    setGatewayDraft(data.endpoints?.gateway || "");
+    setGatewayTokenDraft(data.endpoints?.gatewayToken || "");
+  }, [data.endpoints?.gateway, data.endpoints?.gatewayToken]);
   useEffect(() => { activityRef.current = activity; }, [activity]);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
   useEffect(() => { messageEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -247,9 +395,9 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
     return () => window.clearTimeout(timer);
   }, [toast]);
   useEffect(() => () => {
-    if (thinkingTimer.current) window.clearTimeout(thinkingTimer.current);
     if (idleTimer.current) window.clearTimeout(idleTimer.current);
     if (restartTimer.current) window.clearTimeout(restartTimer.current);
+    requestControllerRef.current?.abort();
     recognitionRef.current?.abort?.();
     window.speechSynthesis?.cancel();
   }, []);
@@ -283,9 +431,9 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
     window.speechSynthesis.speak(utterance);
   };
 
-  const sendMessage = (value = input, source: "text" | "voice" = "text") => {
+  const sendMessage = async (value = input, source: "text" | "voice" = "text") => {
     const trimmed = value.trim();
-    if (!trimmed && !pendingAttachment) return;
+    if ((!trimmed && !pendingAttachment) || isSending) return;
     if (source === "voice" && advisorMode && !shouldAnswerVoice(trimmed)) {
       setInput("");
       setActivity("idle");
@@ -294,20 +442,59 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
       return;
     }
     const messageText = trimmed || `Đã ghim ${pendingAttachment?.name ?? "tệp"}.`;
-    setMessages((current) => [...current, { id: createId(), role: "user" as const, text: messageText, at: Date.now() }].slice(-80));
+    const userMessage = { id: createId(), role: "user" as const, text: messageText, at: Date.now() };
+    const requestMessages = [...messages, userMessage].slice(-30);
+    setMessages((current) => [...current, userMessage].slice(-80));
     setInput("");
     setPendingAttachment(null);
     setHistoryOpen(true);
     setActivity("thinking");
-    if (thinkingTimer.current) window.clearTimeout(thinkingTimer.current);
-    thinkingTimer.current = window.setTimeout(() => {
-      const reply = { id: createId(), role: "assistant" as const, text: createReply(messageText), at: Date.now() + 1 };
+    setIsSending(true);
+
+    requestControllerRef.current?.abort();
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
+
+    try {
+      const response: any = await gatewayFetch(data, "/api/hermes/chat", {
+        method: "POST",
+        timeoutMs: 60000,
+        signal: controller.signal,
+        body: JSON.stringify({
+          message: messageText,
+          messages: requestMessages.map((message) => ({ role: message.role, content: message.text })),
+          operator: data?.username || "Operator",
+          attachment: pendingAttachment ? { name: pendingAttachment.name, type: pendingAttachment.type, size: pendingAttachment.size } : null,
+        }),
+      });
+      const replyText = getGatewayReply(response);
+      if (response.source === "mock") {
+        throw new Error(replyText || "Hermes upstream chưa được cấu hình trên gateway.");
+      }
+      if (!replyText) throw new Error("Hermes phản hồi nhưng không có nội dung.");
+      const reply = { id: createId(), role: "assistant" as const, text: replyText, at: Date.now() };
       setMessages((current) => [...current, reply].slice(-80));
       speak(reply.text);
-    }, 980);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      const message = error instanceof Error ? error.message : "Không thể kết nối Hermes.";
+      const reply = {
+        id: createId(),
+        role: "assistant" as const,
+        text: `Gateway/Hermes đang lỗi: ${message}`,
+        at: Date.now(),
+      };
+      setMessages((current) => [...current, reply].slice(-80));
+      setActivity("idle");
+      setToast("Không thể nhận phản hồi từ Hermes.");
+      scheduleVoiceRestart(1800);
+    } finally {
+      if (requestControllerRef.current === controller) requestControllerRef.current = null;
+      setIsSending(false);
+    }
   };
 
-  const submit = (event: FormEvent) => { event.preventDefault(); sendMessage(); };
+  const submit = (event: FormEvent) => { event.preventDefault(); void sendMessage(); };
 
   const chooseAttachment = () => attachmentInputRef.current?.click();
 
@@ -420,48 +607,200 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const clearChat = () => {
     window.speechSynthesis?.cancel();
     setActivity("idle");
-    setMessages([{ id: createId(), role: "assistant", text: "Lịch sử đã được xóa. Kết nối vẫn hoạt động.", at: Date.now() }]);
+    setMessages([{ id: createId(), role: "assistant", text: "Lịch sử đã được xóa. J-Core đang kiểm tra lại kết nối gateway.", at: Date.now() }]);
   };
 
-  const localNow = useMemo(() => new Date(), [activity, messages.length, palette]);
+  const testGateway = async () => {
+    setGatewayTest("testing");
+    const endpoints = {
+      ...data.endpoints,
+      gateway: gatewayDraft.trim(),
+      gatewayToken: gatewayTokenDraft.trim(),
+    };
+    updateData({ endpoints });
+    try {
+      await gatewayFetch({ ...data, endpoints }, "/health", { method: "GET", timeoutMs: 7000 });
+      setGatewayTest("success");
+      setToast("Gateway đã kết nối.");
+    } catch {
+      setGatewayTest("error");
+      setToast("Gateway hoặc token không hợp lệ.");
+    }
+  };
+
   const moduleStatus = useMemo(
     () => [
-      { label: "WEATHER", value: "LOCAL READY", detail: "Module san, chua noi API" },
-      {
-        label: "CALENDAR",
-        value: localNow.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" }),
-        detail: "Nhac viec thu cong qua chat"
-      },
+      { label: "GATEWAY", value: connections.gateway ? "ONLINE" : "OFFLINE", detail: data.endpoints?.gateway || "Chưa cấu hình", tone: connections.gateway ? "online" : "offline" },
+      { label: "HERMES", value: connections.hermes ? "AI READY" : "OFFLINE", detail: "Chat orchestrator qua gateway", tone: connections.hermes ? "online" : "offline" },
+      { label: "OPENCLAW", value: connections.openclaw ? "ONLINE" : "OFFLINE", detail: "Agent workforce upstream", tone: connections.openclaw ? "online" : "offline" },
+      { label: "9ROUTER", value: connections.nineRouter ? "ONLINE" : "OFFLINE", detail: "Multi-model routing upstream", tone: connections.nineRouter ? "online" : "offline" },
       { label: "VOICE", value: voiceMode ? "OPEN CHANNEL" : "STANDBY", detail: advisorMode ? "Co van, loc cau vu vo" : "Phan hoi moi cau nghe duoc" },
       { label: "MODE", value: paletteLabels[palette].toUpperCase(), detail: "Orb doi mau va cau truc" },
       { label: "MEMORY", value: `${messages.length} LOGS`, detail: "Luu cuc bo trong trinh duyet" }
     ],
-    [advisorMode, localNow, messages.length, palette, voiceMode]
+    [advisorMode, connections.gateway, connections.hermes, connections.nineRouter, connections.openclaw, data.endpoints?.gateway, messages.length, palette, voiceMode]
   );
+
+  const pushTerminal = (lines: string | string[]) => {
+    const nextLines = Array.isArray(lines) ? lines : [lines];
+    setTerminalLines((current) => [...current, ...nextLines].slice(-80));
+  };
+
+  const openOsWindow = useCallback((windowId: string) => {
+    setActiveWindow(windowId);
+    if (windowId === "system") setHubOpen(true);
+    if (windowId === "chat") setHistoryOpen(true);
+    if (windowId === "settings") setSettingsOpen(true);
+    if (windowId === "terminal") setTerminalOpen(true);
+    if (windowId === "agents") setAgentsOpen(true);
+    if (windowId === "router") setRouterOpen(true);
+    if (windowId === "intel") setIntelOpen(true);
+  }, []);
+
+  const activeIntelDocument = useMemo(
+    () => intelDocuments.find((document) => document.id === selectedIntelDocument) || intelDocuments[0],
+    [selectedIntelDocument]
+  );
+
+  const loadYouTubeVideo = (event: FormEvent) => {
+    event.preventDefault();
+    const videoId = extractYouTubeId(youtubeDraft);
+    if (!videoId) {
+      setYoutubeError("URL không hợp lệ. Hãy dán link YouTube, Shorts hoặc video ID gồm 11 ký tự.");
+      return;
+    }
+    setYoutubeVideoId(videoId);
+    setYoutubeError("");
+  };
+
+  const runTerminal = async (event: FormEvent) => {
+    event.preventDefault();
+    const raw = terminalInput.trim();
+    if (!raw) return;
+    const [command, ...args] = raw.toLowerCase().split(/\s+/);
+    pushTerminal(`operator@j-core:~$ ${raw}`);
+    setTerminalInput("");
+
+    if (command === "clear") {
+      setTerminalLines([]);
+      return;
+    }
+    if (command === "help") {
+      pushTerminal([
+        "help              danh sách lệnh",
+        "status            trạng thái gateway/upstream",
+        "scan              quét health qua gateway",
+        "open <app>        system|chat|agents|router|settings|intel",
+        "whoami            thông tin operator",
+        "date              thời gian hệ thống",
+        "clear             xóa terminal",
+      ]);
+      return;
+    }
+    if (command === "status") {
+      pushTerminal([
+        `gateway   ${connections.gateway ? "ONLINE" : "OFFLINE"}`,
+        `hermes    ${connections.hermes ? "READY" : "OFFLINE"}`,
+        `openclaw  ${connections.openclaw ? "ONLINE" : "OFFLINE"}`,
+        `9router   ${connections.nineRouter ? "ONLINE" : "OFFLINE"}`,
+      ]);
+      return;
+    }
+    if (command === "whoami") {
+      pushTerminal(`${data.username || "Operator"} // authenticated local operator`);
+      return;
+    }
+    if (command === "date") {
+      pushTerminal(new Date().toLocaleString("vi-VN"));
+      return;
+    }
+    if (command === "open") {
+      const app = args[0] || "";
+      const target = app === "gateway" ? "settings" : app;
+      if (["system", "chat", "agents", "router", "settings", "terminal", "intel"].includes(target)) {
+        openOsWindow(target);
+        pushTerminal(`Window '${target}' opened.`);
+      } else {
+        pushTerminal("Unknown app. Use: system, chat, agents, router, settings, intel.");
+      }
+      return;
+    }
+    if (command === "scan") {
+      pushTerminal("Scanning gateway...");
+      try {
+        const health: any = await gatewayFetch(data, "/health", { method: "GET", timeoutMs: 7000 });
+        const rows = Object.entries(health.services || {}).map(([name, service]: [string, any]) =>
+          `${name.padEnd(10)} ${service.online && service.configured !== false ? "READY" : "NOT READY"}  ${service.latencyMs ?? "-"}ms`
+        );
+        pushTerminal(rows.length ? rows : "Gateway returned no service data.");
+      } catch (error) {
+        pushTerminal(`SCAN FAILED: ${error instanceof Error ? error.message : "unknown error"}`);
+      }
+      return;
+    }
+    pushTerminal(`Command not found: ${command}. Type 'help'.`);
+  };
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (!event.altKey) return;
+      const shortcuts: Record<string, string> = {
+        "1": "system",
+        "2": "chat",
+        "3": "terminal",
+        "4": "agents",
+        "5": "router",
+        "6": "settings",
+        "7": "intel",
+      };
+      const target = shortcuts[event.key];
+      if (!target) return;
+      event.preventDefault();
+      openOsWindow(target);
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [openOsWindow]);
 
   const toggleHistory = () => {
     setHistoryOpen((current) => !current);
+    setActiveWindow("chat");
   };
 
   const toggleSettings = () => {
     setSettingsOpen((current) => !current);
+    setActiveWindow("settings");
   };
 
   const toggleHub = () => {
     setHubOpen((current) => !current);
+    setActiveWindow("system");
   };
 
   return (
     <div className="hud-overlay" aria-label="J-Core AI interface">
-      <nav className="hud-dock" aria-label="Điều khiển giao diện">
-        <button className={hubOpen ? "active" : ""} type="button" aria-label="Mo activity hub" onClick={toggleHub}><Icon name="hub" /></button>
-        <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở lịch sử chat" onClick={toggleHistory}><Icon name="chat" /></button>
-        <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở cài đặt" onClick={toggleSettings}><Icon name="settings" /></button>
-        <button type="button" aria-label="Reset góc nhìn" onClick={onResetView}><Icon name="reset" /></button>
+      <nav className="os-taskbar" aria-label="J-Core OS taskbar">
+        <button className="os-start" type="button" aria-label="Mở System Core" onClick={() => openOsWindow("system")}>
+          <span>J</span><b>J-CORE OS</b>
+        </button>
+        <div className="os-app-strip">
+          <button className={hubOpen ? "active" : ""} type="button" aria-label="Mở System Monitor" onClick={toggleHub}><Icon name="hub" /><span>System</span></button>
+          <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở Neural Chat" onClick={toggleHistory}><Icon name="chat" /><span>Chat</span></button>
+          <button className={terminalOpen ? "active" : ""} type="button" aria-label="Mở Terminal" onClick={() => openOsWindow("terminal")}><Icon name="terminal" /><span>Terminal</span></button>
+          <button className={agentsOpen ? "active" : ""} type="button" aria-label="Mở Agent Matrix" onClick={() => openOsWindow("agents")}><Icon name="agents" /><span>Agents</span></button>
+          <button className={routerOpen ? "active" : ""} type="button" aria-label="Mở Router Matrix" onClick={() => openOsWindow("router")}><Icon name="router" /><span>Router</span></button>
+          <button className={intelOpen ? "active" : ""} type="button" aria-label="Mở Intel Library" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Intel</span></button>
+          <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở Gateway Settings" onClick={toggleSettings}><Icon name="settings" /><span>Gateway</span></button>
+        </div>
+        <div className="os-tray">
+          <button type="button" aria-label="Reset góc nhìn lõi" onClick={onResetView}><Icon name="reset" /></button>
+          <span className={connections.gateway ? "online" : "offline"}>{connections.gateway ? "LINK" : "NO LINK"}</span>
+          <time>{currentTime}</time>
+        </div>
       </nav>
 
       {hubOpen && (
-        <aside ref={hubDrag.panelRef} className={`activity-hub draggable-panel ${hubMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${hubDrag.offset.x}px, ${hubDrag.offset.y}px, 0)` }} aria-label="Activity hub">
+        <aside ref={hubDrag.panelRef} className={`activity-hub draggable-panel ${hubMinimized ? "is-minimized" : ""} ${activeWindow === "system" ? "is-active" : ""}`} style={{ transform: `translate3d(${hubDrag.offset.x}px, ${hubDrag.offset.y}px, 0)` }} aria-label="Activity hub" onPointerDown={() => setActiveWindow("system")}>
           <div className="hub-title panel-drag-handle" {...hubDrag.dragHandleProps} onDoubleClick={hubDrag.resetPosition}>
             <div className="hub-title-copy">
               <span>OPERATOR HUB</span>
@@ -480,7 +819,7 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
           </div>
           <div className="hub-modules">
             {moduleStatus.map((item) => (
-              <section className="hub-module" key={item.label}>
+              <section className={`hub-module ${item.tone || ""}`} key={item.label}>
                 <span>{item.label}</span>
                 <b>{item.value}</b>
                 <p>{item.detail}</p>
@@ -491,7 +830,7 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
       )}
 
       {historyOpen && (
-        <aside ref={historyDrag.panelRef} className={`history-panel draggable-panel ${historyMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${historyDrag.offset.x}px, ${historyDrag.offset.y}px, 0)` }} aria-label="Lịch sử chat">
+        <aside ref={historyDrag.panelRef} className={`history-panel draggable-panel ${historyMinimized ? "is-minimized" : ""} ${activeWindow === "chat" ? "is-active" : ""}`} style={{ transform: `translate3d(${historyDrag.offset.x}px, ${historyDrag.offset.y}px, 0)` }} aria-label="Lịch sử chat" onPointerDown={() => setActiveWindow("chat")}>
           <div className="panel-head panel-drag-handle" {...historyDrag.dragHandleProps} onDoubleClick={historyDrag.resetPosition}>
             <div><i className={`status-dot ${activity}`} /><span>ĐỐI THOẠI</span></div>
             <div className="panel-actions">
@@ -514,14 +853,59 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
       )}
 
       {settingsOpen && (
-        <aside ref={settingsDrag.panelRef} className={`settings-panel draggable-panel ${settingsMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${settingsDrag.offset.x}px, ${settingsDrag.offset.y}px, 0)` }} aria-label="Cài đặt">
+        <aside ref={settingsDrag.panelRef} className={`settings-panel draggable-panel ${settingsMinimized ? "is-minimized" : ""} ${activeWindow === "settings" ? "is-active" : ""}`} style={{ transform: `translate3d(${settingsDrag.offset.x}px, ${settingsDrag.offset.y}px, 0)` }} aria-label="Cài đặt" onPointerDown={() => setActiveWindow("settings")}>
           <div className="settings-hero panel-drag-handle" {...settingsDrag.dragHandleProps} onDoubleClick={settingsDrag.resetPosition}>
-            <div><span>HỆ THỐNG</span><b>{voiceMode ? "VOICE ACTIVE" : "LOCAL MODE"}</b></div>
+            <div><span>HỆ THỐNG</span><b>{connections.gateway ? "GATEWAY ONLINE" : "GATEWAY OFFLINE"}</b></div>
             <div className="panel-actions settings-window-actions">
               <button type="button" aria-label={settingsMinimized ? "Khôi phục cài đặt" : "Thu nhỏ cài đặt"} onClick={() => setSettingsMinimized((current) => !current)}><Icon name={settingsMinimized ? "maximize" : "minimize"} /></button>
               <button type="button" aria-label="Đóng cài đặt" onClick={() => setSettingsOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
+          <section className="settings-block gateway-settings">
+            <div className="settings-block-head">
+              <span>Gateway Ubuntu</span>
+              <button
+                className={gatewayTest === "error" ? "danger" : "primary"}
+                type="button"
+                disabled={gatewayTest === "testing"}
+                onClick={() => void testGateway()}
+              >
+                {gatewayTest === "testing" ? "Đang thử" : "Kiểm tra"}
+              </button>
+            </div>
+            <label className="gateway-field">
+              <span>Gateway URL</span>
+              <input
+                type="url"
+                value={gatewayDraft}
+                onChange={(event) => {
+                  setGatewayDraft(event.target.value);
+                  setGatewayTest("idle");
+                }}
+              />
+            </label>
+            <label className="gateway-field">
+              <span>Device token</span>
+              <input
+                type="password"
+                value={gatewayTokenDraft}
+                placeholder="Nhập token gateway"
+                onChange={(event) => {
+                  setGatewayTokenDraft(event.target.value);
+                  setGatewayTest("idle");
+                }}
+              />
+            </label>
+            <p className={`gateway-test-status ${gatewayTest}`}>
+              {gatewayTest === "success"
+                ? "Kết nối thành công."
+                : gatewayTest === "error"
+                ? "Không thể xác thực gateway."
+                : connections.gateway
+                ? "Health check đang hoạt động."
+                : "Gateway chưa kết nối."}
+            </p>
+          </section>
           <section className="settings-block">
             <div className="settings-block-head"><span>Voice link</span><button className={voiceMode ? "danger" : "primary"} type="button" onClick={toggleVoiceMode}>{voiceMode ? "Tắt" : "Bật"}</button></div>
             <label className="toggle-row"><span>Chế độ cố vấn</span><input checked={advisorMode} type="checkbox" onChange={(event) => setAdvisorMode(event.target.checked)} /></label>
@@ -542,6 +926,227 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
         </aside>
       )}
 
+      {terminalOpen && (
+        <OsWindow
+          title="Restricted Terminal"
+          code="SYS://TERMINAL"
+          drag={terminalDrag}
+          minimized={terminalMinimized}
+          active={activeWindow === "terminal"}
+          className="terminal-os-window"
+          onActivate={() => setActiveWindow("terminal")}
+          onClose={() => setTerminalOpen(false)}
+          onToggleMinimize={() => setTerminalMinimized((current) => !current)}
+        >
+          <div className="os-terminal-stream" aria-live="polite">
+            {terminalLines.map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}
+          </div>
+          <form className="os-terminal-input" onSubmit={(event) => void runTerminal(event)}>
+            <span>operator@j-core:~$</span>
+            <input
+              value={terminalInput}
+              onChange={(event) => setTerminalInput(event.target.value)}
+              aria-label="Terminal command"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button type="submit" aria-label="Chạy lệnh Terminal">RUN</button>
+          </form>
+        </OsWindow>
+      )}
+
+      {agentsOpen && (
+        <OsWindow
+          title="Agent Matrix"
+          code="PWR://OPENCLAW"
+          drag={agentsDrag}
+          minimized={agentsMinimized}
+          active={activeWindow === "agents"}
+          className="agents-os-window"
+          onActivate={() => setActiveWindow("agents")}
+          onClose={() => setAgentsOpen(false)}
+          onToggleMinimize={() => setAgentsMinimized((current) => !current)}
+        >
+          <div className="os-status-banner">
+            <i className={connections.openclaw ? "online" : "offline"} />
+            <div><span>WORKFORCE LINK</span><b>{connections.openclaw ? "OPERATIONAL" : "NOT READY"}</b></div>
+          </div>
+          <div className="os-data-grid">
+            {[
+              ["FRIDAY", "Orchestration", connections.hermes],
+              ["OPENCLAW", "Agent runtime", connections.openclaw],
+              ["HERMES", "Reasoning core", connections.hermes],
+              ["GATEWAY", "Secure transport", connections.gateway],
+            ].map(([name, role, online]) => (
+              <article className={online ? "online" : "offline"} key={String(name)}>
+                <span>{String(role)}</span>
+                <b>{String(name)}</b>
+                <small>{online ? "READY" : "OFFLINE"}</small>
+              </article>
+            ))}
+          </div>
+          <p className="os-window-note">Mission dispatch dùng endpoint `/api/openclaw/task` qua gateway được bảo vệ.</p>
+        </OsWindow>
+      )}
+
+      {routerOpen && (
+        <OsWindow
+          title="Router Matrix"
+          code="SPC://9ROUTER"
+          drag={routerDrag}
+          minimized={routerMinimized}
+          active={activeWindow === "router"}
+          className="router-os-window"
+          onActivate={() => setActiveWindow("router")}
+          onClose={() => setRouterOpen(false)}
+          onToggleMinimize={() => setRouterMinimized((current) => !current)}
+        >
+          <div className="router-flow" aria-label="Luồng định tuyến">
+            <div><span>01</span><b>BROWSER</b><small>J-Core OS</small></div>
+            <i>→</i>
+            <div className={connections.gateway ? "online" : "offline"}><span>02</span><b>GATEWAY</b><small>HTTPS + token</small></div>
+            <i>→</i>
+            <div className={connections.nineRouter ? "online" : "offline"}><span>03</span><b>9ROUTER</b><small>Model routing</small></div>
+          </div>
+          <div className="router-diagnostics">
+            <p><span>Transport</span><b>{connections.gateway ? "ENCRYPTED / READY" : "DISCONNECTED"}</b></p>
+            <p><span>Routing core</span><b>{connections.nineRouter ? "AVAILABLE" : "NOT CONFIGURED"}</b></p>
+            <p><span>Policy</span><b>GATEWAY ONLY</b></p>
+          </div>
+        </OsWindow>
+      )}
+
+      {intelOpen && (
+        <OsWindow
+          title="Intel Library"
+          code="NET://KNOWLEDGE"
+          drag={intelDrag}
+          minimized={intelMinimized}
+          active={activeWindow === "intel"}
+          className="intel-os-window"
+          onActivate={() => setActiveWindow("intel")}
+          onClose={() => setIntelOpen(false)}
+          onToggleMinimize={() => setIntelMinimized((current) => !current)}
+        >
+          <div className="intel-shell">
+            <header className="intel-toolbar">
+              <div className="intel-tabs" role="tablist" aria-label="Nguồn dữ liệu Intel">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-label="YouTube"
+                  aria-selected={intelMode === "youtube"}
+                  className={intelMode === "youtube" ? "active" : ""}
+                  onClick={() => setIntelMode("youtube")}
+                >
+                  <Icon name="media" /><span>YouTube</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-label="Tài liệu"
+                  aria-selected={intelMode === "docs"}
+                  className={intelMode === "docs" ? "active" : ""}
+                  onClick={() => setIntelMode("docs")}
+                >
+                  <Icon name="document" /><span>Tài liệu</span>
+                </button>
+              </div>
+              <div className="intel-secure-status"><i /><span>ISOLATED VIEWER</span></div>
+            </header>
+
+            {intelMode === "youtube" ? (
+              <section className="intel-youtube" role="tabpanel" aria-label="YouTube viewer">
+                <form className="intel-address-bar" onSubmit={loadYouTubeVideo}>
+                  <label htmlFor="intel-youtube-url">YouTube URL / video ID</label>
+                  <div>
+                    <span>HTTPS://</span>
+                    <input
+                      id="intel-youtube-url"
+                      value={youtubeDraft}
+                      onChange={(event) => {
+                        setYoutubeDraft(event.target.value);
+                        if (youtubeError) setYoutubeError("");
+                      }}
+                      inputMode="url"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                    <button type="submit">LOAD</button>
+                  </div>
+                  {youtubeError && <p role="alert">{youtubeError}</p>}
+                </form>
+
+                <div className="intel-video-frame">
+                  <div className="intel-frame-label"><span>LIVE MEDIA FEED</span><b>ID::{youtubeVideoId}</b></div>
+                  <iframe
+                    key={youtubeVideoId}
+                    src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?rel=0`}
+                    title="J-Core YouTube viewer"
+                    loading="lazy"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                </div>
+
+                <div className="intel-video-queries" aria-label="Tìm nhanh trên YouTube">
+                  <span>SEARCH CHANNELS</span>
+                  {[
+                    ["Ethical hacking", "ethical+hacking+fundamentals"],
+                    ["Network defense", "network+defense+fundamentals"],
+                    ["AI security", "AI+security+fundamentals"],
+                  ].map(([label, query]) => (
+                    <button
+                      type="button"
+                      key={label}
+                      onClick={() => window.open(`https://www.youtube.com/results?search_query=${query}`, "_blank", "noopener,noreferrer")}
+                    >
+                      <Icon name="external" /><span>{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : (
+              <section className="intel-docs" role="tabpanel" aria-label="Tài liệu nội bộ">
+                <nav className="intel-doc-index" aria-label="Chỉ mục tài liệu">
+                  <span>LOCAL ARCHIVE / {intelDocuments.length} FILES</span>
+                  {intelDocuments.map((document) => (
+                    <button
+                      type="button"
+                      key={document.id}
+                      className={selectedIntelDocument === document.id ? "active" : ""}
+                      aria-pressed={selectedIntelDocument === document.id}
+                      onClick={() => setSelectedIntelDocument(document.id)}
+                    >
+                      <small>{document.code}</small>
+                      <b>{document.title}</b>
+                      <span>{document.summary}</span>
+                    </button>
+                  ))}
+                </nav>
+                <article className="intel-doc-viewer">
+                  <header>
+                    <span>{activeIntelDocument.code} / INTERNAL</span>
+                    <h2>{activeIntelDocument.title}</h2>
+                    <p>{activeIntelDocument.summary}</p>
+                  </header>
+                  <div>
+                    {activeIntelDocument.sections.map(([label, content]) => (
+                      <section key={label}>
+                        <b>{label}</b>
+                        <p>{content}</p>
+                      </section>
+                    ))}
+                  </div>
+                  <footer>J-CORE KNOWLEDGE NODE // READ-ONLY // LOCAL CACHE</footer>
+                </article>
+              </section>
+            )}
+          </div>
+        </OsWindow>
+      )}
+
       <section className="hud-bottom">
         <div className={`ai-state-readout ${activity}`}>
           <i className={`status-dot ${activity}`} />
@@ -558,7 +1163,7 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
           <input ref={attachmentInputRef} className="attachment-input" type="file" accept="image/*,.pdf,.txt,.md,.csv,.json,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" aria-label="Chọn tệp đính kèm" onChange={handleAttachmentChange} />
           <label className="sr-only" htmlFor="jcore-command">Nhập tin nhắn</label>
           <input id="jcore-command" placeholder="Nói hoặc nhập lệnh..." value={input} onChange={(event) => setInput(event.target.value)} />
-          <button type="submit" aria-label="Gửi tin nhắn" disabled={!input.trim() && !pendingAttachment}><Icon name="send" /></button>
+          <button type="submit" aria-label="Gửi tin nhắn" disabled={isSending || (!input.trim() && !pendingAttachment)}><Icon name="send" /></button>
         </form>
         <p aria-live="polite">{toast}</p>
       </section>
