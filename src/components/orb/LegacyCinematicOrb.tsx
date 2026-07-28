@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as THREE from "three";
-import type { AiActivity } from "../../App";
+import type { AiActivity } from "../../types/orb";
 
 export type LegacyEnergyPalette = "gold" | "blue" | "green" | "red" | "violet" | "orange";
 
@@ -1961,7 +1961,6 @@ function SceneRig({ activity, palette = "gold", resetSignal = 0, triangularCore 
       {palette === "gold" && (
         <>
           <FresnelVolume activity={activity} />
-          <OuterHaloFragments activity={activity} />
           <group scale={[1.05, 0.92, 1.05]}>
             <PaletteArchitecture activity={activity} palette={palette} />
             <PlanetaryOrbitField activity={activity} />

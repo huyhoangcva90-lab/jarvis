@@ -1,123 +1,8 @@
-export type AiEmotion = "calm" | "listening" | "thinking" | "speaking" | "alert" | "creative" | "spider";
-
-export type ModuleId =
-  | "chat"
-  | "hermes"
-  | "missions"
-  | "agents"
-  | "openclaw"
-  | "web"
-  | "office"
-  | "memory"
-  | "router"
-  | "logs"
-  | "settings";
-
-export type AgentStatus = "idle" | "working" | "thinking" | "blocked" | "review";
-
-export type OfficeRoomId =
-  | "lobby"
-  | "strategy"
-  | "workshop"
-  | "intel"
-  | "webops"
-  | "archive"
-  | "monitor"
-  | "launch";
-
-export type JCoreModule = {
-  id: ModuleId;
-  label: string;
-  eyebrow: string;
-  realm: string;
-  color: string;
-  rgb: string;
-  icon: string;
-  summary: string;
-  signal: string;
-  metric: string;
-};
-
-export type EmotionState = {
-  label: string;
-  description: string;
-  color: string;
-  rgb: string;
-  tempo: "slow" | "medium" | "fast" | "sharp";
-};
-
-export type AgentProfile = {
-  id: string;
-  name: string;
-  character: string;
-  role: string;
-  room: OfficeRoomId;
-  status: AgentStatus;
-  color: string;
-  load: number;
-  task: string;
-  runtime: "hermes" | "openclaw" | "codex" | "claude" | "local";
-  heartbeat: string;
-  tool: string;
-};
-
-export type OfficeRoom = {
-  id: OfficeRoomId;
-  floor: string;
-  label: string;
-  purpose: string;
-  color: string;
-  rgb: string;
-};
-
-export type HermesPanel = {
-  id: string;
-  label: string;
-  value: string;
-  detail: string;
-  health: "ok" | "warn" | "bad";
-};
-
-export type RouterProvider = {
-  id: string;
-  name: string;
-  tier: "Subscription" | "Cheap" | "Free" | "Local";
-  status: "ready" | "limited" | "fallback" | "offline";
-  quota: number;
-  used: number;
-  latency: string;
-  cost: string;
-  models: string;
-};
-
-export type OpenClawNode = {
-  id: string;
-  label: string;
-  value: string;
-  status: "ready" | "syncing" | "needs-token" | "offline";
-};
-
-export type WebOpsCard = {
-  id: string;
-  label: string;
-  value: string;
-  detail: string;
-  status: "ready" | "watching" | "queued" | "blocked";
-};
-
-export type ModeBlueprint = {
-  moduleId: ModuleId;
-  codename: string;
-  inspiration: string;
-  geometry: string;
-  motion: string;
-  density: "quiet" | "focused" | "dense";
-  layout: string;
-  layers: Array<{
-    label: string;
-    detail: string;
-  }>;
-};
+import {
+  AiEmotion, EmotionState, JCoreModule, ModeBlueprint, OfficeRoom, AgentProfile,
+  AgentStatus, HermesPanel, RouterProvider, OpenClawNode, WebOpsCard, ModuleId,
+  EnergyPalette, ModuleRealmMap
+} from './tesseract';
 
 export const emotions: Record<AiEmotion, EmotionState> = {
   calm: {
@@ -788,3 +673,233 @@ export const webOpsCards: WebOpsCard[] = [
     status: "blocked"
   }
 ];
+
+export const STONE_IDS = {
+  POWER: "power",
+  SPACE: "space",
+  MIND: "mind",
+  TIME: "time",
+  REALITY: "reality",
+  SOUL: "soul",
+} as const;
+
+export const STONE_STATES = {
+  DORMANT: "dormant",
+  READING: "reading",
+  WORKING: "working",
+  EXTERNAL_CALL: "external_call",
+  COMPLETED: "completed",
+  WARNING: "warning",
+  ERROR: "error",
+  APPROVAL: "approval",
+} as const;
+
+export const STONE_COLORS = {
+  [STONE_IDS.POWER]: {
+    primary: "#a855f7",
+    glow: "rgba(168,85,247,0.55)",
+    bg: "rgba(168,85,247,0.12)",
+    border: "rgba(168,85,247,0.35)",
+    label: "Power Stone",
+  },
+  [STONE_IDS.SPACE]: {
+    primary: "#3b82f6",
+    glow: "rgba(59,130,246,0.55)",
+    bg: "rgba(59,130,246,0.12)",
+    border: "rgba(59,130,246,0.35)",
+    label: "Space Stone",
+  },
+  [STONE_IDS.MIND]: {
+    primary: "#eab308",
+    glow: "rgba(234,179,8,0.55)",
+    bg: "rgba(234,179,8,0.12)",
+    border: "rgba(234,179,8,0.35)",
+    label: "Mind Stone",
+  },
+  [STONE_IDS.TIME]: {
+    primary: "#22c55e",
+    glow: "rgba(34,197,94,0.55)",
+    bg: "rgba(34,197,94,0.12)",
+    border: "rgba(34,197,94,0.35)",
+    label: "Time Stone",
+  },
+  [STONE_IDS.REALITY]: {
+    primary: "#ef4444",
+    glow: "rgba(239,68,68,0.55)",
+    bg: "rgba(239,68,68,0.12)",
+    border: "rgba(239,68,68,0.35)",
+    label: "Reality Stone",
+  },
+  [STONE_IDS.SOUL]: {
+    primary: "#f97316",
+    glow: "rgba(249,115,22,0.55)",
+    bg: "rgba(249,115,22,0.12)",
+    border: "rgba(249,115,22,0.35)",
+    label: "Soul Stone",
+  },
+};
+
+export const STONE_META = {
+  [STONE_IDS.MIND]: {
+    label: "Mind Stone",
+    domain: "Knowledge & Dev",
+    subtitle: "Knowledge Core · Claude Code",
+    icon: "🧠",
+    orbitAngle: 270,
+    systemType: "external",
+  },
+  [STONE_IDS.SPACE]: {
+    label: "Space Stone",
+    domain: "Model Infrastructure",
+    subtitle: "9Router · Multi-Model Gateway",
+    icon: "🌌",
+    orbitAngle: 330,
+    systemType: "external",
+  },
+  [STONE_IDS.TIME]: {
+    label: "Time Stone",
+    domain: "Personal OS",
+    subtitle: "Schedule · Habits · Calendar",
+    icon: "⏳",
+    orbitAngle: 210,
+    systemType: "native",
+  },
+  [STONE_IDS.POWER]: {
+    label: "Power Stone",
+    domain: "AI Company",
+    subtitle: "OpenClaw · AI Workforce",
+    icon: "⚡",
+    orbitAngle: 30,
+    systemType: "external",
+  },
+  [STONE_IDS.REALITY]: {
+    label: "Reality Stone",
+    domain: "Finance System",
+    subtitle: "Income · Expenses · Budget",
+    icon: "💎",
+    orbitAngle: 150,
+    systemType: "native",
+  },
+  [STONE_IDS.SOUL]: {
+    label: "Soul Stone",
+    domain: "Personal Identity",
+    subtitle: "Mood · Energy · Memory",
+    icon: "🔥",
+    orbitAngle: 90,
+    systemType: "native",
+  },
+};
+
+export const STATE_VISUALS = {
+  [STONE_STATES.DORMANT]: {
+    animation: "none",
+    opacity: 0.35,
+    pulseSpeed: null,
+    label: "Dormant",
+  },
+  [STONE_STATES.READING]: {
+    animation: "stonePulse",
+    opacity: 0.7,
+    pulseSpeed: "2s",
+    label: "Reading",
+  },
+  [STONE_STATES.WORKING]: {
+    animation: "stoneWorking",
+    opacity: 1,
+    pulseSpeed: "1.2s",
+    label: "Working",
+  },
+  [STONE_STATES.EXTERNAL_CALL]: {
+    animation: "stoneExternal",
+    opacity: 1,
+    pulseSpeed: "0.8s",
+    label: "Calling",
+  },
+  [STONE_STATES.COMPLETED]: {
+    animation: "stoneCompleted",
+    opacity: 1,
+    pulseSpeed: "3s",
+    label: "Done",
+  },
+  [STONE_STATES.WARNING]: {
+    animation: "stoneWarning",
+    opacity: 0.9,
+    pulseSpeed: "1.5s",
+    label: "Warning",
+  },
+  [STONE_STATES.ERROR]: {
+    animation: "stoneError",
+    opacity: 1,
+    pulseSpeed: "0.5s",
+    label: "Error",
+  },
+  [STONE_STATES.APPROVAL]: {
+    animation: "stoneApproval",
+    opacity: 1,
+    pulseSpeed: "0.7s",
+    label: "Approve?",
+  },
+};
+
+export const ALL_STONES = [
+  STONE_IDS.MIND,
+  STONE_IDS.SPACE,
+  STONE_IDS.TIME,
+  STONE_IDS.POWER,
+  STONE_IDS.REALITY,
+  STONE_IDS.SOUL,
+];
+
+export const MISSION_STATUS = {
+  INBOX: "inbox",
+  PLANNING: "planning",
+  QUEUED: "queued",
+  WORKING: "working",
+  WAITING_APPROVAL: "waiting_approval",
+  WAITING_EXTERNAL: "waiting_external",
+  REVIEW: "review",
+  COMPLETED: "completed",
+  FAILED: "failed",
+  CANCELLED: "cancelled",
+} as const;
+
+export const MISSION_PRIORITY = {
+  LOW: "low",
+  NORMAL: "normal",
+  HIGH: "high",
+  CRITICAL: "critical",
+} as const;
+
+export const MISSION_SOURCE = {
+  WEB: "web",
+  TELEGRAM: "telegram",
+  VOICE: "voice",
+  SYSTEM: "system",
+} as const;
+
+export const STATUS_DISPLAY = {
+  [MISSION_STATUS.INBOX]: { label: "Inbox", color: "cyan" },
+  [MISSION_STATUS.PLANNING]: { label: "Planning", color: "blue" },
+  [MISSION_STATUS.QUEUED]: { label: "Queued", color: "slate" },
+  [MISSION_STATUS.WORKING]: { label: "Working", color: "amber" },
+  [MISSION_STATUS.WAITING_APPROVAL]: { label: "Approval", color: "orange" },
+  [MISSION_STATUS.WAITING_EXTERNAL]: { label: "Waiting", color: "purple" },
+  [MISSION_STATUS.REVIEW]: { label: "Review", color: "indigo" },
+  [MISSION_STATUS.COMPLETED]: { label: "Done", color: "green" },
+  [MISSION_STATUS.FAILED]: { label: "Failed", color: "red" },
+  [MISSION_STATUS.CANCELLED]: { label: "Cancelled", color: "gray" },
+};
+
+export const MODULE_REALM_MAP: ModuleRealmMap = {
+  chat: "gold",
+  hermes: "gold",
+  missions: "blue",
+  agents: "violet",
+  openclaw: "blue",
+  web: "red",
+  office: "violet",
+  memory: "green",
+  router: "blue",
+  logs: "red",
+  settings: "gold",
+};

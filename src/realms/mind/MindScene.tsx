@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import type { AiActivity } from "../../App";
+import type { AiActivity } from "../../types/orb";
 import { NeuralLattice } from "./NeuralLattice";
 
 // Colors (Gold Palette)

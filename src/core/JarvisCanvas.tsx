@@ -4,12 +4,14 @@ import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as THREE from "three";
 
-import type { AiActivity, EnergyPalette } from "../App";
+import type { AiActivity, EnergyPalette } from "../types/orb";
 import RealmTransition from "./RealmTransition";
 import { MindScene } from "../realms/mind/MindScene";
 import { SpaceScene } from "../realms/space/SpaceScene";
 import { RealityScene } from "../realms/reality/RealityScene";
 import { TimeScene } from "../realms/time/TimeScene";
+import { AlienScene } from "../realms/power/AlienScene";
+import { ArcCoreScene } from "../realms/soul/ArcCoreScene";
 
 type JarvisCanvasProps = {
   activity: AiActivity;
@@ -233,10 +235,10 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: Jar
                 return <RealityScene activity={activity} />;
               }
               if (activePalette === "violet") {
-                return <MindScene activity={activity} palette="violet" />;
+                return <AlienScene activity={activity} />;
               }
               if (activePalette === "orange") {
-                return <MindScene activity={activity} palette="orange" />;
+                return <ArcCoreScene activity={activity} />;
               }
               return <MindScene activity={activity} palette="gold" />;
             }}
