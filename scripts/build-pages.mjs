@@ -11,7 +11,9 @@ const deployAssets = join(root, "assets");
 const previousIndex = existsSync(deployIndex) ? readFileSync(deployIndex, "utf8") : "";
 
 try {
-  copyFileSync(devIndex, deployIndex);
+  if (existsSync(devIndex)) {
+    copyFileSync(devIndex, deployIndex);
+  }
   const viteBin = join(root, "node_modules", "vite", "bin", "vite.js");
   const result = spawnSync(process.execPath, [viteBin, "build"], { cwd: root, env: process.env, stdio: "inherit" });
   if (result.error) throw result.error;
