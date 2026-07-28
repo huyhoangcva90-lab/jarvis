@@ -163,7 +163,7 @@ export default function App() {
 
   return (
     <StoneStateProvider>
-      <main className={`jarvis-shell min-h-dvh overflow-hidden bg-void text-cyan-50 ${intensityClass}`}>
+      <main className={`jarvis-shell min-h-dvh overflow-hidden bg-void text-amber-50 ${intensityClass}`}>
         {/* WebGL 3D Canvas Background */}
         <div className="orb-stage fixed inset-0 z-0">
           <CinematicOrb
@@ -177,9 +177,9 @@ export default function App() {
 
         {/* Scan lines & theme grid overlays */}
         <div className="fixed inset-0 pointer-events-none z-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(34,211,238,0.13),transparent_28%),radial-gradient(circle_at_86%_20%,rgba(74,222,128,0.11),transparent_26%),linear-gradient(rgba(34,211,238,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.035)_1px,transparent_1px)] bg-[size:auto,auto,48px_48px,48px_48px]" />
-          <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-cyan-300/10 to-transparent" />
-          <div className="absolute h-28 w-full animate-scan bg-gradient-to-b from-transparent via-cyan-300/10 to-transparent" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(250,204,21,0.13),transparent_28%),radial-gradient(circle_at_86%_20%,rgba(255,184,61,0.11),transparent_26%),linear-gradient(rgba(250,204,21,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(250,204,21,0.035)_1px,transparent_1px)] bg-[size:auto,auto,48px_48px,48px_48px]" />
+          <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-amber-300/10 to-transparent" />
+          <div className="absolute h-28 w-full animate-scan bg-gradient-to-b from-transparent via-amber-300/10 to-transparent" />
         </div>
 
         {/* Main UI Overlay */}
@@ -187,15 +187,15 @@ export default function App() {
           <TopBar data={data} currentTime={currentTime} />
 
           {/* Deck tab switcher */}
-          <div className="flex gap-2 border-b border-cyan-300/20 bg-slate-900/50 p-2">
+          <div className="flex gap-2 border-b border-amber-300/20 bg-slate-900/50 p-2">
             <button
-              className={`deck-tab px-4 py-2 font-mono text-sm uppercase ${activeDeck === "command" ? "bg-cyan-300/20 text-cyan-100" : "text-cyan-100/60 hover:bg-cyan-300/10"}`}
+              className={`deck-tab px-4 py-2 font-mono text-sm uppercase ${activeDeck === "command" ? "bg-amber-300/20 text-amber-100" : "text-amber-100/60 hover:bg-amber-300/10"}`}
               onClick={() => switchDeck("command")}
             >
               COMMAND CHAMBER
             </button>
             <button
-              className={`deck-tab px-4 py-2 font-mono text-sm uppercase ${activeDeck === "mission-control" ? "bg-cyan-300/20 text-cyan-100" : "text-cyan-100/60 hover:bg-cyan-300/10"}`}
+              className={`deck-tab px-4 py-2 font-mono text-sm uppercase ${activeDeck === "mission-control" ? "bg-amber-300/20 text-amber-100" : "text-amber-100/60 hover:bg-amber-300/10"}`}
               onClick={() => switchDeck("mission-control")}
             >
               MISSION CONTROL
@@ -206,7 +206,7 @@ export default function App() {
             {activeDeck === "command" ? (
                 /* Active Realm View */
                 <div className="active-realm-container flex flex-col h-full">
-                  <div className="flex items-center justify-between mb-4 bg-slate-950/80 p-3 rounded border border-cyan-300/20 backdrop-blur-md">
+                  <div className="flex items-center justify-between mb-4 bg-slate-950/80 p-3 rounded border border-amber-300/20 backdrop-blur-md">
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => {
@@ -217,7 +217,7 @@ export default function App() {
                       >
                         ← Quay về Chamber
                       </button>
-                      <h2 className="font-mono text-lg text-cyan-100 uppercase tracking-wider">
+                      <h2 className="font-mono text-lg text-amber-100 uppercase tracking-wider">
                         Realm:{" "}
                         <span className="text-amberCore">
                           {energyPalette === "gold" && "Mind Realm"}
@@ -231,44 +231,44 @@ export default function App() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 rounded-full bg-greenCore animate-pulse" />
-                      <span className="font-mono text-xs text-cyan-100/60">INTEGRATED DIAGNOSTICS</span>
+                      <span className="font-mono text-xs text-amber-100/60">INTEGRATED DIAGNOSTICS</span>
                     </div>
                   </div>
 
                   <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-auto">
                     {/* Left & Middle Column (Main Realm Dashboard) */}
-                    <div className="lg:col-span-2 overflow-auto bg-slate-950/40 p-4 rounded border border-cyan-300/10 backdrop-blur-sm">
+                    <div className="lg:col-span-2 overflow-auto bg-slate-950/40 p-4 rounded border border-amber-300/10 backdrop-blur-sm">
                       {energyPalette === "gold" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">🧠 MIND REALUM - KNOWLEDGE CORE & DEV INTERFACE</p>
+                          <p className="font-mono text-sm text-amber-100/60">🧠 MIND REALUM - KNOWLEDGE CORE & DEV INTERFACE</p>
                           <MemoryTab data={data} updateData={updateData} copyText={copyText} />
                         </div>
                       )}
                       {energyPalette === "blue" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">🌌 SPACE REALM - 9ROUTER MULTI-MODEL GATEWAY</p>
+                          <p className="font-mono text-sm text-amber-100/60">🌌 SPACE REALM - 9ROUTER MULTI-MODEL GATEWAY</p>
                           <NineRouterDashboard data={data} updateData={updateData} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "green" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">⏳ TIME REALM - PERSONAL SCHEDULE & OS ENGINE</p>
+                          <p className="font-mono text-sm text-amber-100/60">⏳ TIME REALM - PERSONAL SCHEDULE & OS ENGINE</p>
                           <TerminalTab data={data} addLog={addLog} updateData={updateData} />
                         </div>
                       )}
                       {energyPalette === "red" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">💎 REALITY REALM - FINANCIAL Citadel & LEDGER</p>
+                          <p className="font-mono text-sm text-amber-100/60">💎 REALITY REALM - FINANCIAL Citadel & LEDGER</p>
                           <Panel title="Finance Status" kicker="Obsidian Vault Ledger">
-                            <div className="p-4 bg-slate-950/60 rounded border border-cyan-300/15 font-mono text-sm text-cyan-100/80">
+                            <div className="p-4 bg-slate-950/60 rounded border border-amber-300/15 font-mono text-sm text-amber-100/80">
                               <p className="text-greenCore mb-2">ACCOUNT OK - BALANCE POSITIVE</p>
                               <div className="grid grid-cols-2 gap-4 mt-4">
-                                <div className="border border-cyan-300/10 bg-slate-950/40 p-3 rounded">
-                                  <p className="text-xs text-cyan-100/40">Total Assets</p>
-                                  <p className="text-xl text-cyanCore font-bold">$124,500.00</p>
+                                <div className="border border-amber-300/10 bg-slate-950/40 p-3 rounded">
+                                  <p className="text-xs text-amber-100/40">Total Assets</p>
+                                  <p className="text-xl text-amberCore font-bold">$124,500.00</p>
                                 </div>
-                                <div className="border border-cyan-300/10 bg-slate-950/40 p-3 rounded">
-                                  <p className="text-xs text-cyan-100/40">Monthly Savings Rate</p>
+                                <div className="border border-amber-300/10 bg-slate-950/40 p-3 rounded">
+                                  <p className="text-xs text-amber-100/40">Monthly Savings Rate</p>
                                   <p className="text-xl text-greenCore font-bold">42%</p>
                                 </div>
                               </div>
@@ -278,13 +278,13 @@ export default function App() {
                       )}
                       {energyPalette === "violet" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">⚡ POWER REALM - OPENCLAW TACTICAL WORKFORCE</p>
+                          <p className="font-mono text-sm text-amber-100/60">⚡ POWER REALM - OPENCLAW TACTICAL WORKFORCE</p>
                           <OpenclawDashboard data={data} updateData={updateData} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "orange" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">🔥 SOUL REALM - PERSONAL IDENTITY & INTEGRITY</p>
+                          <p className="font-mono text-sm text-amber-100/60">🔥 SOUL REALM - PERSONAL IDENTITY & INTEGRITY</p>
                           <CoreTab data={data} updateData={updateData} />
                         </div>
                       )}
@@ -293,12 +293,12 @@ export default function App() {
                     {/* Right Column (Side Controls & System Stats) */}
                     <div className="space-y-6 overflow-auto">
                       <Panel title="Local Orchestrator" kicker="Hermes Controller">
-                        <div className="space-y-3 font-mono text-xs text-cyan-100/70">
-                          <div className="flex justify-between items-center bg-cyan-300/5 p-2 rounded">
+                        <div className="space-y-3 font-mono text-xs text-amber-100/70">
+                          <div className="flex justify-between items-center bg-amber-300/5 p-2 rounded">
                             <span>Status:</span>
                             <span className="text-greenCore">ACTIVE</span>
                           </div>
-                          <div className="flex justify-between items-center bg-cyan-300/5 p-2 rounded">
+                          <div className="flex justify-between items-center bg-amber-300/5 p-2 rounded">
                             <span>API Bridge:</span>
                             <span>{data.endpoints?.hermes || "http://localhost:8080"}</span>
                           </div>
@@ -320,7 +320,7 @@ export default function App() {
                                 soundManager.play("beep");
                                 setActivity(act);
                               }}
-                              className={`hud-button text-xs py-2 uppercase ${activity === act ? "primary" : "border-cyan-300/20 text-cyan-100/60"}`}
+                              className={`hud-button text-xs py-2 uppercase ${activity === act ? "primary" : "border-amber-300/20 text-amber-100/60"}`}
                             >
                               {act}
                             </button>
@@ -346,7 +346,7 @@ export default function App() {
 
           {/* Quick status toast */}
           {toast && (
-            <div className="toast-notify fixed bottom-6 right-6 z-50 rounded border border-cyan-300/30 bg-slate-950/90 px-4 py-3 font-mono text-xs uppercase text-cyanCore shadow-lg shadow-cyan-950/50 backdrop-blur-xl">
+            <div className="toast-notify fixed bottom-6 right-6 z-50 rounded border border-amber-300/30 bg-slate-950/90 px-4 py-3 font-mono text-xs uppercase text-amberCore shadow-lg shadow-amber-950/50 backdrop-blur-xl">
               ⚡ {toast}
             </div>
           )}

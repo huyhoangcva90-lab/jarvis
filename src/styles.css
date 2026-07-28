@@ -5,9 +5,9 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --accent: #ff7a18;
-  --accent-rgb: 255, 122, 24;
-  --hot: #ff7a18;
+  --accent: #facc15;
+  --accent-rgb: 250, 204, 21;
+  --hot: #fff2a8;
   --panel-bg: rgba(0, 0, 0, 0.58);
 }
 
@@ -15,6 +15,12 @@ body[data-palette="blue"] {
   --accent: #33d7ff;
   --accent-rgb: 51, 215, 255;
   --hot: #9beeff;
+}
+
+body[data-palette="gold"] {
+  --accent: #facc15;
+  --accent-rgb: 250, 204, 21;
+  --hot: #fff2a8;
 }
 
 body[data-palette="green"] {
