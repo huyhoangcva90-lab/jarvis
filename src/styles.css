@@ -5,9 +5,9 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --accent: #facc15;
-  --accent-rgb: 250, 204, 21;
-  --hot: #fff2a8;
+  --accent: #f8fbff;
+  --accent-rgb: 248, 251, 255;
+  --hot: #ffffff;
   --panel-bg: rgba(0, 0, 0, 0.58);
 }
 
@@ -39,6 +39,18 @@ body[data-palette="violet"] {
   --accent: #b35cff;
   --accent-rgb: 179, 92, 255;
   --hot: #f0b8ff;
+}
+
+body[data-hud-theme="gold"] {
+  --accent: #facc15;
+  --accent-rgb: 250, 204, 21;
+  --hot: #fff2a8;
+}
+
+body[data-hud-theme="web"] {
+  --accent: #f8fbff;
+  --accent-rgb: 248, 251, 255;
+  --hot: #ffffff;
 }
 
 body[data-activity="listening"],
@@ -1025,6 +1037,42 @@ body.is-reactor-dragging .orb-webgl canvas {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 8px;
+}
+
+.theme-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.theme-mode-grid button {
+  display: grid;
+  gap: 6px;
+  min-height: 72px;
+  padding: 10px;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.theme-mode-grid button b {
+  color: var(--hot);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+.theme-mode-grid button small {
+  color: rgba(var(--accent-rgb), 0.68);
+  font-size: 9px;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+}
+
+.theme-mode-grid button.active {
+  border-color: var(--accent);
+  background:
+    radial-gradient(circle at 12% 0, rgba(var(--accent-rgb), 0.2), transparent 42%),
+    rgba(var(--accent-rgb), 0.08);
+  box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.2);
 }
 
 .palette-grid button {
