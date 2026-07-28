@@ -1515,7 +1515,7 @@ body[data-activity="speaking"] .prompt-shell {
   width: min(292px, 25vw);
   min-width: 252px;
   display: grid;
-  grid-template-rows: auto 150px 1fr;
+  grid-template-rows: auto 138px auto 1fr;
   border: 1px solid rgba(var(--accent-rgb), 0.18);
   border-radius: 4px;
   background:
@@ -1617,6 +1617,63 @@ body[data-activity="speaking"] .prompt-shell {
   align-content: start;
   padding: 12px;
   scrollbar-color: var(--accent) transparent;
+}
+
+.hub-core-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 0 12px 12px;
+}
+
+.hub-core-strip button {
+  --core: #ffb83d;
+  min-width: 0;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  padding: 7px 8px;
+  border: 1px solid color-mix(in srgb, var(--core), transparent 68%);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--core), transparent 92%);
+  color: rgba(255, 255, 255, 0.72);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.hub-core-strip button:nth-child(2) { --core: #33d7ff; }
+.hub-core-strip button:nth-child(3) { --core: #6eff9a; }
+.hub-core-strip button:nth-child(4) { --core: #ff315f; }
+.hub-core-strip button:nth-child(5) { --core: #b35cff; }
+.hub-core-strip button:nth-child(6) { --core: #ff8a18; }
+
+.hub-core-strip button i {
+  width: 12px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--core);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--core), transparent 30%);
+}
+
+.hub-core-strip button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-core-strip button.active {
+  border-color: var(--core);
+  color: #ffffff;
+  background:
+    radial-gradient(circle at 16% 50%, color-mix(in srgb, var(--core), transparent 72%), transparent 44%),
+    color-mix(in srgb, var(--core), transparent 86%);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--core), transparent 76%);
 }
 
 .hub-module {
@@ -2044,7 +2101,7 @@ body[data-activity="speaking"] .prompt-shell {
     min-width: 0;
     max-height: min(36dvh, 300px);
     display: grid;
-    grid-template-rows: auto 74px 1fr;
+    grid-template-rows: auto 74px auto 1fr;
     border-radius: 4px;
     background: rgba(2, 2, 2, 0.9);
     box-shadow: 0 16px 44px rgba(0, 0, 0, 0.56), inset 0 0 28px rgba(var(--accent-rgb), 0.035);
@@ -2409,6 +2466,7 @@ body.hud-dragging {
 }
 
 .activity-hub.is-minimized .hub-orbit-map,
+.activity-hub.is-minimized .hub-core-strip,
 .activity-hub.is-minimized .hub-modules,
 .history-panel.is-minimized .message-list,
 .settings-panel.is-minimized .settings-block,

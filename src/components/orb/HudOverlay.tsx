@@ -466,6 +466,7 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
     ],
     [advisorMode, localNow, messages.length, palette, voiceMode]
   );
+  const coreModes = Object.keys(paletteLabels) as Palette[];
 
   const toggleHistory = () => {
     setHistoryOpen((current) => !current);
@@ -505,6 +506,19 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
             <i />
             <i />
             <b />
+          </div>
+          <div className="hub-core-strip" aria-label="6 core modes">
+            {coreModes.map((key) => (
+              <button
+                className={palette === key ? "active" : ""}
+                key={key}
+                type="button"
+                onClick={() => onPaletteChange(key)}
+              >
+                <i />
+                <span>{paletteLabels[key]}</span>
+              </button>
+            ))}
           </div>
           <div className="hub-modules">
             {moduleStatus.map((item) => (
