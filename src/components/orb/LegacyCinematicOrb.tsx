@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as THREE from "three";
-import type { AiActivity } from "../../types/orb";
+import type { AiActivity } from "../../App";
 
 export type LegacyEnergyPalette = "gold" | "blue" | "green" | "red" | "violet" | "orange";
 
@@ -11,7 +11,6 @@ type CinematicOrbProps = {
   activity: AiActivity;
   palette?: LegacyEnergyPalette;
   resetSignal?: number;
-  triangularCore?: boolean;
 };
 
 type FilamentSpec = {
@@ -400,30 +399,11 @@ function makeLineShader() {
   };
 }
 
-function CoreVortex({ activity, triangularCore = false }: CinematicOrbProps) {
+function CoreVortex({ activity }: CinematicOrbProps) {
   const group = useRef<THREE.Group>(null);
   const knotA = useRef<THREE.Mesh>(null);
   const knotB = useRef<THREE.Mesh>(null);
   const knotC = useRef<THREE.Mesh>(null);
-  const outerShell = useRef<THREE.LineSegments>(null);
-  const innerShell = useRef<THREE.LineSegments>(null);
-  const outerGeometry = useMemo(() => {
-    const source = new THREE.IcosahedronGeometry(0.68, 2);
-    const wireframe = new THREE.WireframeGeometry(source);
-    source.dispose();
-    return wireframe;
-  }, []);
-  const innerGeometry = useMemo(() => {
-    const source = new THREE.IcosahedronGeometry(0.49, 1);
-    const wireframe = new THREE.WireframeGeometry(source);
-    source.dispose();
-    return wireframe;
-  }, []);
-
-  useEffect(() => () => {
-    outerGeometry.dispose();
-    innerGeometry.dispose();
-  }, [innerGeometry, outerGeometry]);
 
   useFrame(({ clock }, delta) => {
     const t = clock.elapsedTime;
@@ -437,16 +417,6 @@ function CoreVortex({ activity, triangularCore = false }: CinematicOrbProps) {
     if (knotA.current) knotA.current.rotation.x += delta * 0.42 * speed;
     if (knotB.current) knotB.current.rotation.y -= delta * 0.34 * speed;
     if (knotC.current) knotC.current.rotation.z += delta * 0.27 * speed;
-    if (outerShell.current) {
-      outerShell.current.rotation.x += delta * 0.19 * speed;
-      outerShell.current.rotation.y += delta * 0.27 * speed;
-      outerShell.current.rotation.z -= delta * 0.08 * speed;
-    }
-    if (innerShell.current) {
-      innerShell.current.rotation.x -= delta * 0.15 * speed;
-      innerShell.current.rotation.y -= delta * 0.21 * speed;
-      innerShell.current.rotation.z += delta * 0.12 * speed;
-    }
   });
 
   return (
@@ -477,31 +447,18 @@ function CoreVortex({ activity, triangularCore = false }: CinematicOrbProps) {
           transparent
         />
       </mesh>
-      {triangularCore ? (
-        <>
-          <lineSegments ref={outerShell} geometry={outerGeometry} rotation={[0.24, 0.34, 0.08]}>
-            <lineBasicMaterial blending={THREE.AdditiveBlending} color={HOT_PLASMA} depthWrite={false} opacity={0.8} toneMapped={false} transparent />
-          </lineSegments>
-          <lineSegments ref={innerShell} geometry={innerGeometry} rotation={[0.82, 0.18, 0.56]}>
-            <lineBasicMaterial blending={THREE.AdditiveBlending} color={COPPER_GLOW} depthWrite={false} opacity={0.5} toneMapped={false} transparent />
-          </lineSegments>
-        </>
-      ) : (
-        <>
-          <mesh ref={knotA} rotation={[0.3, 0.2, 0.1]}>
-            <torusKnotGeometry args={[0.34, 0.018, 180, 5, 2, 3]} />
-            <meshBasicMaterial blending={THREE.AdditiveBlending} color={HOT_PLASMA} depthWrite={false} toneMapped={false} />
-          </mesh>
-          <mesh ref={knotB} rotation={[1.1, 0.4, 0.8]} scale={1.18}>
-            <torusKnotGeometry args={[0.34, 0.011, 180, 4, 3, 5]} />
-            <meshBasicMaterial blending={THREE.AdditiveBlending} color={PLASMA} depthWrite={false} opacity={0.72} toneMapped={false} transparent />
-          </mesh>
-          <mesh ref={knotC} rotation={[0.2, 1.2, 0.5]} scale={1.42}>
-            <torusKnotGeometry args={[0.34, 0.008, 180, 4, 2, 5]} />
-            <meshBasicMaterial blending={THREE.AdditiveBlending} color={COPPER_GLOW} depthWrite={false} opacity={0.48} toneMapped={false} transparent />
-          </mesh>
-        </>
-      )}
+      <mesh ref={knotA} rotation={[0.3, 0.2, 0.1]}>
+        <torusKnotGeometry args={[0.34, 0.018, 180, 5, 2, 3]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={HOT_PLASMA} depthWrite={false} toneMapped={false} />
+      </mesh>
+      <mesh ref={knotB} rotation={[1.1, 0.4, 0.8]} scale={1.18}>
+        <torusKnotGeometry args={[0.34, 0.011, 180, 4, 3, 5]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={PLASMA} depthWrite={false} opacity={0.72} toneMapped={false} transparent />
+      </mesh>
+      <mesh ref={knotC} rotation={[0.2, 1.2, 0.5]} scale={1.42}>
+        <torusKnotGeometry args={[0.34, 0.008, 180, 4, 2, 5]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={COPPER_GLOW} depthWrite={false} opacity={0.48} toneMapped={false} transparent />
+      </mesh>
     </group>
   );
 }
@@ -1859,7 +1816,7 @@ function ResponsePulseRings({ activity }: CinematicOrbProps) {
   );
 }
 
-function SceneRig({ activity, palette = "gold", resetSignal = 0, triangularCore = false }: CinematicOrbProps) {
+function SceneRig({ activity, palette = "gold", resetSignal = 0 }: CinematicOrbProps) {
   const root = useRef<THREE.Group>(null);
   const { pointer, size } = useThree();
   const drag = useRef({
@@ -1954,13 +1911,14 @@ function SceneRig({ activity, palette = "gold", resetSignal = 0, triangularCore 
           <AxisBeams activity={activity} />
           <CoreSpokes activity={activity} />
           <ResponsePulseRings activity={activity} />
-          <CoreVortex activity={activity} triangularCore={triangularCore} />
+          <CoreVortex activity={activity} />
         </>
       )}
 
       {palette === "gold" && (
         <>
           <FresnelVolume activity={activity} />
+          <OuterHaloFragments activity={activity} />
           <group scale={[1.05, 0.92, 1.05]}>
             <PaletteArchitecture activity={activity} palette={palette} />
             <PlanetaryOrbitField activity={activity} />
@@ -1970,7 +1928,7 @@ function SceneRig({ activity, palette = "gold", resetSignal = 0, triangularCore 
           <AxisBeams activity={activity} />
           <CoreSpokes activity={activity} />
           <ResponsePulseRings activity={activity} />
-          <CoreVortex activity={activity} triangularCore={triangularCore} />
+          <CoreVortex activity={activity} />
         </>
       )}
 
@@ -2062,7 +2020,7 @@ export default function LegacyCinematicOrb({ activity, palette = "gold", resetSi
       >
         <CanvasPaletteBackground palette={palette} />
         <CameraOrbitController resetSignal={resetSignal} />
-        <SceneRig activity={activity} key={palette} palette={architecturePalette} resetSignal={resetSignal} triangularCore={palette === "gold"} />
+        <SceneRig activity={activity} key={palette} palette={architecturePalette} resetSignal={resetSignal} />
         <PostFX activity={activity} palette={architecturePalette} />
       </Canvas>
     </div>

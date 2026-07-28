@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import type { AiActivity } from "../../types/orb";
+import type { AiActivity } from "../../App";
 import { NeuralLattice } from "./NeuralLattice";
 
 // Colors (Gold Palette)
@@ -687,9 +687,7 @@ export function MindScene({ activity, palette = "gold" }: { activity: AiActivity
   return (
     <group>
       <FresnelVolume activity={activity} />
-      <group scale={palette === "violet" ? 0.46 : 1}>
-        <NeuralLattice activity={activity} palette={palette} />
-      </group>
+      <NeuralLattice activity={activity} palette={palette} />
       <ModeConduits activity={activity} />
       <CoreVortex activity={activity} />
       <AccretionBelt activity={activity} />

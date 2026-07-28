@@ -27,13 +27,10 @@ const OrbitRing: React.FC<{ radius: number; tiltX: number; tiltZ: number }> = ({
     return geometry;
   }, [points]);
 
-  const orbitLine = useMemo(() => {
-    const material = new THREE.LineBasicMaterial({ color: "#f59e0b", transparent: true, opacity: 0.3 });
-    return new THREE.Line(lineGeometry, material);
-  }, [lineGeometry]);
-
   return (
-    <primitive object={orbitLine} rotation={[tiltX, 0, tiltZ]} />
+    <line geometry={lineGeometry} rotation={[tiltX, 0, tiltZ]}>
+      <lineBasicMaterial color="#f59e0b" transparent opacity={0.3} />
+    </line>
   );
 };
 

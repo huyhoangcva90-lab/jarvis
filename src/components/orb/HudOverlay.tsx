@@ -1,5 +1,5 @@
-import { FormEvent, type ChangeEvent, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import type { AiActivity, EnergyPalette } from "../../types/orb";
+import { FormEvent, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import type { AiActivity, EnergyPalette } from "../../App";
 
 type Message = {
   id: string;
@@ -10,29 +10,6 @@ type Message = {
 
 type Palette = EnergyPalette;
 type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "maximize" | "mic" | "attach" | "screen" | "send";
-type PanelId = "hub" | "history" | "settings";
-type ModuleId = "quota" | "schedule" | "finance" | "agents" | "knowledge" | "memory";
-
-const MODULES: Array<{
-  id: ModuleId;
-  label: string;
-  realm: string;
-  color: string;
-  rgb: string;
-  status: string;
-  description: string;
-  features: string[];
-}> = [
-  { id: "quota", label: "Quota", realm: "9Router / Space", color: "#33d7ff", rgb: "51, 215, 255", status: "ROUTER READY", description: "Theo dõi hạn mức provider và đường định tuyến model.", features: ["Provider combos", "Quota windows", "Fallback routes", "Cost estimate"] },
-  { id: "schedule", label: "Schedule", realm: "Notion / Time", color: "#6eff9a", rgb: "110, 255, 154", status: "LOCAL READY", description: "Nhịp ngày, lịch, thói quen và hàng đợi nhắc việc.", features: ["Notion tasks", "Calendar slots", "Habit cycles", "Reminder queue"] },
-  { id: "finance", label: "Finance", realm: "Ledger / Reality", color: "#ff466c", rgb: "255, 70, 108", status: "VAULT STANDBY", description: "Theo dõi dòng tiền, ngân sách và cảnh báo tài chính.", features: ["Cash flow", "Budget gates", "Saving shield", "Debt locks"] },
-  { id: "agents", label: "Agents", realm: "OpenClaw / Power", color: "#b35cff", rgb: "179, 92, 255", status: "WORKFORCE READY", description: "Điều phối đội agent, phòng ban và nhiệm vụ đang chạy.", features: ["Virtual office", "Agent roster", "Mission dispatch", "Tool heartbeat"] },
-  { id: "knowledge", label: "Knowledge", realm: "Claude / Mind", color: "#ffd760", rgb: "255, 215, 96", status: "CORE ONLINE", description: "Ngữ cảnh dự án, kho tri thức và luồng debug cục bộ.", features: ["Claude Code local", "Repository memory", "Prompt context", "Debug trace"] },
-  { id: "memory", label: "Memory", realm: "Personal / Soul", color: "#ff9a3d", rgb: "255, 154, 61", status: "SYNC LOCAL", description: "Hồ sơ cá nhân, tâm trạng, năng lượng và trí nhớ dài hạn.", features: ["Agent awareness", "Mood channel", "Energy signal", "Long memory"] }
-];
-
-const DEFAULT_ENABLED_MODULES: ModuleId[] = ["quota", "schedule", "agents", "memory"];
-const PANEL_LABELS: Record<PanelId, string> = { hub: "OPERATOR HUB", history: "CHAT HISTORY", settings: "SYSTEM SETTINGS" };
 
 const STORAGE_KEY = "jarvis.commandOrb.v2";
 const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
@@ -58,11 +35,11 @@ const BACKCHANNELS = new Set([
 
 const paletteLabels: Record<Palette, string> = {
   gold: "Gold Core",
-  blue: "Tesseract AI",
+  blue: "Stark Tech",
   green: "Agamotto Time",
-  red: "Asgard Divine",
-  violet: "Alien Lattice",
-  orange: "Arc Intelligence"
+  red: "Reality Legacy",
+  violet: "Power Legacy",
+  orange: "Cosmic Soul"
 };
 
 const activityLabels: Record<AiActivity, string> = {
@@ -204,16 +181,7 @@ function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as {
-      messages?: Message[];
-      palette?: Palette;
-      voiceReply?: boolean;
-      handsFree?: boolean;
-      advisorMode?: boolean;
-      panels?: Partial<Record<PanelId, { open: boolean; minimized: boolean }>>;
-      enabledModules?: ModuleId[];
-      activeModule?: ModuleId;
-    };
+    return JSON.parse(raw) as { messages?: Message[]; palette?: Palette; voiceReply?: boolean; handsFree?: boolean; advisorMode?: boolean };
   } catch {
     return null;
   }
@@ -237,14 +205,12 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const [handsFree, setHandsFree] = useState(initial?.handsFree ?? false);
   const [advisorMode, setAdvisorMode] = useState(initial?.advisorMode ?? true);
   const [voiceMode, setVoiceMode] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(initial?.panels?.settings?.open ?? false);
-  const [historyOpen, setHistoryOpen] = useState(() => initial?.panels?.history?.open ?? (typeof window !== "undefined" && window.innerWidth > 760));
-  const [hubOpen, setHubOpen] = useState(() => initial?.panels?.hub?.open ?? (typeof window !== "undefined" && window.innerWidth > 980));
-  const [historyMinimized, setHistoryMinimized] = useState(initial?.panels?.history?.minimized ?? false);
-  const [hubMinimized, setHubMinimized] = useState(initial?.panels?.hub?.minimized ?? false);
-  const [settingsMinimized, setSettingsMinimized] = useState(initial?.panels?.settings?.minimized ?? false);
-  const [enabledModules, setEnabledModules] = useState<ModuleId[]>(() => initial?.enabledModules?.filter((id) => MODULES.some((module) => module.id === id)) ?? DEFAULT_ENABLED_MODULES);
-  const [activeModule, setActiveModule] = useState<ModuleId>(initial?.activeModule ?? "quota");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 760);
+  const [hubOpen, setHubOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 980);
+  const [historyMinimized, setHistoryMinimized] = useState(false);
+  const [hubMinimized, setHubMinimized] = useState(false);
+  const [settingsMinimized, setSettingsMinimized] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const [listening, setListening] = useState(false);
   const [activity, setActivity] = useState<AiActivity>("idle");
@@ -268,21 +234,8 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   useEffect(() => {
     document.body.dataset.palette = palette;
     onPaletteChange(palette);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      messages,
-      palette,
-      voiceReply,
-      handsFree,
-      advisorMode,
-      enabledModules,
-      activeModule,
-      panels: {
-        hub: { open: hubOpen, minimized: hubMinimized },
-        history: { open: historyOpen, minimized: historyMinimized },
-        settings: { open: settingsOpen, minimized: settingsMinimized }
-      }
-    }));
-  }, [activeModule, advisorMode, enabledModules, handsFree, historyMinimized, historyOpen, hubMinimized, hubOpen, messages, onPaletteChange, palette, settingsMinimized, settingsOpen, voiceReply]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, handsFree, advisorMode }));
+  }, [advisorMode, handsFree, messages, onPaletteChange, palette, voiceReply]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
   useEffect(() => { activityRef.current = activity; }, [activity]);
@@ -470,69 +423,36 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
     setMessages([{ id: createId(), role: "assistant", text: "Lịch sử đã được xóa. Kết nối vẫn hoạt động.", at: Date.now() }]);
   };
 
-  const visibleModules = MODULES.filter((module) => enabledModules.includes(module.id));
-  const selectedModule = visibleModules.find((module) => module.id === activeModule) ?? visibleModules[0];
-
-  const minimizePanel = (id: PanelId) => {
-    if (id === "hub") setHubMinimized(true);
-    if (id === "history") setHistoryMinimized(true);
-    if (id === "settings") setSettingsMinimized(true);
-  };
-
-  const restorePanel = (id: PanelId) => {
-    if (id === "hub") { setHubOpen(true); setHubMinimized(false); }
-    if (id === "history") { setHistoryOpen(true); setHistoryMinimized(false); }
-    if (id === "settings") { setSettingsOpen(true); setSettingsMinimized(false); }
-  };
-
-  const closePanel = (id: PanelId) => {
-    if (id === "hub") { setHubOpen(false); setHubMinimized(false); }
-    if (id === "history") { setHistoryOpen(false); setHistoryMinimized(false); }
-    if (id === "settings") { setSettingsOpen(false); setSettingsMinimized(false); }
-  };
-
-  const minimizedPanels: PanelId[] = [
-    ...(hubOpen && hubMinimized ? ["hub" as const] : []),
-    ...(historyOpen && historyMinimized ? ["history" as const] : []),
-    ...(settingsOpen && settingsMinimized ? ["settings" as const] : [])
-  ];
-
-  const toggleModule = (id: ModuleId) => {
-    setEnabledModules((current) => current.includes(id) ? current.filter((moduleId) => moduleId !== id) : [...current, id]);
-  };
+  const localNow = useMemo(() => new Date(), [activity, messages.length, palette]);
+  const moduleStatus = useMemo(
+    () => [
+      { label: "WEATHER", value: "LOCAL READY", detail: "Module san, chua noi API" },
+      {
+        label: "CALENDAR",
+        value: localNow.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" }),
+        detail: "Nhac viec thu cong qua chat"
+      },
+      { label: "VOICE", value: voiceMode ? "OPEN CHANNEL" : "STANDBY", detail: advisorMode ? "Co van, loc cau vu vo" : "Phan hoi moi cau nghe duoc" },
+      { label: "MODE", value: paletteLabels[palette].toUpperCase(), detail: "Orb doi mau va cau truc" },
+      { label: "MEMORY", value: `${messages.length} LOGS`, detail: "Luu cuc bo trong trinh duyet" }
+    ],
+    [advisorMode, localNow, messages.length, palette, voiceMode]
+  );
 
   const toggleHistory = () => {
-    if (historyMinimized) { restorePanel("history"); return; }
     setHistoryOpen((current) => !current);
   };
 
   const toggleSettings = () => {
-    if (settingsMinimized) { restorePanel("settings"); return; }
     setSettingsOpen((current) => !current);
   };
 
   const toggleHub = () => {
-    if (hubMinimized) { restorePanel("hub"); return; }
     setHubOpen((current) => !current);
   };
 
   return (
     <div className="hud-overlay" aria-label="J-Core AI interface">
-      <nav className="hud-edge-rail" aria-label="Cửa sổ đang thu nhỏ">
-        {minimizedPanels.map((id, index) => (
-          <button
-            className="edge-tab"
-            key={id}
-            type="button"
-            style={{ "--tab-index": index } as CSSProperties}
-            onClick={() => restorePanel(id)}
-          >
-            <span>{PANEL_LABELS[id]}</span>
-            <Icon name={id === "history" ? "chat" : id === "settings" ? "settings" : "hub"} />
-          </button>
-        ))}
-      </nav>
-
       <nav className="hud-dock" aria-label="Điều khiển giao diện">
         <button className={hubOpen ? "active" : ""} type="button" aria-label="Mo activity hub" onClick={toggleHub}><Icon name="hub" /></button>
         <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở lịch sử chat" onClick={toggleHistory}><Icon name="chat" /></button>
@@ -540,16 +460,16 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
         <button type="button" aria-label="Reset góc nhìn" onClick={onResetView}><Icon name="reset" /></button>
       </nav>
 
-      {hubOpen && !hubMinimized && (
-        <aside ref={hubDrag.panelRef} className="activity-hub draggable-panel" style={{ transform: `translate3d(${hubDrag.offset.x}px, ${hubDrag.offset.y}px, 0)` }} aria-label="Activity hub">
+      {hubOpen && (
+        <aside ref={hubDrag.panelRef} className={`activity-hub draggable-panel ${hubMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${hubDrag.offset.x}px, ${hubDrag.offset.y}px, 0)` }} aria-label="Activity hub">
           <div className="hub-title panel-drag-handle" {...hubDrag.dragHandleProps} onDoubleClick={hubDrag.resetPosition}>
             <div className="hub-title-copy">
               <span>OPERATOR HUB</span>
               <b>{activity === "speaking" ? "RESPONDING" : activity === "thinking" ? "ANALYZING" : activity === "listening" ? "LISTENING" : "STANDBY"}</b>
             </div>
             <div className="panel-actions hub-actions">
-              <button type="button" aria-label="Thu nhỏ Operator Hub vào thanh trái" onClick={() => minimizePanel("hub")}><Icon name="minimize" /></button>
-              <button type="button" aria-label="Đóng Operator Hub" onClick={() => closePanel("hub")}><Icon name="close" /></button>
+              <button type="button" aria-label={hubMinimized ? "Restore hub" : "Minimize hub"} onClick={() => setHubMinimized((current) => !current)}><Icon name={hubMinimized ? "maximize" : "minimize"} /></button>
+              <button type="button" aria-label="Close hub" onClick={() => setHubOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
           <div className="hub-orbit-map" aria-hidden="true">
@@ -558,51 +478,27 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
             <i />
             <b />
           </div>
-          <div className="hub-module-workspace">
-            {visibleModules.length > 0 ? (
-              <>
-                <div className="hub-module-tabs" role="tablist" aria-label="Module đang bật">
-                  {visibleModules.map((module) => (
-                    <button
-                      aria-selected={selectedModule?.id === module.id}
-                      className={selectedModule?.id === module.id ? "active" : ""}
-                      key={module.id}
-                      role="tab"
-                      style={{ "--module-color": module.color, "--module-rgb": module.rgb } as CSSProperties}
-                      type="button"
-                      onClick={() => setActiveModule(module.id)}
-                    >
-                      <i />{module.label}
-                    </button>
-                  ))}
-                </div>
-                {selectedModule && (
-                  <section className="hub-module-detail" style={{ "--module-color": selectedModule.color, "--module-rgb": selectedModule.rgb } as CSSProperties}>
-                    <span>{selectedModule.realm}</span>
-                    <b>{selectedModule.status}</b>
-                    <p>{selectedModule.description}</p>
-                    <div className="hub-module-features">
-                      {selectedModule.features.map((feature) => <small key={feature}><i />{feature}</small>)}
-                    </div>
-                  </section>
-                )}
-              </>
-            ) : (
-              <div className="hub-module-empty"><b>CHƯA BẬT MODULE</b><p>Mở Settings để chọn module hiển thị tại Operator Hub.</p></div>
-            )}
+          <div className="hub-modules">
+            {moduleStatus.map((item) => (
+              <section className="hub-module" key={item.label}>
+                <span>{item.label}</span>
+                <b>{item.value}</b>
+                <p>{item.detail}</p>
+              </section>
+            ))}
           </div>
         </aside>
       )}
 
-      {historyOpen && !historyMinimized && (
-        <aside ref={historyDrag.panelRef} className="history-panel draggable-panel" style={{ transform: `translate3d(${historyDrag.offset.x}px, ${historyDrag.offset.y}px, 0)` }} aria-label="Lịch sử chat">
+      {historyOpen && (
+        <aside ref={historyDrag.panelRef} className={`history-panel draggable-panel ${historyMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${historyDrag.offset.x}px, ${historyDrag.offset.y}px, 0)` }} aria-label="Lịch sử chat">
           <div className="panel-head panel-drag-handle" {...historyDrag.dragHandleProps} onDoubleClick={historyDrag.resetPosition}>
             <div><i className={`status-dot ${activity}`} /><span>ĐỐI THOẠI</span></div>
             <div className="panel-actions">
               <button type="button" aria-label="Copy lịch sử" onClick={copyContext}><Icon name="copy" /></button>
               <button type="button" aria-label="Xóa lịch sử" onClick={clearChat}><Icon name="trash" /></button>
-              <button type="button" aria-label="Thu nhỏ chat vào thanh trái" onClick={() => minimizePanel("history")}><Icon name="minimize" /></button>
-              <button type="button" aria-label="Đóng lịch sử" onClick={() => closePanel("history")}><Icon name="close" /></button>
+              <button type="button" aria-label={historyMinimized ? "Khôi phục chat" : "Thu nhỏ chat"} onClick={() => setHistoryMinimized((current) => !current)}><Icon name={historyMinimized ? "maximize" : "minimize"} /></button>
+              <button type="button" aria-label="Đóng lịch sử" onClick={() => setHistoryOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
           <div className="message-list">
@@ -617,13 +513,13 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
         </aside>
       )}
 
-      {settingsOpen && !settingsMinimized && (
-        <aside ref={settingsDrag.panelRef} className="settings-panel draggable-panel" style={{ transform: `translate3d(${settingsDrag.offset.x}px, ${settingsDrag.offset.y}px, 0)` }} aria-label="Cài đặt">
+      {settingsOpen && (
+        <aside ref={settingsDrag.panelRef} className={`settings-panel draggable-panel ${settingsMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${settingsDrag.offset.x}px, ${settingsDrag.offset.y}px, 0)` }} aria-label="Cài đặt">
           <div className="settings-hero panel-drag-handle" {...settingsDrag.dragHandleProps} onDoubleClick={settingsDrag.resetPosition}>
             <div><span>HỆ THỐNG</span><b>{voiceMode ? "VOICE ACTIVE" : "LOCAL MODE"}</b></div>
             <div className="panel-actions settings-window-actions">
-              <button type="button" aria-label="Thu nhỏ cài đặt vào thanh trái" onClick={() => minimizePanel("settings")}><Icon name="minimize" /></button>
-              <button type="button" aria-label="Đóng cài đặt" onClick={() => closePanel("settings")}><Icon name="close" /></button>
+              <button type="button" aria-label={settingsMinimized ? "Khôi phục cài đặt" : "Thu nhỏ cài đặt"} onClick={() => setSettingsMinimized((current) => !current)}><Icon name={settingsMinimized ? "maximize" : "minimize"} /></button>
+              <button type="button" aria-label="Đóng cài đặt" onClick={() => setSettingsOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
           <section className="settings-block">
@@ -636,26 +532,6 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
             <div className="settings-block-head"><span>Màu năng lượng</span></div>
             <div className="palette-grid">
               {(Object.keys(paletteLabels) as Palette[]).map((key) => <button className={palette === key ? "active" : ""} key={key} type="button" onClick={() => onPaletteChange(key)}><i />{paletteLabels[key]}</button>)}
-            </div>
-          </section>
-          <section className="settings-block module-settings">
-            <div className="settings-block-head"><span>Module trong Operator Hub</span><small>{enabledModules.length}/{MODULES.length} bật</small></div>
-            <div className="module-toggle-list">
-              {MODULES.map((module) => {
-                const enabled = enabledModules.includes(module.id);
-                return (
-                  <button
-                    aria-pressed={enabled}
-                    className={enabled ? "enabled" : ""}
-                    key={module.id}
-                    style={{ "--module-color": module.color, "--module-rgb": module.rgb } as CSSProperties}
-                    type="button"
-                    onClick={() => toggleModule(module.id)}
-                  >
-                    <i /><span><b>{module.label}</b><small>{module.realm}</small></span><em>{enabled ? "ON" : "OFF"}</em>
-                  </button>
-                );
-              })}
             </div>
           </section>
           <section className="settings-actions">

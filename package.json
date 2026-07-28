@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --open /index.dev.html",
     "typecheck": "tsc --noEmit",
-    "build": "vite build",
+    "build": "node scripts/build-pages.mjs",
+    "build:vite": "vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
