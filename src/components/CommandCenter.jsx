@@ -1,8 +1,8 @@
 import JarvisCore from './JarvisCore.jsx';
-import RealmGateNode from './RealmGateNode.jsx';
+import InfinityStoneNode from './InfinityStoneNode.jsx';
 import Panel from './Panel.jsx';
 import { ALL_STONES, STONE_META } from '../types/stones.js';
-import { useAllStoneStatuses } from '../utils/stoneState.js';
+import { useAllStoneStatuses } from '../utils/stoneState.jsx';
 
 export default function CommandCenter({ data, currentTime, onStoneClick, onOpenChat }) {
   const stoneStatuses = useAllStoneStatuses();
@@ -12,7 +12,7 @@ export default function CommandCenter({ data, currentTime, onStoneClick, onOpenC
   return (
     <div className="command-center">
 
-      {/* LEFT COLUMN: Realm Gate Display */}
+      {/* LEFT COLUMN: Orbit Display */}
       <div className="flex flex-col items-center">
         <div className="orbit-container mx-auto mb-6">
 
@@ -26,7 +26,7 @@ export default function CommandCenter({ data, currentTime, onStoneClick, onOpenC
             <JarvisCore />
           </div>
 
-          {/* 6 Realm Gates */}
+          {/* 6 Infinity Stones */}
           {ALL_STONES.map((stoneId) => {
             const angleDeg = STONE_META[stoneId].orbitAngle;
             const angleRad = (angleDeg - 90) * (Math.PI / 180);
@@ -44,7 +44,7 @@ export default function CommandCenter({ data, currentTime, onStoneClick, onOpenC
                   transform: 'translate(-50%, -50%)',
                 }}
               >
-                <RealmGateNode stoneId={stoneId} onClick={onStoneClick} showLabel={false} showStatus={false} />
+                <InfinityStoneNode stoneId={stoneId} onClick={onStoneClick} />
               </div>
             );
           })}
@@ -62,7 +62,7 @@ export default function CommandCenter({ data, currentTime, onStoneClick, onOpenC
           </div>
           <div className="rounded border border-cyan-300/20 bg-slate-950/60 p-3 text-center">
             <p className="font-mono text-2xl text-amberCore">6</p>
-            <p className="font-mono text-[10px] uppercase text-cyan-100/50">Realm Gates</p>
+            <p className="font-mono text-[10px] uppercase text-cyan-100/50">Infinity Stones</p>
           </div>
         </div>
       </div>
@@ -75,7 +75,7 @@ export default function CommandCenter({ data, currentTime, onStoneClick, onOpenC
           onClick={onOpenChat}
           className="hud-button primary w-full py-3 text-base"
         >
-          Open Jarvis Link
+          💬 Chat with Jarvis
         </button>
 
         <Panel title="System Status" kicker="Node diagnostics">
@@ -83,9 +83,7 @@ export default function CommandCenter({ data, currentTime, onStoneClick, onOpenC
             {stoneStatuses.map((s) => (
               <div key={s.id} className="flex items-center justify-between rounded border border-cyan-300/10 bg-slate-950/40 p-2.5">
                 <div className="flex items-center gap-2 font-mono text-sm text-cyan-100/80">
-                  <span className="grid h-7 w-7 place-items-center rounded border border-cyan-300/15 text-[10px] tracking-wider text-cyan-100/70">
-                    {STONE_META[s.id].icon}
-                  </span>
+                  <span>{STONE_META[s.id].icon}</span>
                   <span>{STONE_META[s.id].label}</span>
                 </div>
                 <span className="rounded border border-cyan-300/20 bg-cyan-300/5 px-2 py-0.5 font-mono text-[10px] uppercase text-cyan-100/60">

@@ -1,4 +1,4 @@
-import { createContext, createElement, useCallback, useContext, useMemo, useReducer, useState, useEffect } from "react";
+import { createContext, useCallback, useContext, useMemo, useReducer, useState, useEffect } from "react";
 import { ALL_STONES, STONE_STATES } from "../types/stones.js";
 
 // ─── Initial State ───────────────────────────────────────────
@@ -174,7 +174,11 @@ export function StoneStateProvider({ children }) {
     resetAllStones,
   }), [stones, connections, setStoneStatus, connectStone, disconnectStone, resetAllStones]);
 
-  return createElement(StoneStateContext.Provider, { value }, children);
+  return (
+    <StoneStateContext.Provider value={value}>
+      {children}
+    </StoneStateContext.Provider>
+  );
 }
 
 // ─── Hook ────────────────────────────────────────────────────

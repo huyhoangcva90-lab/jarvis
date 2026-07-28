@@ -2,10 +2,18 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef, useState, useEffect } from "react";
 import type { AiActivity } from "../../App";
+import type { LegacyOrbPalette } from "./MindScene";
 
 // Colors (Gold Palette)
 const WHITE_HOT = new THREE.Color("#fff8d6");
 const COPPER_GLOW = new THREE.Color("#d65f10");
+
+const LATTICE_COLORS: Record<LegacyOrbPalette, [string, string]> = {
+  gold: ["#fff8d6", "#d65f10"],
+  green: ["#f5fff6", "#18bd58"],
+  violet: ["#fff6ff", "#7f35ff"],
+  orange: ["#fff5de", "#ed5f12"],
+};
 
 function seededRandom(seed: number) {
   return () => {
@@ -106,59 +114,6 @@ function buildCoreSpokeGeometry() {
   return geometry;
 }
 
-function buildOuterHaloGeometry() {
-  const random = seededRandom(77931);
-  const positions: number[] = [];
-  const phases: number[] = [];
-  const intensities: number[] = [];
-  const clusters = Array.from({ length: 11 }, () => ({
-    theta: random() * Math.PI * 2,
-    phi: Math.acos(2 * random() - 1),
-    spread: 0.18 + random() * 0.34
-  }));
-  const worldUp = new THREE.Vector3(0, 1, 0);
-  const worldSide = new THREE.Vector3(1, 0, 0);
-
-  for (let trace = 0; trace < 560; trace += 1) {
-    const cluster = clusters[trace % clusters.length];
-    const theta = cluster.theta + (random() - 0.5) * cluster.spread * 2.2;
-    const phi = cluster.phi + (random() - 0.5) * cluster.spread * 1.6;
-    const radius = 1.82 + random() * 0.54;
-    const normal = new THREE.Vector3(
-      Math.sin(phi) * Math.cos(theta),
-      Math.cos(phi),
-      Math.sin(phi) * Math.sin(theta)
-    ).normalize();
-    const reference = Math.abs(normal.y) > 0.82 ? worldSide : worldUp;
-    const tangentA = new THREE.Vector3().crossVectors(normal, reference).normalize();
-    const tangentB = new THREE.Vector3().crossVectors(normal, tangentA).normalize();
-    const steps = 1 + Math.floor(random() * 3);
-    let current = normal.clone().multiplyScalar(radius);
-    const phase = random() * 6.28;
-    const intensity = trace % 7 === 0 ? 0.95 : 0.32 + random() * 0.48;
-
-    for (let step = 0; step < steps; step += 1) {
-      const turn = step % 2 === 0 ? tangentA : tangentB;
-      const length = 0.012 + random() * 0.052;
-      const next = normal
-        .clone()
-        .addScaledVector(turn, length)
-        .normalize()
-        .multiplyScalar(radius + (random() - 0.5) * 0.04);
-      positions.push(current.x, current.y, current.z, next.x, next.y, next.z);
-      phases.push(phase + step * 0.27, phase + step * 0.27 + 0.12);
-      intensities.push(intensity, intensity);
-      current = next;
-    }
-  }
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute("aPhase", new THREE.Float32BufferAttribute(phases, 1));
-  geometry.setAttribute("aIntensity", new THREE.Float32BufferAttribute(intensities, 1));
-  return geometry;
-}
-
 function CoreSpokes({ activity, flashRef }: { activity: AiActivity, flashRef: React.MutableRefObject<number> }) {
   const group = useRef<THREE.Group>(null);
   const material = useRef<THREE.ShaderMaterial>(null);
@@ -196,35 +151,66 @@ function CoreSpokes({ activity, flashRef }: { activity: AiActivity, flashRef: Re
   );
 }
 
-function OuterHaloFragments({ activity, flashRef }: { activity: AiActivity, flashRef: React.MutableRefObject<number> }) {
-  const group = useRef<THREE.Group>(null);
-  const material = useRef<THREE.ShaderMaterial>(null);
-  const geometry = useMemo(buildOuterHaloGeometry, []);
-  const shader = useMemo(makeLineShader, []);
+function TriangularMindCage({ activity, flashRef }: { activity: AiActivity, flashRef: React.MutableRefObject<number> }) {
+  const outer = useRef<THREE.LineSegments>(null);
+  const inner = useRef<THREE.LineSegments>(null);
+  const outerMaterial = useRef<THREE.LineBasicMaterial>(null);
+  const innerMaterial = useRef<THREE.LineBasicMaterial>(null);
+  const geometry = useMemo(() => {
+    const source = new THREE.IcosahedronGeometry(2.02, 2);
+    const wireframe = new THREE.WireframeGeometry(source);
+    source.dispose();
+    return wireframe;
+  }, []);
 
   useFrame(({ clock }, delta) => {
-    if (material.current) {
-      material.current.uniforms.uTime.value = clock.elapsedTime * 0.82;
-      material.current.uniforms.uEnergy.value = activityEnergy(activity) * (1 + flashRef.current * 1.5);
-      material.current.uniforms.uOpacity.value = 0.5;
-      material.current.uniforms.uColor.value.copy(COPPER_GLOW);
+    const t = clock.elapsedTime;
+    const speed = activitySpeed(activity);
+    const energy = activityEnergy(activity);
+    const speakingPulse = activity === "speaking" ? Math.sin(t * 7.2) * 0.035 : 0;
+    const thinkingPulse = activity === "thinking" ? Math.sin(t * 3.4) * 0.018 : 0;
+    const scale = 1 + speakingPulse + thinkingPulse + flashRef.current * 0.075;
+
+    if (outer.current) {
+      outer.current.rotation.x += delta * 0.035 * speed;
+      outer.current.rotation.y += delta * 0.052 * speed;
+      outer.current.rotation.z -= delta * 0.018 * speed;
+      outer.current.scale.setScalar(scale);
     }
-    if (group.current) {
-      group.current.rotation.y += delta * 0.024 * activitySpeed(activity);
-      group.current.rotation.x = Math.sin(clock.elapsedTime * 0.16) * 0.045;
-      group.current.rotation.z -= delta * 0.012;
-      group.current.scale.setScalar(1 + flashRef.current * 0.1);
+    if (inner.current) {
+      inner.current.rotation.x -= delta * 0.026 * speed;
+      inner.current.rotation.y -= delta * 0.041 * speed;
+      inner.current.rotation.z += delta * 0.023 * speed;
+      inner.current.scale.setScalar(0.91 - speakingPulse * 0.42 + flashRef.current * 0.035);
+    }
+    if (outerMaterial.current) {
+      outerMaterial.current.opacity = 0.2 + energy * 0.13 + flashRef.current * 0.24;
+    }
+    if (innerMaterial.current) {
+      innerMaterial.current.opacity = 0.08 + energy * 0.075 + flashRef.current * 0.12;
     }
   });
 
   return (
-    <group ref={group} rotation={[0.12, -0.22, 0.08]}>
-      <lineSegments geometry={geometry}>
-        <shaderMaterial
-          ref={material}
-          args={[shader]}
+    <group rotation={[0.08, -0.18, 0.06]}>
+      <lineSegments ref={outer} geometry={geometry}>
+        <lineBasicMaterial
+          ref={outerMaterial}
           blending={THREE.AdditiveBlending}
+          color={WHITE_HOT}
           depthWrite={false}
+          opacity={0.34}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+      <lineSegments ref={inner} geometry={geometry}>
+        <lineBasicMaterial
+          ref={innerMaterial}
+          blending={THREE.AdditiveBlending}
+          color={COPPER_GLOW}
+          depthWrite={false}
+          opacity={0.15}
           toneMapped={false}
           transparent
         />
@@ -233,7 +219,10 @@ function OuterHaloFragments({ activity, flashRef }: { activity: AiActivity, flas
   );
 }
 
-export function NeuralLattice({ activity }: { activity: AiActivity }) {
+export function NeuralLattice({ activity, palette = "gold" }: { activity: AiActivity; palette?: LegacyOrbPalette }) {
+  const [white, copper] = LATTICE_COLORS[palette];
+  WHITE_HOT.set(white);
+  COPPER_GLOW.set(copper);
   const [flash, setFlash] = useState(0);
   const flashRef = useRef(0);
 
@@ -260,7 +249,7 @@ export function NeuralLattice({ activity }: { activity: AiActivity }) {
   return (
     <group scale={[1.3, 0.8, 1.1]} position={[0.1, -0.05, 0]} rotation={[0.2, 0.1, -0.1]}>
       <CoreSpokes activity={activity} flashRef={flashRef} />
-      <OuterHaloFragments activity={activity} flashRef={flashRef} />
+      <TriangularMindCage activity={activity} flashRef={flashRef} />
     </group>
   );
 }

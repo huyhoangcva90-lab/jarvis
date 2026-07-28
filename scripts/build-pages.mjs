@@ -12,28 +12,17 @@ const previousIndex = existsSync(deployIndex) ? readFileSync(deployIndex, "utf8"
 
 try {
   copyFileSync(devIndex, deployIndex);
-
   const viteBin = join(root, "node_modules", "vite", "bin", "vite.js");
-  const result = spawnSync(process.execPath, [viteBin, "build"], {
-    cwd: root,
-    env: process.env,
-    stdio: "inherit",
-  });
-
-  if (result.error) {
-    throw result.error;
-  }
-
+  const result = spawnSync(process.execPath, [viteBin, "build"], { cwd: root, env: process.env, stdio: "inherit" });
+  if (result.error) throw result.error;
   if (result.status !== 0) {
     writeFileSync(deployIndex, previousIndex);
     process.exit(result.status ?? 1);
   }
-
   if (!existsSync(distIndex) || !existsSync(distAssets)) {
     writeFileSync(deployIndex, previousIndex);
-    throw new Error("Vite build did not produce dist/index.html and dist/assets.");
+    throw new Error("Vite build did not produce deploy artifacts.");
   }
-
   mkdirSync(deployAssets, { recursive: true });
   rmSync(deployAssets, { recursive: true, force: true });
   cpSync(distAssets, deployAssets, { recursive: true });

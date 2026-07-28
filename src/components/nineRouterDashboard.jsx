@@ -49,7 +49,7 @@ const PROVIDERS = [
   { name: "Local Ollama Llama3", latency: "—", status: "offline", color: "text-redCore border-redCore/20 bg-redCore/10" }
 ];
 
-export default function NineRouterDashboard({ data, updateData, addLog } = {}) {
+export default function NineRouterDashboard() {
   const [selectedCombo, setSelectedCombo] = useState("balanced");
   const [calcText, setCalcText] = useState("");
 
@@ -66,7 +66,7 @@ export default function NineRouterDashboard({ data, updateData, addLog } = {}) {
   return (
     <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
       {/* Cột trái: Bộ chuyển Router Combo */}
-      <Panel title="9Router combo matrix" kicker="Space Realm Gateway">
+      <Panel title="9Router combo matrix" kicker="Space Stone Gateway">
         <p className="mb-4 font-mono text-xs uppercase text-cyan-100/60">
           Chọn cấu hình định tuyến thông minh của bạn. 9Router sẽ tự động chia luồng yêu cầu đến model tối ưu nhất.
         </p>

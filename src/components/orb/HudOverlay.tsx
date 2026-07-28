@@ -1,4 +1,4 @@
-import { FormEvent, type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import type { AiActivity, EnergyPalette } from "../../App";
 
 type Message = {
@@ -9,7 +9,7 @@ type Message = {
 };
 
 type Palette = EnergyPalette;
-type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "mic" | "send";
+type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "maximize" | "mic" | "attach" | "screen" | "send";
 
 const STORAGE_KEY = "jarvis.commandOrb.v2";
 const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
@@ -34,23 +34,12 @@ const BACKCHANNELS = new Set([
 ]);
 
 const paletteLabels: Record<Palette, string> = {
-  neutral: "Neutral",
   gold: "Gold Core",
-  blue: "Blue Gate",
-  green: "Time Matrix",
-  red: "Transfer",
-  violet: "Neon Violet",
-  orange: "Agent Brain"
-};
-
-const paletteSwatches: Record<Palette, string> = {
-  neutral: "#fff7ea",
-  gold: "#ffb83d",
-  blue: "#33d7ff",
-  green: "#6eff9a",
-  red: "#ff315f",
-  violet: "#b35cff",
-  orange: "#ff9f2f"
+  blue: "Stark Tech",
+  green: "Agamotto Time",
+  red: "Reality Legacy",
+  violet: "Power Lattice",
+  orange: "Cosmic Soul"
 };
 
 const activityLabels: Record<AiActivity, string> = {
@@ -70,10 +59,73 @@ function Icon({ name }: { name: IconName }) {
     copy: <><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>,
     trash: <><path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6" /></>,
     close: <path d="m6 6 12 12M18 6 6 18" />,
+    minimize: <path d="M6 12h12" />,
+    maximize: <><path d="M8 4H4v4M16 4h4v4M20 16v4h-4M8 20H4v-4" /></>,
     mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8" /></>,
+    attach: <path d="m20.5 11.5-8.7 8.7a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7L9 17.4a2 2 0 0 1-2.8-2.8l8.6-8.6" />,
+    screen: <><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4" /><path d="m14 8 3 3-3 3M17 11H9" /></>,
     send: <><path d="m22 2-7 20-4-9-9-4Z" /><path d="M22 2 11 13" /></>
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[name]}</svg>;
+}
+
+type PanelOffset = { x: number; y: number };
+
+function usePanelDrag() {
+  const panelRef = useRef<HTMLElement>(null);
+  const [offset, setOffset] = useState<PanelOffset>({ x: 0, y: 0 });
+  const dragState = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    base: PanelOffset;
+    rect: DOMRect;
+  } | null>(null);
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.button !== 0 || window.innerWidth <= 760 || (event.target as HTMLElement).closest("button")) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    dragState.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      base: offset,
+      rect: panel.getBoundingClientRect()
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    document.body.classList.add("hud-dragging");
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+    const drag = dragState.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const margin = 8;
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+    const boundedX = Math.min(window.innerWidth - margin - drag.rect.right, Math.max(margin - drag.rect.left, deltaX));
+    const boundedY = Math.min(window.innerHeight - margin - drag.rect.bottom, Math.max(margin - drag.rect.top, deltaY));
+    setOffset({ x: drag.base.x + boundedX, y: drag.base.y + boundedY });
+  };
+
+  const stopDragging = (event: ReactPointerEvent<HTMLElement>) => {
+    if (dragState.current?.pointerId !== event.pointerId) return;
+    dragState.current = null;
+    document.body.classList.remove("hud-dragging");
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
+
+  return {
+    panelRef,
+    offset,
+    resetPosition: () => setOffset({ x: 0, y: 0 }),
+    dragHandleProps: {
+      onPointerDown,
+      onPointerMove,
+      onPointerUp: stopDragging,
+      onPointerCancel: stopDragging
+    }
+  };
 }
 
 function createId() {
@@ -136,18 +188,19 @@ function loadState() {
 }
 
 type HudOverlayProps = {
+  palette: EnergyPalette;
   onActivityChange: (activity: AiActivity) => void;
   onPaletteChange: (palette: EnergyPalette) => void;
   onResetView: () => void;
 };
 
-export default function HudOverlay({ onActivityChange, onPaletteChange, onResetView }: HudOverlayProps) {
+export default function HudOverlay({ palette, onActivityChange, onPaletteChange, onResetView }: HudOverlayProps) {
   const initial = useMemo(() => (typeof window === "undefined" ? null : loadState()), []);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>(
     () => initial?.messages?.length ? initial.messages : [{ id: createId(), role: "assistant", text: "Kết nối đã sẵn sàng. Bạn có thể chat hoặc nói trực tiếp với t.", at: Date.now() }]
   );
-  const [palette, setPalette] = useState<Palette>(initial?.palette ?? "gold");
+
   const [voiceReply, setVoiceReply] = useState(initial?.voiceReply ?? true);
   const [handsFree, setHandsFree] = useState(initial?.handsFree ?? false);
   const [advisorMode, setAdvisorMode] = useState(initial?.advisorMode ?? true);
@@ -155,18 +208,28 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 760);
   const [hubOpen, setHubOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 980);
+  const [historyMinimized, setHistoryMinimized] = useState(false);
+  const [hubMinimized, setHubMinimized] = useState(false);
+  const [settingsMinimized, setSettingsMinimized] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const [listening, setListening] = useState(false);
   const [activity, setActivity] = useState<AiActivity>("idle");
   const [toast, setToast] = useState("");
   const recognitionRef = useRef<any>(null);
   const voiceModeRef = useRef(false);
   const recognitionActiveRef = useRef(false);
+  const microphonePermissionRef = useRef(false);
+  const activityRef = useRef<AiActivity>("idle");
   const manualStopRef = useRef(false);
   const resultHandledRef = useRef(false);
   const thinkingTimer = useRef<number | null>(null);
   const idleTimer = useRef<number | null>(null);
   const restartTimer = useRef<number | null>(null);
   const messageEndRef = useRef<HTMLDivElement>(null);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
+  const hubDrag = usePanelDrag();
+  const historyDrag = usePanelDrag();
+  const settingsDrag = usePanelDrag();
 
   useEffect(() => {
     document.body.dataset.palette = palette;
@@ -175,6 +238,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   }, [advisorMode, handsFree, messages, onPaletteChange, palette, voiceReply]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
+  useEffect(() => { activityRef.current = activity; }, [activity]);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
   useEffect(() => { messageEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => {
@@ -193,7 +257,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   const scheduleVoiceRestart = (delay = 520) => {
     if (!voiceModeRef.current || !handsFree) return;
     if (restartTimer.current) window.clearTimeout(restartTimer.current);
-    restartTimer.current = window.setTimeout(() => startRecognition(), advisorMode ? Math.max(delay, 1700) : delay);
+    restartTimer.current = window.setTimeout(() => { void startRecognition(); }, advisorMode ? Math.max(delay, 1700) : delay);
   };
 
   const speak = (text: string) => {
@@ -221,7 +285,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
 
   const sendMessage = (value = input, source: "text" | "voice" = "text") => {
     const trimmed = value.trim();
-    if (!trimmed) return;
+    if (!trimmed && !pendingAttachment) return;
     if (source === "voice" && advisorMode && !shouldAnswerVoice(trimmed)) {
       setInput("");
       setActivity("idle");
@@ -229,13 +293,15 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
       scheduleVoiceRestart(1500);
       return;
     }
-    setMessages((current) => [...current, { id: createId(), role: "user" as const, text: trimmed, at: Date.now() }].slice(-80));
+    const messageText = trimmed || `Đã ghim ${pendingAttachment?.name ?? "tệp"}.`;
+    setMessages((current) => [...current, { id: createId(), role: "user" as const, text: messageText, at: Date.now() }].slice(-80));
     setInput("");
+    setPendingAttachment(null);
     setHistoryOpen(true);
     setActivity("thinking");
     if (thinkingTimer.current) window.clearTimeout(thinkingTimer.current);
     thinkingTimer.current = window.setTimeout(() => {
-      const reply = { id: createId(), role: "assistant" as const, text: createReply(trimmed), at: Date.now() + 1 };
+      const reply = { id: createId(), role: "assistant" as const, text: createReply(messageText), at: Date.now() + 1 };
       setMessages((current) => [...current, reply].slice(-80));
       speak(reply.text);
     }, 980);
@@ -243,10 +309,68 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
 
   const submit = (event: FormEvent) => { event.preventDefault(); sendMessage(); };
 
-  function startRecognition() {
+  const chooseAttachment = () => attachmentInputRef.current?.click();
+
+  const handleAttachmentChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      setToast("Tệp vượt quá giới hạn 15 MB.");
+      event.target.value = "";
+      return;
+    }
+    setPendingAttachment(file);
+    setToast(`Đã ghim ${file.name}.`);
+  };
+
+  const captureSharedScreen = async () => {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      setToast("Trình duyệt này chưa hỗ trợ chia sẻ màn hình.");
+      return;
+    }
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
+      await new Promise<void>((resolve) => {
+        video.onloadedmetadata = () => resolve();
+      });
+      await video.play();
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext("2d")?.drawImage(video, 0, 0);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("capture-failed");
+      setPendingAttachment(new File([blob], `screen-${Date.now()}.png`, { type: "image/png" }));
+      setToast("Đã chụp màn hình và ghim vào chat.");
+    } catch (error) {
+      const name = error instanceof DOMException ? error.name : "";
+      setToast(name === "NotAllowedError" || name === "AbortError" ? "Đã hủy chia sẻ màn hình." : "Không thể chụp màn hình.");
+    } finally {
+      stream?.getTracks().forEach((track) => track.stop());
+    }
+  };
+
+  async function startRecognition() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) { setToast("Trình duyệt này chưa hỗ trợ nhận giọng nói."); return; }
-    if (recognitionActiveRef.current || activity === "thinking" || activity === "speaking") return;
+    if (!SpeechRecognition) { setToast("Hãy mở bằng Chrome hoặc Edge để dùng Google Web Speech."); return; }
+    if (recognitionActiveRef.current || activityRef.current === "thinking" || activityRef.current === "speaking") return;
+    if (!microphonePermissionRef.current && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach((track) => track.stop());
+        microphonePermissionRef.current = true;
+      } catch {
+        voiceModeRef.current = false;
+        setVoiceMode(false);
+        setToast("Microphone đang bị chặn. Hãy cấp quyền cho trang rồi bật Voice lại.");
+        return;
+      }
+    }
     manualStopRef.current = false;
     resultHandledRef.current = false;
     const recognition = new SpeechRecognition();
@@ -280,12 +404,12 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
     setActivity("idle");
   };
 
-  const toggleVoiceMode = () => {
+  const toggleVoiceMode = async () => {
     if (voiceModeRef.current || listening) { stopVoice(); return; }
     setVoiceMode(true);
     voiceModeRef.current = true;
     setToast("Voice mode đã bật. T sẽ tự nghe lại sau mỗi câu.");
-    startRecognition();
+    await startRecognition();
   };
 
   const copyContext = async () => {
@@ -316,36 +440,15 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
   );
 
   const toggleHistory = () => {
-    setHistoryOpen((current) => {
-      const next = !current;
-      if (next) {
-        setSettingsOpen(false);
-        setHubOpen(false);
-      }
-      return next;
-    });
+    setHistoryOpen((current) => !current);
   };
 
   const toggleSettings = () => {
-    setSettingsOpen((current) => {
-      const next = !current;
-      if (next) {
-        setHistoryOpen(false);
-        setHubOpen(false);
-      }
-      return next;
-    });
+    setSettingsOpen((current) => !current);
   };
 
   const toggleHub = () => {
-    setHubOpen((current) => {
-      const next = !current;
-      if (next) {
-        setHistoryOpen(false);
-        setSettingsOpen(false);
-      }
-      return next;
-    });
+    setHubOpen((current) => !current);
   };
 
   return (
@@ -358,10 +461,16 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
       </nav>
 
       {hubOpen && (
-        <aside className="activity-hub" aria-label="Activity hub">
-          <div className="hub-title">
-            <span>OPERATOR HUB</span>
-            <b>{activity === "speaking" ? "RESPONDING" : activity === "thinking" ? "ANALYZING" : activity === "listening" ? "LISTENING" : "STANDBY"}</b>
+        <aside ref={hubDrag.panelRef} className={`activity-hub draggable-panel ${hubMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${hubDrag.offset.x}px, ${hubDrag.offset.y}px, 0)` }} aria-label="Activity hub">
+          <div className="hub-title panel-drag-handle" {...hubDrag.dragHandleProps} onDoubleClick={hubDrag.resetPosition}>
+            <div className="hub-title-copy">
+              <span>OPERATOR HUB</span>
+              <b>{activity === "speaking" ? "RESPONDING" : activity === "thinking" ? "ANALYZING" : activity === "listening" ? "LISTENING" : "STANDBY"}</b>
+            </div>
+            <div className="panel-actions hub-actions">
+              <button type="button" aria-label={hubMinimized ? "Restore hub" : "Minimize hub"} onClick={() => setHubMinimized((current) => !current)}><Icon name={hubMinimized ? "maximize" : "minimize"} /></button>
+              <button type="button" aria-label="Close hub" onClick={() => setHubOpen(false)}><Icon name="close" /></button>
+            </div>
           </div>
           <div className="hub-orbit-map" aria-hidden="true">
             <i />
@@ -382,12 +491,13 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
       )}
 
       {historyOpen && (
-        <aside className="history-panel" aria-label="Lịch sử chat">
-          <div className="panel-head">
+        <aside ref={historyDrag.panelRef} className={`history-panel draggable-panel ${historyMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${historyDrag.offset.x}px, ${historyDrag.offset.y}px, 0)` }} aria-label="Lịch sử chat">
+          <div className="panel-head panel-drag-handle" {...historyDrag.dragHandleProps} onDoubleClick={historyDrag.resetPosition}>
             <div><i className={`status-dot ${activity}`} /><span>ĐỐI THOẠI</span></div>
             <div className="panel-actions">
               <button type="button" aria-label="Copy lịch sử" onClick={copyContext}><Icon name="copy" /></button>
               <button type="button" aria-label="Xóa lịch sử" onClick={clearChat}><Icon name="trash" /></button>
+              <button type="button" aria-label={historyMinimized ? "Khôi phục chat" : "Thu nhỏ chat"} onClick={() => setHistoryMinimized((current) => !current)}><Icon name={historyMinimized ? "maximize" : "minimize"} /></button>
               <button type="button" aria-label="Đóng lịch sử" onClick={() => setHistoryOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
@@ -404,10 +514,13 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
       )}
 
       {settingsOpen && (
-        <aside className="settings-panel" aria-label="Cài đặt">
-          <div className="settings-hero">
+        <aside ref={settingsDrag.panelRef} className={`settings-panel draggable-panel ${settingsMinimized ? "is-minimized" : ""}`} style={{ transform: `translate3d(${settingsDrag.offset.x}px, ${settingsDrag.offset.y}px, 0)` }} aria-label="Cài đặt">
+          <div className="settings-hero panel-drag-handle" {...settingsDrag.dragHandleProps} onDoubleClick={settingsDrag.resetPosition}>
             <div><span>HỆ THỐNG</span><b>{voiceMode ? "VOICE ACTIVE" : "LOCAL MODE"}</b></div>
-            <button type="button" aria-label="Đóng cài đặt" onClick={() => setSettingsOpen(false)}><Icon name="close" /></button>
+            <div className="panel-actions settings-window-actions">
+              <button type="button" aria-label={settingsMinimized ? "Khôi phục cài đặt" : "Thu nhỏ cài đặt"} onClick={() => setSettingsMinimized((current) => !current)}><Icon name={settingsMinimized ? "maximize" : "minimize"} /></button>
+              <button type="button" aria-label="Đóng cài đặt" onClick={() => setSettingsOpen(false)}><Icon name="close" /></button>
+            </div>
           </div>
           <section className="settings-block">
             <div className="settings-block-head"><span>Voice link</span><button className={voiceMode ? "danger" : "primary"} type="button" onClick={toggleVoiceMode}>{voiceMode ? "Tắt" : "Bật"}</button></div>
@@ -418,18 +531,7 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
           <section className="settings-block">
             <div className="settings-block-head"><span>Màu năng lượng</span></div>
             <div className="palette-grid">
-              {(Object.keys(paletteLabels) as Palette[]).map((key) => (
-                <button
-                  className={palette === key ? "active" : ""}
-                  key={key}
-                  style={{ "--swatch": paletteSwatches[key] } as CSSProperties}
-                  type="button"
-                  onClick={() => setPalette(key)}
-                >
-                  <i />
-                  {paletteLabels[key]}
-                </button>
-              ))}
+              {(Object.keys(paletteLabels) as Palette[]).map((key) => <button className={palette === key ? "active" : ""} key={key} type="button" onClick={() => onPaletteChange(key)}><i />{paletteLabels[key]}</button>)}
             </div>
           </section>
           <section className="settings-actions">
@@ -446,11 +548,17 @@ export default function HudOverlay({ onActivityChange, onPaletteChange, onResetV
           <span>{activityLabels[activity]}</span>
           <div className="voice-wave" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} style={{ animationDelay: `${index * 48}ms` }} />)}</div>
         </div>
-        <form className="prompt-shell" onSubmit={submit}>
+        {pendingAttachment && <div className="legacy-attachment-tray"><span>{pendingAttachment.name}</span><button type="button" aria-label="Gỡ tệp đính kèm" onClick={() => setPendingAttachment(null)}><Icon name="close" /></button></div>}
+        <form className="prompt-shell prompt-shell-with-tools" onSubmit={submit}>
           <button className={voiceMode || listening ? "listening" : ""} type="button" aria-label="Bật chế độ giọng nói" onClick={toggleVoiceMode}><Icon name="mic" /></button>
+          <div className="legacy-chat-tools" aria-label="Công cụ chat">
+            <button type="button" aria-label="Ghim một tệp hoặc hình ảnh" onClick={chooseAttachment}><Icon name="attach" /></button>
+            <button type="button" aria-label="Chia sẻ và chụp màn hình" onClick={captureSharedScreen}><Icon name="screen" /></button>
+          </div>
+          <input ref={attachmentInputRef} className="attachment-input" type="file" accept="image/*,.pdf,.txt,.md,.csv,.json,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" aria-label="Chọn tệp đính kèm" onChange={handleAttachmentChange} />
           <label className="sr-only" htmlFor="jcore-command">Nhập tin nhắn</label>
           <input id="jcore-command" placeholder="Nói hoặc nhập lệnh..." value={input} onChange={(event) => setInput(event.target.value)} />
-          <button type="submit" aria-label="Gửi tin nhắn"><Icon name="send" /></button>
+          <button type="submit" aria-label="Gửi tin nhắn" disabled={!input.trim() && !pendingAttachment}><Icon name="send" /></button>
         </form>
         <p aria-live="polite">{toast}</p>
       </section>

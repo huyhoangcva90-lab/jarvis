@@ -1,5 +1,5 @@
 /**
- * Jarvis Six Realms — Mission Schema
+ * Jarvis Infinity System — Mission Schema
  *
  * Mọi yêu cầu có nhiều bước tạo thành một Mission.
  * Mission được theo dõi bởi Hermes Orchestrator.

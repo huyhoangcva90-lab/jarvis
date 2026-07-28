@@ -1,6 +1,6 @@
 import Panel from "./Panel.jsx";
 
-export default function CoreTab({ data, currentTime, updateData }) {
+export default function CoreTab({ data, currentTime }) {
   const recentLogs = data.logs.slice(-6).reverse();
   const threat = data.energy === "low" || data.mood === "tired" ? "Warning" : "Nominal";
 

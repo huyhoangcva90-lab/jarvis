@@ -28,9 +28,9 @@ const OrbitRing: React.FC<{ radius: number; tiltX: number; tiltZ: number }> = ({
   }, [points]);
 
   return (
-    <lineSegments geometry={lineGeometry} rotation={[tiltX, 0, tiltZ]}>
+    <line geometry={lineGeometry} rotation={[tiltX, 0, tiltZ]}>
       <lineBasicMaterial color="#f59e0b" transparent opacity={0.3} />
-    </lineSegments>
+    </line>
   );
 };
 

@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CinematicOrb from "./components/orb/CinematicOrb";
+import HudOverlay from "./components/orb/HudOverlay";
 import BootScreen from "./components/BootScreen.jsx";
-import CommandCenter from "./components/CommandCenter.jsx";
 import HermesChat from "./components/HermesChat.jsx";
 import MissionControlDeck from "./components/MissionControlDeck.jsx";
 import AuthScreen from "./components/AuthScreen.jsx";
 import TopBar from "./components/TopBar.jsx";
 import Panel from "./components/Panel.jsx";
-import { StoneStateProvider } from "./utils/stoneState.js";
+import { StoneStateProvider } from "./utils/stoneState.jsx";
 import { defaultData, loadData, resetData, saveData } from "./utils/storage.js";
 import { soundManager } from "./utils/soundManager.js";
 
@@ -17,14 +17,9 @@ import OpenclawDashboard from "./components/openclawDashboard.jsx";
 import CoreTab from "./components/CoreTab.jsx";
 import MemoryTab from "./components/MemoryTab.jsx";
 import TerminalTab from "./components/TerminalTab.jsx";
-import PersonalBrainDashboard from "./components/PersonalBrainDashboard.jsx";
-import { getRealmProfile } from "./config/realmProfiles.js";
 
 export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
-export type EnergyPalette = "gold" | "blue" | "green" | "red" | "violet" | "orange" | "neutral";
-
-const NineRouterDashboardView = NineRouterDashboard as ComponentType<any>;
-const OpenclawDashboardView = OpenclawDashboard as ComponentType<any>;
+export type EnergyPalette = "gold" | "blue" | "green" | "red" | "violet" | "orange";
 
 export default function App() {
   const [booting, setBooting] = useState(true);
@@ -36,7 +31,7 @@ export default function App() {
   const [chatOpen, setChatOpen] = useState(false);
   const [authenticated, setAuthenticated] = useState(!data.auth?.pinEnabled);
   const [activity, setActivity] = useState<AiActivity>("idle");
-  const [energyPalette, setEnergyPalette] = useState<EnergyPalette>("neutral");
+  const [energyPalette, setEnergyPalette] = useState<EnergyPalette>("gold");
   const [resetViewSignal, setResetViewSignal] = useState(0);
   const [hudVisible, setHudVisible] = useState(true);
 
@@ -62,6 +57,19 @@ export default function App() {
   }, [activity]);
 
   useEffect(() => {
+    const blockClipboard = (event: ClipboardEvent) => event.preventDefault();
+    const blockContextMenu = (event: MouseEvent) => event.preventDefault();
+    document.addEventListener("copy", blockClipboard);
+    document.addEventListener("cut", blockClipboard);
+    document.addEventListener("contextmenu", blockContextMenu);
+    return () => {
+      document.removeEventListener("copy", blockClipboard);
+      document.removeEventListener("cut", blockClipboard);
+      document.removeEventListener("contextmenu", blockContextMenu);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!toast) return undefined;
     const timer = window.setTimeout(() => setToast(""), 2600);
     return () => window.clearTimeout(timer);
@@ -72,7 +80,7 @@ export default function App() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() === "h") setHudVisible((visible) => !visible);
       if (event.key === "Escape") {
-        setEnergyPalette("neutral");
+        setEnergyPalette("gold");
         setChatOpen(false);
       }
       if (event.key === "1") setActivity("idle");
@@ -94,36 +102,28 @@ export default function App() {
     }).format(now);
   }, [now]);
 
-  const intensityClassMap: Record<string, string> = {
+  const intensityClass = {
     Low: "theme-low",
     Medium: "theme-medium",
     High: "theme-high",
-  };
-  const intensityClass = intensityClassMap[data.themeIntensity] || "theme-medium";
+  }[data.themeIntensity] || "theme-medium";
 
   const addLog = (message: string) => {
     const stamp = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" }).format(new Date());
-    setData((current: any) => ({
+    setData((current) => ({
       ...current,
       logs: [...(current.logs || []), `[${stamp}] ${message}`].slice(-16),
     }));
   };
 
   const updateData = (patch: any) => {
-    setData((current: any) => ({ ...current, ...patch }));
+    setData((current) => ({ ...current, ...patch }));
   };
 
-  const copyText = async (text: string, message: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setToast(message);
-      addLog(message);
-      soundManager.play("success");
-    } catch {
-      setToast("Clipboard access blocked by browser.");
-      addLog("Clipboard access blocked.");
-      soundManager.play("warning");
-    }
+  const copyText = async (_text: string, _message: string) => {
+    setToast("Copy đã bị khóa trên hệ thống này.");
+    addLog("Clipboard export blocked by system policy.");
+    soundManager.play("warning");
   };
 
   const hardReset = () => {
@@ -157,8 +157,6 @@ export default function App() {
     }
   };
 
-  const activeRealm = getRealmProfile(energyPalette);
-
   if (!authenticated) {
     return <AuthScreen data={data} onUnlock={() => setAuthenticated(true)} />;
   }
@@ -168,7 +166,11 @@ export default function App() {
       <main className={`jarvis-shell min-h-dvh overflow-hidden bg-void text-cyan-50 ${intensityClass}`}>
         {/* WebGL 3D Canvas Background */}
         <div className="orb-stage fixed inset-0 z-0">
-          <CinematicOrb activity={activity} palette={energyPalette} resetSignal={resetViewSignal} />
+          <CinematicOrb
+            activity={activity}
+            palette={energyPalette}
+            resetSignal={resetViewSignal}
+          />
         </div>
 
         {booting && <BootScreen />}
@@ -181,7 +183,7 @@ export default function App() {
         </div>
 
         {/* Main UI Overlay */}
-        <div className={`relative z-20 flex h-dvh flex-col transition-opacity duration-300 ${hudVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+        <div className={`legacy-console-overlay relative z-20 flex h-dvh flex-col transition-opacity duration-300 ${hudVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
           <TopBar data={data} currentTime={currentTime} />
 
           {/* Deck tab switcher */}
@@ -202,15 +204,6 @@ export default function App() {
 
           <main className="min-w-0 flex-1 overflow-auto p-4 lg:p-6">
             {activeDeck === "command" ? (
-              energyPalette === "neutral" ? (
-                /* Neutral Chamber View */
-                <CommandCenter
-                  data={data}
-                  currentTime={currentTime}
-                  onStoneClick={handleStoneClick}
-                  onOpenChat={() => setChatOpen(true)}
-                />
-              ) : (
                 /* Active Realm View */
                 <div className="active-realm-container flex flex-col h-full">
                   <div className="flex items-center justify-between mb-4 bg-slate-950/80 p-3 rounded border border-cyan-300/20 backdrop-blur-md">
@@ -218,7 +211,7 @@ export default function App() {
                       <button
                         onClick={() => {
                           soundManager.play("beep");
-                          setEnergyPalette("neutral");
+                          setEnergyPalette("gold");
                         }}
                         className="hud-button primary px-4 py-2 font-mono text-xs uppercase"
                       >
@@ -227,7 +220,12 @@ export default function App() {
                       <h2 className="font-mono text-lg text-cyan-100 uppercase tracking-wider">
                         Realm:{" "}
                         <span className="text-amberCore">
-                          {activeRealm?.title}
+                          {energyPalette === "gold" && "Mind Realm"}
+                          {energyPalette === "blue" && "Space Realm"}
+                          {energyPalette === "green" && "Time Realm"}
+                          {energyPalette === "red" && "Reality Realm"}
+                          {energyPalette === "violet" && "Power Realm"}
+                          {energyPalette === "orange" && "Soul Realm"}
                         </span>
                       </h2>
                     </div>
@@ -242,25 +240,25 @@ export default function App() {
                     <div className="lg:col-span-2 overflow-auto bg-slate-950/40 p-4 rounded border border-cyan-300/10 backdrop-blur-sm">
                       {energyPalette === "gold" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">MIND REALM - CLAUDE CODE LOCAL AI CORE</p>
+                          <p className="font-mono text-sm text-cyan-100/60">🧠 MIND REALUM - KNOWLEDGE CORE & DEV INTERFACE</p>
                           <MemoryTab data={data} updateData={updateData} copyText={copyText} />
                         </div>
                       )}
                       {energyPalette === "blue" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">SPACE REALM - 9ROUTER MODEL ROUTING GATEWAY</p>
-                          <NineRouterDashboardView data={data} updateData={updateData} addLog={addLog} />
+                          <p className="font-mono text-sm text-cyan-100/60">🌌 SPACE REALM - 9ROUTER MULTI-MODEL GATEWAY</p>
+                          <NineRouterDashboard data={data} updateData={updateData} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "green" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">TIME REALM - HERMES NOTION TEMPORAL OS</p>
-                          <TerminalTab data={data} addLog={addLog} updateData={updateData} copyText={copyText} />
+                          <p className="font-mono text-sm text-cyan-100/60">⏳ TIME REALM - PERSONAL SCHEDULE & OS ENGINE</p>
+                          <TerminalTab data={data} addLog={addLog} updateData={updateData} />
                         </div>
                       )}
                       {energyPalette === "red" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">REALITY REALM - HERMES FINANCE VAULT</p>
+                          <p className="font-mono text-sm text-cyan-100/60">💎 REALITY REALM - FINANCIAL Citadel & LEDGER</p>
                           <Panel title="Finance Status" kicker="Obsidian Vault Ledger">
                             <div className="p-4 bg-slate-950/60 rounded border border-cyan-300/15 font-mono text-sm text-cyan-100/80">
                               <p className="text-greenCore mb-2">ACCOUNT OK - BALANCE POSITIVE</p>
@@ -280,21 +278,21 @@ export default function App() {
                       )}
                       {energyPalette === "violet" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">POWER REALM - OPENCLAW AI AGENT VIRTUAL OFFICE</p>
-                          <OpenclawDashboardView data={data} updateData={updateData} addLog={addLog} />
+                          <p className="font-mono text-sm text-cyan-100/60">⚡ POWER REALM - OPENCLAW TACTICAL WORKFORCE</p>
+                          <OpenclawDashboard data={data} updateData={updateData} addLog={addLog} />
                         </div>
                       )}
                       {energyPalette === "orange" && (
                         <div className="space-y-4">
-                          <p className="font-mono text-sm text-cyan-100/60">SOUL REALM - PERSONAL AGENT BRAIN MONITOR</p>
-                          <PersonalBrainDashboard data={data} />
+                          <p className="font-mono text-sm text-cyan-100/60">🔥 SOUL REALM - PERSONAL IDENTITY & INTEGRITY</p>
+                          <CoreTab data={data} updateData={updateData} />
                         </div>
                       )}
                     </div>
 
                     {/* Right Column (Side Controls & System Stats) */}
                     <div className="space-y-6 overflow-auto">
-                      <Panel title="Local Orchestrator" kicker={activeRealm?.bridge || "Hermes Controller"}>
+                      <Panel title="Local Orchestrator" kicker="Hermes Controller">
                         <div className="space-y-3 font-mono text-xs text-cyan-100/70">
                           <div className="flex justify-between items-center bg-cyan-300/5 p-2 rounded">
                             <span>Status:</span>
@@ -302,27 +300,13 @@ export default function App() {
                           </div>
                           <div className="flex justify-between items-center bg-cyan-300/5 p-2 rounded">
                             <span>API Bridge:</span>
-                            <span>{activeRealm ? data.endpoints?.[activeRealm.endpointKey] || activeRealm.endpointFallback : data.endpoints?.hermes || "http://localhost:8080"}</span>
-                          </div>
-                          {activeRealm && (
-                            <div className="rounded border border-cyan-300/10 bg-slate-950/50 p-2 leading-relaxed">
-                              <p className="mb-1 text-cyanCore">{activeRealm.visual}</p>
-                              <p className="text-cyan-100/55">{activeRealm.duty}</p>
-                            </div>
-                          )}
-                          <div className="grid gap-2">
-                            {(activeRealm?.modules || []).map((module: string) => (
-                              <div key={module} className="flex items-center justify-between rounded bg-cyan-300/5 p-2">
-                                <span>{module}</span>
-                                <span className="text-cyanCore">READY</span>
-                              </div>
-                            ))}
+                            <span>{data.endpoints?.hermes || "http://localhost:8080"}</span>
                           </div>
                           <button
                             onClick={() => setChatOpen(true)}
                             className="hud-button primary w-full py-2 text-xs"
                           >
-                            Open Chat Console
+                            💬 Open Chat Console
                           </button>
                         </div>
                       </Panel>
@@ -346,7 +330,6 @@ export default function App() {
                     </div>
                   </div>
                 </div>
-              )
             ) : (
               /* Administrative Deck View */
               <MissionControlDeck
@@ -364,22 +347,20 @@ export default function App() {
           {/* Quick status toast */}
           {toast && (
             <div className="toast-notify fixed bottom-6 right-6 z-50 rounded border border-cyan-300/30 bg-slate-950/90 px-4 py-3 font-mono text-xs uppercase text-cyanCore shadow-lg shadow-cyan-950/50 backdrop-blur-xl">
-              {toast}
+              ⚡ {toast}
             </div>
           )}
 
-          {/* Bottom quick chat trigger */}
-          {activeDeck === "command" && energyPalette === "neutral" && (
-            <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30">
-              <button
-                onClick={() => setChatOpen(true)}
-                className="hud-button primary px-6 py-3 font-mono text-sm tracking-wider uppercase shadow-lg shadow-cyan-950/80"
-              >
-                Kích hoạt Hermes
-              </button>
-            </div>
-          )}
         </div>
+
+        {hudVisible && (
+          <HudOverlay
+            palette={energyPalette}
+            onActivityChange={setActivity}
+            onPaletteChange={setEnergyPalette}
+            onResetView={() => setResetViewSignal((signal) => signal + 1)}
+          />
+        )}
 
         {/* Slide-out Hermes Chat Drawer */}
         {chatOpen && (
