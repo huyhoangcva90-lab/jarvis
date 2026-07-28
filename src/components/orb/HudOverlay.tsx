@@ -9,7 +9,6 @@ type Message = {
 };
 
 type Palette = EnergyPalette;
-type HudTheme = "web" | "gold";
 type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "maximize" | "mic" | "attach" | "screen" | "send";
 
 const STORAGE_KEY = "jarvis.commandOrb.v2";
@@ -41,17 +40,6 @@ const paletteLabels: Record<Palette, string> = {
   red: "Reality Legacy",
   violet: "Power Legacy",
   orange: "Cosmic Soul"
-};
-
-const hudThemeLabels: Record<HudTheme, { label: string; detail: string }> = {
-  web: {
-    label: "Web White",
-    detail: "Main web trắng/sạch, ưu tiên đọc và thao tác."
-  },
-  gold: {
-    label: "Gold JARVIS",
-    detail: "Chế độ vàng cinematic cho command orb."
-  }
 };
 
 const activityLabels: Record<AiActivity, string> = {
@@ -196,7 +184,6 @@ function loadState() {
     return JSON.parse(raw) as {
       messages?: Message[];
       palette?: Palette;
-      hudTheme?: HudTheme;
       voiceReply?: boolean;
       handsFree?: boolean;
       advisorMode?: boolean;
@@ -233,9 +220,6 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const [listening, setListening] = useState(false);
   const [activity, setActivity] = useState<AiActivity>("idle");
-  const [hudTheme, setHudTheme] = useState<HudTheme>(() =>
-    initial?.hudTheme === "gold" || initial?.hudTheme === "web" ? initial.hudTheme : "web"
-  );
   const [toast, setToast] = useState("");
   const recognitionRef = useRef<any>(null);
   const voiceModeRef = useRef(false);
@@ -253,17 +237,11 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
   const historyDrag = usePanelDrag();
   const settingsDrag = usePanelDrag();
 
-  const changeHudTheme = (theme: HudTheme) => {
-    setHudTheme(theme);
-    if (theme === "gold") onPaletteChange("gold");
-  };
-
   useEffect(() => {
-    document.body.dataset.palette = palette;
-    document.body.dataset.hudTheme = hudTheme;
-    onPaletteChange(palette);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, palette, hudTheme, voiceReply, handsFree, advisorMode }));
-  }, [advisorMode, handsFree, hudTheme, messages, onPaletteChange, palette, voiceReply]);
+    document.body.dataset.palette = "gold";
+    document.body.dataset.hudTheme = "gold";
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, palette: "gold", voiceReply, handsFree, advisorMode }));
+  }, [advisorMode, handsFree, messages, voiceReply]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
   useEffect(() => { activityRef.current = activity; }, [activity]);
@@ -466,8 +444,6 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
     ],
     [advisorMode, localNow, messages.length, palette, voiceMode]
   );
-  const coreModes = Object.keys(paletteLabels) as Palette[];
-
   const toggleHistory = () => {
     setHistoryOpen((current) => !current);
   };
@@ -506,19 +482,6 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
             <i />
             <i />
             <b />
-          </div>
-          <div className="hub-core-strip" aria-label="6 core modes">
-            {coreModes.map((key) => (
-              <button
-                className={palette === key ? "active" : ""}
-                key={key}
-                type="button"
-                onClick={() => onPaletteChange(key)}
-              >
-                <i />
-                <span>{paletteLabels[key]}</span>
-              </button>
-            ))}
           </div>
           <div className="hub-modules">
             {moduleStatus.map((item) => (
@@ -569,23 +532,6 @@ export default function HudOverlay({ palette, onActivityChange, onPaletteChange,
             <label className="toggle-row"><span>Chế độ cố vấn</span><input checked={advisorMode} type="checkbox" onChange={(event) => setAdvisorMode(event.target.checked)} /></label>
             <label className="toggle-row"><span>Tự nghe tiếp</span><input checked={handsFree} type="checkbox" onChange={(event) => setHandsFree(event.target.checked)} /></label>
             <label className="toggle-row"><span>Đọc phản hồi</span><input checked={voiceReply} type="checkbox" onChange={(event) => setVoiceReply(event.target.checked)} /></label>
-          </section>
-          <section className="settings-block">
-            <div className="settings-block-head"><span>Giao diện web</span></div>
-            <div className="theme-mode-grid">
-              {(Object.keys(hudThemeLabels) as HudTheme[]).map((key) => (
-                <button className={hudTheme === key ? "active" : ""} key={key} type="button" onClick={() => changeHudTheme(key)}>
-                  <b>{hudThemeLabels[key].label}</b>
-                  <small>{hudThemeLabels[key].detail}</small>
-                </button>
-              ))}
-            </div>
-          </section>
-          <section className="settings-block">
-            <div className="settings-block-head"><span>Màu năng lượng</span></div>
-            <div className="palette-grid">
-              {(Object.keys(paletteLabels) as Palette[]).map((key) => <button className={palette === key ? "active" : ""} key={key} type="button" onClick={() => onPaletteChange(key)}><i />{paletteLabels[key]}</button>)}
-            </div>
           </section>
           <section className="settings-actions">
             <button type="button" onClick={() => window.open("https://chatgpt.com/", "_blank", "noopener,noreferrer")}><Icon name="external" /><span>Mở ChatGPT Web</span></button>

@@ -99,6 +99,14 @@ button {
   background: #000;
 }
 
+.minimal-gold-shell {
+  color: #fff7db;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(250, 204, 21, 0.08), transparent 32%),
+    radial-gradient(circle at 50% 50%, rgba(255, 122, 24, 0.06), transparent 48%),
+    #000;
+}
+
 .jarvis-shell::before {
   content: "";
   position: absolute;
@@ -1515,7 +1523,7 @@ body[data-activity="speaking"] .prompt-shell {
   width: min(292px, 25vw);
   min-width: 252px;
   display: grid;
-  grid-template-rows: auto 138px auto 1fr;
+  grid-template-rows: auto 138px 1fr;
   border: 1px solid rgba(var(--accent-rgb), 0.18);
   border-radius: 4px;
   background:
@@ -1617,6 +1625,19 @@ body[data-activity="speaking"] .prompt-shell {
   align-content: start;
   padding: 12px;
   scrollbar-color: var(--accent) transparent;
+}
+
+.gold-orb-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at center, transparent 0 38%, rgba(0, 0, 0, 0.38) 72%, #000 100%),
+    linear-gradient(rgba(250, 204, 21, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(250, 204, 21, 0.022) 1px, transparent 1px);
+  background-size: auto, 52px 52px, 52px 52px;
+  opacity: 0.82;
 }
 
 .hub-core-strip {
@@ -2101,7 +2122,7 @@ body[data-activity="speaking"] .prompt-shell {
     min-width: 0;
     max-height: min(36dvh, 300px);
     display: grid;
-    grid-template-rows: auto 74px auto 1fr;
+    grid-template-rows: auto 74px 1fr;
     border-radius: 4px;
     background: rgba(2, 2, 2, 0.9);
     box-shadow: 0 16px 44px rgba(0, 0, 0, 0.56), inset 0 0 28px rgba(var(--accent-rgb), 0.035);
