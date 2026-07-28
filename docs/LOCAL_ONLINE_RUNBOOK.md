@@ -106,19 +106,30 @@ curl.exe https://jarvisidhuykl.huykl.id.vn/health
 J-Core gửi hội thoại tới `/api/ai/chat`. Gateway thử lần lượt:
 
 1. Hermes (`HERMES_CHAT_URL`)
-2. 9Router (`NINEROUTER_CHAT_URL`)
-3. Claude bridge (`CLAUDE_CHAT_URL`)
+2. OpenClaw (`OPENCLAW_CHAT_URL`)
+3. 9Router (`NINEROUTER_CHAT_URL`)
+4. Claude bridge (`CLAUDE_CHAT_URL`)
 
 Chỉ cần ít nhất một endpoint chat hoạt động là J-Core có thể trả lời. OpenClaw
-không phải chat backend; nó nhận nhiệm vụ qua `OPENCLAW_TASK_URL`.
+có endpoint tương thích OpenAI nhưng mặc định bị tắt. Bật bằng:
+
+```bash
+openclaw config set gateway.http.endpoints.chatCompletions.enabled true
+openclaw gateway restart
+```
+
+Sau đó cấu hình `OPENCLAW_CHAT_URL=http://127.0.0.1:18789/v1/chat/completions`
+và `OPENCLAW_MODEL=openclaw/default`. `OPENCLAW_TASK_URL` vẫn dành cho một
+endpoint nhiệm vụ riêng nếu bạn tự cài thêm.
 
 Ví dụ cấu hình tối thiểu nếu 9Router cung cấp API tương thích OpenAI:
 
 ```env
-NINEROUTER_BASE_URL=http://127.0.0.1:9000
-NINEROUTER_HEALTH_URL=http://127.0.0.1:9000/health
-NINEROUTER_CHAT_URL=http://127.0.0.1:9000/v1/chat/completions
-NINEROUTER_API_KEY=<token-neu-co>
+NINEROUTER_BASE_URL=http://127.0.0.1:20128
+NINEROUTER_HEALTH_URL=http://127.0.0.1:20128/v1/models
+NINEROUTER_CHAT_URL=http://127.0.0.1:20128/v1/chat/completions
+NINEROUTER_API_KEY=<token-tao-trong-dashboard>
+NINEROUTER_MODEL=<model-id-trong-dashboard>
 ```
 
 Claude Code CLI không tự mở HTTP API. Không cho gateway public chạy trực tiếp

@@ -30,22 +30,26 @@ if (!TOKEN && !IS_LOOPBACK) {
 
 const services = {
   hermes: {
-    base: process.env.HERMES_BASE_URL || "http://127.0.0.1:8080",
-    health: process.env.HERMES_HEALTH_URL || "http://127.0.0.1:8080/health",
+    base: process.env.HERMES_BASE_URL || "http://127.0.0.1:8642",
+    health: process.env.HERMES_HEALTH_URL || "http://127.0.0.1:8642/v1/models",
     chat: process.env.HERMES_CHAT_URL || "",
     apiKey: process.env.HERMES_API_KEY || "",
+    model: process.env.HERMES_MODEL || "hermes-agent",
   },
   openclaw: {
     base: process.env.OPENCLAW_BASE_URL || "http://127.0.0.1:18789",
-    health: process.env.OPENCLAW_HEALTH_URL || "http://127.0.0.1:18789/health",
+    health: process.env.OPENCLAW_HEALTH_URL || "http://127.0.0.1:18789/v1/models",
+    chat: process.env.OPENCLAW_CHAT_URL || "",
     task: process.env.OPENCLAW_TASK_URL || "",
     apiKey: process.env.OPENCLAW_API_KEY || "",
+    model: process.env.OPENCLAW_MODEL || "openclaw/default",
   },
   nineRouter: {
-    base: process.env.NINEROUTER_BASE_URL || "http://127.0.0.1:9000",
-    health: process.env.NINEROUTER_HEALTH_URL || "http://127.0.0.1:9000/health",
+    base: process.env.NINEROUTER_BASE_URL || "http://127.0.0.1:20128",
+    health: process.env.NINEROUTER_HEALTH_URL || "http://127.0.0.1:20128/v1/models",
     chat: process.env.NINEROUTER_CHAT_URL || "",
     apiKey: process.env.NINEROUTER_API_KEY || "",
+    model: process.env.NINEROUTER_MODEL || "",
   },
   claude: {
     base: process.env.CLAUDE_BASE_URL || "http://127.0.0.1:3001",
@@ -98,12 +102,13 @@ async function readJson(req) {
   return JSON.parse(raw);
 }
 
-async function probe(url) {
+async function probe(url, apiKey = "") {
   const started = Date.now();
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 1800);
-    const response = await fetch(url, { method: "GET", signal: controller.signal });
+    const headers = apiKey ? { authorization: `Bearer ${apiKey}` } : {};
+    const response = await fetch(url, { method: "GET", headers, signal: controller.signal });
     clearTimeout(timeout);
     return {
       online: response.ok || response.status < 500,
@@ -166,6 +171,23 @@ async function proxyJson(url, payload, apiKey = "") {
   }
 }
 
+function toOpenAiPayload(payload, model) {
+  const messages = Array.isArray(payload.messages)
+    ? payload.messages
+    : payload.message
+      ? [{ role: "user", content: String(payload.message) }]
+      : [];
+  const result = {
+    model: payload.model || model,
+    messages,
+    stream: false,
+  };
+  if (payload.operator) result.user = String(payload.operator);
+  if (payload.temperature !== undefined) result.temperature = payload.temperature;
+  if (payload.max_tokens !== undefined) result.max_tokens = payload.max_tokens;
+  return result;
+}
+
 const server = createServer(async (req, res) => {
   if (req.method === "OPTIONS") return sendJson(req, res, 204, {});
   if (!authorized(req)) return sendJson(req, res, 401, { error: "unauthorized" });
@@ -175,16 +197,16 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "GET" && url.pathname === "/health") {
       const [hermes, openclaw, nineRouter, claude] = await Promise.all([
-        probe(services.hermes.health),
-        probe(services.openclaw.health),
-        probe(services.nineRouter.health),
-        probe(services.claude.health),
+        probe(services.hermes.health, services.hermes.apiKey),
+        probe(services.openclaw.health, services.openclaw.apiKey),
+        probe(services.nineRouter.health, services.nineRouter.apiKey),
+        probe(services.claude.health, services.claude.apiKey),
       ]);
       return sendJson(req, res, 200, {
         gateway: { online: true, host: HOST, port: PORT },
         services: {
           hermes: { ...hermes, configured: Boolean(services.hermes.chat) },
-          openclaw: { ...openclaw, configured: Boolean(services.openclaw.task) },
+          openclaw: { ...openclaw, configured: Boolean(services.openclaw.chat || services.openclaw.task) },
           nineRouter: { ...nineRouter, configured: Boolean(services.nineRouter.chat) },
           claude: { ...claude, configured: Boolean(services.claude.chat) },
         },
@@ -194,9 +216,10 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/ai/chat") {
       const body = await readJson(req);
       const candidates = [
-        ["hermes", services.hermes.chat, services.hermes.apiKey],
-        ["nineRouter", services.nineRouter.chat, services.nineRouter.apiKey],
-        ["claude", services.claude.chat, services.claude.apiKey],
+        ["hermes", services.hermes.chat, services.hermes.apiKey, services.hermes.model],
+        ["openclaw", services.openclaw.chat, services.openclaw.apiKey, services.openclaw.model],
+        ["nineRouter", services.nineRouter.chat, services.nineRouter.apiKey, services.nineRouter.model],
+        ["claude", services.claude.chat, services.claude.apiKey, ""],
       ].filter(([, endpoint]) => Boolean(endpoint));
 
       if (!candidates.length) {
@@ -204,8 +227,8 @@ const server = createServer(async (req, res) => {
       }
 
       const attempts = [];
-      for (const [name, endpoint, apiKey] of candidates) {
-        const result = await proxyJson(endpoint, body, apiKey);
+      for (const [name, endpoint, apiKey, model] of candidates) {
+        const result = await proxyJson(endpoint, toOpenAiPayload(body, model), apiKey);
         attempts.push({ source: name, status: result.status });
         if (result.ok) {
           return sendJson(req, res, 200, {
