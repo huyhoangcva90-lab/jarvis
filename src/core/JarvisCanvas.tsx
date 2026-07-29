@@ -6,10 +6,12 @@ import * as THREE from "three";
 
 import type { AiActivity, EnergyPalette } from "../App";
 import RealmTransition from "./RealmTransition";
+import { useReducedMotion } from "../utils/useReducedMotion";
 import { MindScene } from "../realms/mind/MindScene";
 import { SpaceScene } from "../realms/space/SpaceScene";
 import { RealityScene } from "../realms/reality/RealityScene";
 import { TimeScene } from "../realms/time/TimeScene";
+import { SpiderScene } from "../realms/spider/SpiderScene";
 
 type JarvisCanvasProps = {
   activity: AiActivity;
@@ -24,6 +26,7 @@ const CLEAR_COLORS: Record<string, string> = {
   red: "#080002",
   violet: "#040008",
   orange: "#080300",
+  spider: "#000408",
 };
 
 function getClearColor(palette: string) {
@@ -220,6 +223,7 @@ function PostFX({ activity, palette }: { activity: AiActivity; palette: string }
     // Tinh chinh bloom cho tung Realm
     if (palette === "green") return base * 1.04;
     if (palette === "blue") return base * 0.96;
+    if (palette === "spider") return base * 1.08;
     return base;
   }, [activity, palette]);
 
@@ -236,11 +240,13 @@ function PostFX({ activity, palette }: { activity: AiActivity; palette: string }
 }
 
 export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: JarvisCanvasProps) {
+  const reducedMotion = useReducedMotion();
   return (
     <div className="orb-webgl" aria-hidden="true">
       <Canvas
         camera={{ fov: 41, near: 0.1, far: 30, position: [0, 0, 7.15] }}
-        dpr={[1, 1.45]}
+        dpr={reducedMotion ? 1 : [1, 1.45]}
+        frameloop={reducedMotion ? "demand" : "always"}
         gl={{
           alpha: false,
           antialias: false,
@@ -276,6 +282,9 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: Jar
               }
               if (activePalette === "orange") {
                 return <MindScene activity={activity} palette="orange" />;
+              }
+              if (activePalette === "spider") {
+                return <SpiderScene activity={activity} />;
               }
               return <MindScene activity={activity} palette="gold" />;
             }}

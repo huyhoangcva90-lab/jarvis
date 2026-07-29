@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -23,6 +24,18 @@ const CORS_ORIGINS = (process.env.JCORE_CORS_ORIGIN || "*")
   .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
 const IS_LOOPBACK = new Set(["127.0.0.1", "localhost", "::1"]).has(HOST);
+const STARTED_AT = Date.now();
+const CIRCUIT_FAILURE_THRESHOLD = Number(process.env.JCORE_CIRCUIT_FAILURE_THRESHOLD || 3);
+const CIRCUIT_OPEN_MS = Number(process.env.JCORE_CIRCUIT_OPEN_MS || 30000);
+
+const gatewayStats = {
+  requests: 0,
+  aiRequests: 0,
+  successes: 0,
+  failures: 0,
+};
+
+const upstreamCircuits = new Map();
 
 if (!TOKEN && !IS_LOOPBACK) {
   throw new Error("JCORE_GATEWAY_TOKEN is required when the gateway listens beyond localhost.");
@@ -66,18 +79,21 @@ function getCorsOrigin(req) {
   return CORS_ORIGINS[0] || "null";
 }
 
-function sendJson(req, res, status, payload) {
+function sendJson(req, res, status, payload, extraHeaders = {}) {
   res.writeHead(status, {
     "content-type": "application/json; charset=utf-8",
     "cache-control": "no-store",
     "x-content-type-options": "nosniff",
+    "x-request-id": req.requestId,
     "access-control-allow-origin": getCorsOrigin(req),
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "content-type,authorization",
+    "access-control-allow-headers": "content-type,authorization,x-request-id",
+    "access-control-expose-headers": "x-request-id,x-jcore-upstream,server-timing",
     "access-control-max-age": "86400",
     "vary": "Origin",
+    ...extraHeaders,
   });
-  res.end(JSON.stringify(payload));
+  res.end(JSON.stringify({ requestId: req.requestId, ...payload }));
 }
 
 function authorized(req) {
@@ -125,6 +141,47 @@ async function probe(url, apiKey = "") {
   }
 }
 
+function getCircuit(name) {
+  if (!upstreamCircuits.has(name)) {
+    upstreamCircuits.set(name, {
+      failures: 0,
+      openUntil: 0,
+      lastStatus: null,
+      lastLatencyMs: null,
+      lastError: null,
+    });
+  }
+  return upstreamCircuits.get(name);
+}
+
+function circuitSnapshot(name) {
+  const circuit = getCircuit(name);
+  return {
+    state: circuit.openUntil > Date.now() ? "open" : circuit.failures > 0 ? "degraded" : "closed",
+    failures: circuit.failures,
+    retryAt: circuit.openUntil > Date.now() ? new Date(circuit.openUntil).toISOString() : null,
+    lastStatus: circuit.lastStatus,
+    lastLatencyMs: circuit.lastLatencyMs,
+    lastError: circuit.lastError,
+  };
+}
+
+function recordUpstreamResult(name, result) {
+  const circuit = getCircuit(name);
+  circuit.lastStatus = result.status;
+  circuit.lastLatencyMs = result.latencyMs;
+  circuit.lastError = result.ok ? null : result.error;
+  if (result.ok) {
+    circuit.failures = 0;
+    circuit.openUntil = 0;
+    return;
+  }
+  circuit.failures += 1;
+  if (circuit.failures >= CIRCUIT_FAILURE_THRESHOLD) {
+    circuit.openUntil = Date.now() + CIRCUIT_OPEN_MS;
+  }
+}
+
 function normalizeReply(data) {
   if (!data) return "";
   if (typeof data === "string") return data;
@@ -141,6 +198,7 @@ function normalizeReply(data) {
 }
 
 async function proxyJson(url, payload, apiKey = "") {
+  const started = Date.now();
   const headers = { "content-type": "application/json" };
   if (apiKey) headers.authorization = `Bearer ${apiKey}`;
   const controller = new AbortController();
@@ -159,12 +217,20 @@ async function proxyJson(url, payload, apiKey = "") {
     } catch {
       // keep raw text
     }
-    return { ok: response.ok, status: response.status, data };
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+      latencyMs: Date.now() - started,
+      error: response.ok ? null : normalizeReply(data) || data?.error || `upstream_${response.status}`,
+    };
   } catch (error) {
     return {
       ok: false,
       status: 0,
       data: { error: error?.name === "AbortError" ? "upstream_timeout" : "upstream_offline" },
+      latencyMs: Date.now() - started,
+      error: error?.name === "AbortError" ? "upstream_timeout" : "upstream_offline",
     };
   } finally {
     clearTimeout(timeout);
@@ -189,13 +255,17 @@ function toOpenAiPayload(payload, model) {
 }
 
 const server = createServer(async (req, res) => {
+  const suppliedRequestId = String(req.headers["x-request-id"] || "");
+  req.requestId = /^[a-zA-Z0-9._:-]{8,128}$/.test(suppliedRequestId) ? suppliedRequestId : randomUUID();
   if (req.method === "OPTIONS") return sendJson(req, res, 204, {});
+  gatewayStats.requests += 1;
   if (!authorized(req)) return sendJson(req, res, 401, { error: "unauthorized" });
 
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host}`);
 
     if (req.method === "GET" && url.pathname === "/health") {
+      const healthStarted = Date.now();
       const [hermes, openclaw, nineRouter, claude] = await Promise.all([
         probe(services.hermes.health, services.hermes.apiKey),
         probe(services.openclaw.health, services.openclaw.apiKey),
@@ -203,44 +273,70 @@ const server = createServer(async (req, res) => {
         probe(services.claude.health, services.claude.apiKey),
       ]);
       return sendJson(req, res, 200, {
-        gateway: { online: true, host: HOST, port: PORT },
-        services: {
-          hermes: { ...hermes, configured: Boolean(services.hermes.chat) },
-          openclaw: { ...openclaw, configured: Boolean(services.openclaw.chat || services.openclaw.task) },
-          nineRouter: { ...nineRouter, configured: Boolean(services.nineRouter.chat) },
-          claude: { ...claude, configured: Boolean(services.claude.chat) },
+        gateway: {
+          online: true,
+          host: HOST,
+          port: PORT,
+          startedAt: new Date(STARTED_AT).toISOString(),
+          uptimeSeconds: Math.floor((Date.now() - STARTED_AT) / 1000),
+          latencyMs: Date.now() - healthStarted,
+          stats: { ...gatewayStats },
         },
-      });
+        services: {
+          hermes: { ...hermes, configured: Boolean(services.hermes.chat), circuit: circuitSnapshot("hermes") },
+          openclaw: { ...openclaw, configured: Boolean(services.openclaw.chat || services.openclaw.task), circuit: circuitSnapshot("openclaw") },
+          nineRouter: { ...nineRouter, configured: Boolean(services.nineRouter.chat), circuit: circuitSnapshot("nineRouter") },
+          claude: { ...claude, configured: Boolean(services.claude.chat), circuit: circuitSnapshot("claude") },
+        },
+      }, { "server-timing": `gateway;dur=${Date.now() - healthStarted}` });
     }
 
     if (req.method === "POST" && url.pathname === "/api/ai/chat") {
+      gatewayStats.aiRequests += 1;
       const body = await readJson(req);
-      const candidates = [
+      const configuredCandidates = [
         ["hermes", services.hermes.chat, services.hermes.apiKey, services.hermes.model],
         ["openclaw", services.openclaw.chat, services.openclaw.apiKey, services.openclaw.model],
         ["nineRouter", services.nineRouter.chat, services.nineRouter.apiKey, services.nineRouter.model],
         ["claude", services.claude.chat, services.claude.apiKey, ""],
       ].filter(([, endpoint]) => Boolean(endpoint));
 
-      if (!candidates.length) {
+      if (!configuredCandidates.length) {
+        gatewayStats.failures += 1;
         return sendJson(req, res, 503, { error: "ai_not_configured" });
       }
 
+      const availableCandidates = configuredCandidates.filter(([name]) => getCircuit(name).openUntil <= Date.now());
+      const candidates = availableCandidates.length
+        ? availableCandidates
+        : [...configuredCandidates].sort(([a], [b]) => getCircuit(a).openUntil - getCircuit(b).openUntil).slice(0, 1);
       const attempts = [];
       for (const [name, endpoint, apiKey, model] of candidates) {
         const result = await proxyJson(endpoint, toOpenAiPayload(body, model), apiKey);
-        attempts.push({ source: name, status: result.status });
+        recordUpstreamResult(name, result);
+        attempts.push({
+          source: name,
+          status: result.status,
+          latencyMs: result.latencyMs,
+          error: result.error,
+          circuit: circuitSnapshot(name).state,
+        });
         if (result.ok) {
+          gatewayStats.successes += 1;
           return sendJson(req, res, 200, {
             reply: normalizeReply(result.data),
             upstreamStatus: result.status,
             raw: result.data,
             source: name,
             attempts,
+          }, {
+            "x-jcore-upstream": name,
+            "server-timing": attempts.map((attempt) => `${attempt.source};dur=${attempt.latencyMs}`).join(", "),
           });
         }
       }
 
+      gatewayStats.failures += 1;
       return sendJson(req, res, 502, {
         error: "all_ai_upstreams_failed",
         attempts,

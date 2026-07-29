@@ -41,7 +41,8 @@ const paletteLabels: Record<Palette, string> = {
   green: "Agamotto Time",
   red: "Reality Legacy",
   violet: "Power Lattice",
-  orange: "Cosmic Soul"
+  orange: "Cosmic Soul",
+  spider: "Spider Neural"
 };
 
 const activityLabels: Record<AiActivity, string> = {
@@ -322,6 +323,13 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       openclaw: boolean;
       nineRouter: boolean;
       claude: boolean;
+      latencyMs?: number | null;
+      requestId?: string | null;
+      services?: Record<string, {
+        latencyMs?: number;
+        status?: number;
+        circuit?: { state?: string };
+      }>;
       error?: string | null;
     };
   };
@@ -498,10 +506,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     } catch (error) {
       if (controller.signal.aborted) return;
       const message = error instanceof Error ? error.message : "Không thể kết nối AI upstream.";
+      const traceId = (error as any)?.requestId || (error as any)?.details?.requestId;
       const reply = {
         id: createId(),
         role: "assistant" as const,
-        text: `AI link đang lỗi: ${message}`,
+        text: `AI link đang lỗi: ${message}${traceId ? ` · Trace ${traceId}` : ""}`,
         at: Date.now(),
       };
       setMessages((current) => [...current, reply].slice(-80));
@@ -648,19 +657,32 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     }
   };
 
-  const moduleStatus = useMemo(
-    () => [
-      { label: "GATEWAY", value: connections.gateway ? "ONLINE" : "OFFLINE", detail: data.endpoints?.gateway || "Chưa cấu hình", tone: connections.gateway ? "online" : "offline" },
-      { label: "HERMES", value: connections.hermes ? "AI READY" : "OFFLINE", detail: "Chat orchestrator qua gateway", tone: connections.hermes ? "online" : "offline" },
-      { label: "OPENCLAW", value: connections.openclaw ? "ONLINE" : "OFFLINE", detail: "Agent workforce upstream", tone: connections.openclaw ? "online" : "offline" },
-      { label: "9ROUTER", value: connections.nineRouter ? "ONLINE" : "OFFLINE", detail: "Multi-model routing upstream", tone: connections.nineRouter ? "online" : "offline" },
-      { label: "CLAUDE", value: connections.claude ? "AI READY" : "OFFLINE", detail: "Optional local Claude bridge", tone: connections.claude ? "online" : "offline" },
-      { label: "VOICE", value: voiceMode ? "OPEN CHANNEL" : "STANDBY", detail: advisorMode ? "Co van, loc cau vu vo" : "Phan hoi moi cau nghe duoc" },
-      { label: "MODE", value: paletteLabels[palette].toUpperCase(), detail: "Orb doi mau va cau truc" },
-      { label: "MEMORY", value: `${messages.length} LOGS`, detail: "Luu cuc bo trong trinh duyet" }
-    ],
-    [advisorMode, connections.claude, connections.gateway, connections.hermes, connections.nineRouter, connections.openclaw, data.endpoints?.gateway, messages.length, palette, voiceMode]
-  );
+  const moduleStatus = useMemo(() => {
+    const serviceDetail = (key: string, fallback: string) => {
+      const service = connections.services?.[key];
+      if (!service) return fallback;
+      const latency = Number.isFinite(service.latencyMs) ? `${service.latencyMs}ms` : null;
+      const circuit = service.circuit?.state && service.circuit.state !== "closed"
+        ? `circuit ${service.circuit.state}`
+        : null;
+      return [latency, circuit, fallback].filter(Boolean).join(" · ");
+    };
+    const gatewayDetail = [
+      Number.isFinite(connections.latencyMs) ? `${connections.latencyMs}ms` : null,
+      data.endpoints?.gateway || "Chưa cấu hình",
+    ].filter(Boolean).join(" · ");
+
+    return [
+      { label: "GATEWAY", value: connections.gateway ? "ONLINE" : "OFFLINE", detail: gatewayDetail, tone: connections.gateway ? "online" : "offline" },
+      { label: "HERMES", value: connections.hermes ? "AI READY" : "OFFLINE", detail: serviceDetail("hermes", "Chat orchestrator"), tone: connections.hermes ? "online" : "offline" },
+      { label: "OPENCLAW", value: connections.openclaw ? "ONLINE" : "OFFLINE", detail: serviceDetail("openclaw", "Agent workforce"), tone: connections.openclaw ? "online" : "offline" },
+      { label: "9ROUTER", value: connections.nineRouter ? "ONLINE" : "OFFLINE", detail: serviceDetail("nineRouter", "Multi-model routing"), tone: connections.nineRouter ? "online" : "offline" },
+      { label: "CLAUDE", value: connections.claude ? "AI READY" : "OFFLINE", detail: serviceDetail("claude", "Reasoning bridge"), tone: connections.claude ? "online" : "offline" },
+      { label: "VOICE", value: voiceMode ? "OPEN CHANNEL" : "STANDBY", detail: advisorMode ? "Cố vấn, lọc câu vu vơ" : "Phản hồi mọi câu nghe được" },
+      { label: "MODE", value: paletteLabels[palette].toUpperCase(), detail: "Orb đổi màu và cấu trúc" },
+      { label: "MEMORY", value: `${messages.length} LOGS`, detail: "Lưu cục bộ trong trình duyệt" }
+    ];
+  }, [advisorMode, connections, data.endpoints?.gateway, messages.length, palette, voiceMode]);
 
   const pushTerminal = (lines: string | string[]) => {
     const nextLines = Array.isArray(lines) ? lines : [lines];

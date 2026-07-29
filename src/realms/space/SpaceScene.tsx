@@ -2,6 +2,7 @@ import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { HypercubeSystem } from "./HypercubeSystem";
+import { OrbEnergyField } from "../shared/OrbEnergyField";
 
 type SpaceActivity = "idle" | "listening" | "thinking" | "speaking";
 
@@ -27,6 +28,14 @@ export function SpaceScene({ activity = "idle" }: { activity?: SpaceActivity }) 
 
   return (
     <group>
+      <OrbEnergyField
+        activity={activity}
+        color="#087eaa"
+        hotColor="#b9f5ff"
+        radius={2.18}
+        particleCount={240}
+        opacity={0.42}
+      />
       <HypercubeSystem activity={activity} />
       <points ref={starField} geometry={stars}>
         <pointsMaterial blending={THREE.AdditiveBlending} color="#38d9ff" depthWrite={false} opacity={0.34} size={0.022} sizeAttenuation toneMapped={false} transparent />

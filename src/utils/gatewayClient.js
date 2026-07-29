@@ -6,7 +6,7 @@ const GATEWAY_ERROR_MESSAGES = {
   openclaw_not_configured: "OpenClaw task endpoint chưa được cấu hình trên gateway.",
   ninerouter_not_configured: "9Router chat endpoint chưa được cấu hình trên gateway.",
   claude_not_configured: "Claude bridge chưa được cấu hình trên gateway.",
-  ai_not_configured: "Chưa có Hermes, 9Router hoặc Claude bridge nào được cấu hình để trả lời.",
+  ai_not_configured: "Chưa có AI upstream nào được cấu hình để trả lời.",
   all_ai_upstreams_failed: "Tất cả AI upstream đã cấu hình đều không phản hồi.",
   payload_too_large: "Dữ liệu gửi lên vượt quá giới hạn gateway.",
   upstream_timeout: "Dịch vụ phía sau gateway phản hồi quá chậm.",
@@ -22,10 +22,18 @@ export function getGatewayConfig(data) {
   };
 }
 
+function createRequestId() {
+  return (
+    globalThis.crypto?.randomUUID?.() ||
+    `jcore-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  );
+}
+
 export async function gatewayFetch(data, path, options = {}) {
   const { gateway, token } = getGatewayConfig(data);
   const { timeoutMs = 15000, headers: optionHeaders, ...fetchOptions } = options;
-  const headers = { ...(optionHeaders || {}) };
+  const requestId = createRequestId();
+  const headers = { "x-request-id": requestId, ...(optionHeaders || {}) };
   if (fetchOptions.body && !headers["content-type"]) {
     headers["content-type"] = "application/json";
   }
@@ -52,20 +60,35 @@ export async function gatewayFetch(data, path, options = {}) {
     } catch {
       json = { raw: text };
     }
+
+    const responseRequestId = response.headers.get("x-request-id") || json.requestId || requestId;
+    json.requestId = responseRequestId;
+    json.meta = {
+      ...(json.meta || {}),
+      requestId: responseRequestId,
+      upstream: response.headers.get("x-jcore-upstream") || json.source || "",
+      serverTiming: response.headers.get("server-timing") || "",
+    };
+
     if (!response.ok) {
       const code = json.error || json.message;
       const error = new Error(GATEWAY_ERROR_MESSAGES[code] || code || `Gateway error ${response.status}`);
       error.status = response.status;
       error.details = json;
+      error.requestId = responseRequestId;
       throw error;
     }
     return json;
   } catch (error) {
     if (error?.name === "AbortError") {
-      throw new Error(`Gateway timeout after ${timeoutMs}ms`);
+      const timeoutError = new Error(`Gateway timeout after ${timeoutMs}ms`);
+      timeoutError.requestId = requestId;
+      throw timeoutError;
     }
     if (error instanceof TypeError) {
-      throw new Error("Không thể kết nối gateway. Hãy kiểm tra URL, mạng và CORS.");
+      const networkError = new Error("Không thể kết nối gateway. Hãy kiểm tra URL, mạng và CORS.");
+      networkError.requestId = requestId;
+      throw networkError;
     }
     throw error;
   } finally {

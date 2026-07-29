@@ -100,6 +100,18 @@ curl.exe https://jarvisidhuykl.huykl.id.vn/health
 
 `services.*.online` cho biết tiến trình upstream có chạy hay không.
 `services.*.configured` cho biết gateway đã có URL chat/task thật hay chưa.
+`services.*.circuit.state` cho biết upstream đang `closed`, `degraded` hay
+`open`. Mặc định circuit sẽ mở sau 3 lần lỗi liên tục và thử lại sau 30 giây;
+có thể điều chỉnh bằng:
+
+```env
+JCORE_CIRCUIT_FAILURE_THRESHOLD=3
+JCORE_CIRCUIT_OPEN_MS=30000
+```
+
+Mỗi response có header `x-request-id`; khi chat qua router thành công có thêm
+`x-jcore-upstream` và `server-timing`. Dùng request ID hiển thị trong UI để
+đối chiếu log gateway khi chẩn đoán lỗi.
 
 ## 8. Bật phản hồi AI thật
 

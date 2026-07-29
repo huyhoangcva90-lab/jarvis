@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import * as THREE from "three";
 import type { AiActivity } from "../../App";
+import { useReducedMotion } from "../../utils/useReducedMotion";
 
 export type LegacyEnergyPalette = "gold" | "blue" | "green" | "red" | "violet" | "orange";
 
@@ -2079,6 +2080,7 @@ function PostFX({ activity, palette = "gold" }: CinematicOrbProps) {
 }
 
 export default function LegacyCinematicOrb({ activity, palette = "gold", resetSignal = 0 }: CinematicOrbProps) {
+  const reducedMotion = useReducedMotion();
   applyOrbPalette(palette);
   const architecturePalette = palette === "orange" ? "gold" : palette;
 
@@ -2086,7 +2088,8 @@ export default function LegacyCinematicOrb({ activity, palette = "gold", resetSi
     <div className="orb-webgl" aria-hidden="true">
       <Canvas
         camera={{ fov: 41, near: 0.1, far: 30, position: [0, 0, 7.15] }}
-        dpr={[1, 1.45]}
+        dpr={reducedMotion ? 1 : [1, 1.45]}
+        frameloop={reducedMotion ? "demand" : "always"}
         gl={{
           alpha: false,
           antialias: false,

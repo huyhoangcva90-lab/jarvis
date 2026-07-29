@@ -35,6 +35,18 @@ body[data-palette="violet"] {
   --hot: #f0b8ff;
 }
 
+body[data-palette="orange"] {
+  --accent: #ff7a18;
+  --accent-rgb: 255, 122, 24;
+  --hot: #ffd09a;
+}
+
+body[data-palette="spider"] {
+  --accent: #62efff;
+  --accent-rgb: 98, 239, 255;
+  --hot: #e0fcff;
+}
+
 body[data-activity="listening"],
 body[data-activity="thinking"] {
   --panel-bg: rgba(0, 0, 0, 0.64);
@@ -1063,6 +1075,11 @@ body.is-reactor-dragging .orb-webgl canvas {
   box-shadow: 0 0 16px rgba(255, 122, 24, 0.55);
 }
 
+.palette-grid button:nth-child(7) i {
+  background: linear-gradient(90deg, #62efff 0 68%, #ff315f 68%);
+  box-shadow: 0 0 16px rgba(98, 239, 255, 0.62), 8px 0 16px rgba(255, 49, 95, 0.36);
+}
+
 .toggle-row {
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -1660,8 +1677,8 @@ body[data-activity="speaking"] .prompt-shell {
 }
 
 .panel-actions button {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
 }
 
 .panel-actions svg {
@@ -2129,14 +2146,14 @@ body[data-activity="speaking"] .prompt-shell {
 
   .panel-head,
   .settings-hero {
-    min-height: 48px;
+    min-height: 56px;
     padding: 6px 7px 6px 12px;
   }
 
   .panel-actions button,
   .settings-hero button {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
   }
 
   .message-list {
@@ -2283,7 +2300,7 @@ body[data-activity="speaking"] .prompt-shell {
   background: rgba(0, 0, 0, 0.92);
   box-shadow: inset 0 0 18px rgba(var(--accent-rgb), 0.07);
 }
-.legacy-chat-tools button { width: 38px; height: 38px; }
+.legacy-chat-tools button { width: 44px; height: 44px; }
 .attachment-input { display: none !important; }
 .legacy-attachment-tray {
   pointer-events: auto;
@@ -2312,7 +2329,7 @@ body[data-activity="speaking"] .prompt-shell {
 .prompt-shell button:disabled { cursor: not-allowed; opacity: 0.36; }
 @media (max-width: 760px) {
   .prompt-shell-with-tools { grid-template-columns: 44px auto minmax(86px, 1fr) 44px; }
-  .legacy-chat-tools button { width: 36px; height: 38px; }
+  .legacy-chat-tools button { width: 44px; height: 44px; }
 }
 
 /* Palette-native window controls and desktop panel dragging. */
@@ -2379,8 +2396,8 @@ body.hud-dragging {
 
 .hub-actions button,
 .settings-window-actions button {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
 }
 
 .hub-actions svg,
@@ -2457,13 +2474,41 @@ body.hud-dragging {
 
 .os-taskbar button {
   min-width: 44px;
-  min-height: 42px;
+  min-height: 44px;
   border: 1px solid transparent;
   border-radius: 3px;
   background: transparent;
   color: rgba(255, 245, 225, 0.66);
   font-family: "JetBrains Mono", monospace;
   transition: color 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.orb-loading {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at center, rgba(var(--accent-rgb), 0.16), transparent 24%),
+    #020100;
+}
+
+.orb-loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 48px;
+  height: 48px;
+  margin: -24px;
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+  border-top-color: var(--hot);
+  border-radius: 50%;
+  animation: bootRing 900ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-loading::after {
+    animation: none;
+  }
 }
 
 .os-taskbar button:hover,

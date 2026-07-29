@@ -77,6 +77,9 @@ export function StoneStateProvider({ children, data }) {
     nineRouter: false,
     claude: false,
     lastCheckedAt: null,
+    latencyMs: null,
+    requestId: null,
+    services: {},
     error: null,
   });
 
@@ -84,6 +87,7 @@ export function StoneStateProvider({ children, data }) {
     let cancelled = false;
 
     const checkConnections = async () => {
+      const startedAt = performance.now();
       let hOnline = false;
       let oOnline = false;
       let nOnline = false;
@@ -103,6 +107,9 @@ export function StoneStateProvider({ children, data }) {
           nineRouter: nOnline,
           claude: cOnline,
           lastCheckedAt: new Date().toISOString(),
+          latencyMs: Math.round(performance.now() - startedAt),
+          requestId: health.requestId || health.meta?.requestId || null,
+          services: health.services || {},
           error: null,
         });
       } catch (error) {
@@ -114,6 +121,9 @@ export function StoneStateProvider({ children, data }) {
           nineRouter: false,
           claude: false,
           lastCheckedAt: new Date().toISOString(),
+          latencyMs: Math.round(performance.now() - startedAt),
+          requestId: error?.requestId || error?.details?.requestId || null,
+          services: {},
           error: error?.message || "Gateway offline",
         });
       }
