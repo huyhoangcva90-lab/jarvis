@@ -2,6 +2,7 @@ import { FormEvent, type ChangeEvent, type PointerEvent as ReactPointerEvent, ty
 import type { AiActivity, EnergyPalette } from "../../App";
 import { gatewayFetch, getGatewayReply } from "../../utils/gatewayClient.js";
 import { useStoneState } from "../../utils/stoneState.jsx";
+import { ORB_UI_STORAGE_KEY } from "../../utils/orbPreferences";
 
 type Message = {
   id: string;
@@ -13,7 +14,6 @@ type Message = {
 type Palette = EnergyPalette;
 type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "maximize" | "mic" | "attach" | "screen" | "send" | "terminal" | "agents" | "router" | "media" | "document";
 
-const STORAGE_KEY = "jarvis.commandOrb.v2";
 const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
 const REQUEST_INTENTS =
   /\b(giup|hoi|tu van|phan tich|lam sao|nen|co nen|hay|cho t|cho tao|cho minh|debug|sua|mo|tim|nhac|ghi nho|ke hoach|y kien|danh gia)\b/;
@@ -296,7 +296,7 @@ function shouldAnswerVoice(transcript: string) {
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(ORB_UI_STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as { messages?: Message[]; palette?: Palette; voiceReply?: boolean; handsFree?: boolean; advisorMode?: boolean };
   } catch {
@@ -406,7 +406,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   useEffect(() => {
     document.body.dataset.palette = palette;
     onPaletteChange(palette);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, handsFree, advisorMode }));
+    localStorage.setItem(ORB_UI_STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, handsFree, advisorMode }));
   }, [advisorMode, handsFree, messages, onPaletteChange, palette, voiceReply]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);

@@ -1,4 +1,4 @@
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -9,6 +9,31 @@ const distIndex = join(root, "dist", "index.html");
 const distAssets = join(root, "dist", "assets");
 const deployAssets = join(root, "assets");
 const previousIndex = existsSync(deployIndex) ? readFileSync(deployIndex, "utf8") : "";
+
+function pruneGeneratedAssetHistory(directory, currentFiles, generationsToKeep = 2) {
+  const groups = new Map();
+  const hashedAsset = /^(.*)-[A-Za-z0-9_-]{8,}\.(js|css|svg)$/;
+
+  for (const name of readdirSync(directory)) {
+    const match = name.match(hashedAsset);
+    if (!match) continue;
+    const key = `${match[1]}.${match[2]}`;
+    const entries = groups.get(key) ?? [];
+    entries.push({
+      name,
+      current: currentFiles.has(name),
+      modifiedAt: statSync(join(directory, name)).mtimeMs,
+    });
+    groups.set(key, entries);
+  }
+
+  for (const entries of groups.values()) {
+    entries.sort((left, right) => Number(right.current) - Number(left.current) || right.modifiedAt - left.modifiedAt);
+    for (const stale of entries.slice(generationsToKeep)) {
+      unlinkSync(join(directory, stale.name));
+    }
+  }
+}
 
 try {
   copyFileSync(devIndex, deployIndex);
@@ -24,8 +49,9 @@ try {
     throw new Error("Vite build did not produce deploy artifacts.");
   }
   mkdirSync(deployAssets, { recursive: true });
-  rmSync(deployAssets, { recursive: true, force: true });
-  cpSync(distAssets, deployAssets, { recursive: true });
+  const currentAssets = new Set(readdirSync(distAssets));
+  cpSync(distAssets, deployAssets, { recursive: true, force: true });
+  pruneGeneratedAssetHistory(deployAssets, currentAssets);
   copyFileSync(distIndex, deployIndex);
 } catch (error) {
   writeFileSync(deployIndex, previousIndex);

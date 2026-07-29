@@ -155,6 +155,11 @@ button {
   inset: 0;
 }
 
+.orb-render-host {
+  position: absolute;
+  inset: 0;
+}
+
 .orb-webgl canvas {
   display: block;
   width: 100% !important;
@@ -290,6 +295,41 @@ button {
 
 .orb-webgl canvas.is-orbit-enabled.orb-hit-active {
   cursor: grab;
+}
+
+.orb-recovery {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  color: var(--hot);
+  background:
+    radial-gradient(circle at center, rgba(var(--accent-rgb), 0.12), transparent 28%),
+    rgba(0, 0, 0, 0.88);
+  font: 700 10px/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.16em;
+}
+
+.orb-recovery button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(var(--accent-rgb), 0.46);
+  border-radius: 3px;
+  color: var(--hot);
+  background: rgba(var(--accent-rgb), 0.1);
+  font: 700 10px/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.orb-recovery button:hover,
+.orb-recovery button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  background: rgba(var(--accent-rgb), 0.18);
 }
 
 .orb-webgl canvas.is-orbit-enabled.orb-hit-active:active {

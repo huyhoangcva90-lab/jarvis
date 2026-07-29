@@ -6,9 +6,10 @@ import AuthScreen from "./components/AuthScreen.jsx";
 import { StoneStateProvider } from "./utils/stoneState.jsx";
 import { loadData, saveData } from "./utils/storage.js";
 import { soundManager } from "./utils/soundManager.js";
+import { loadStoredEnergyPalette, type EnergyPalette } from "./utils/orbPreferences";
 
 export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
-export type EnergyPalette = "gold" | "blue" | "green" | "red" | "violet" | "orange" | "spider";
+export type { EnergyPalette } from "./utils/orbPreferences";
 
 export default function App() {
   const [booting, setBooting] = useState(true);
@@ -16,7 +17,7 @@ export default function App() {
   const [now, setNow] = useState(() => new Date());
   const [authenticated, setAuthenticated] = useState(!data.auth?.pinEnabled);
   const [activity, setActivity] = useState<AiActivity>("idle");
-  const [energyPalette, setEnergyPalette] = useState<EnergyPalette>("gold");
+  const [energyPalette, setEnergyPalette] = useState<EnergyPalette>(loadStoredEnergyPalette);
   const [resetViewSignal, setResetViewSignal] = useState(0);
   const [hudVisible, setHudVisible] = useState(true);
 
