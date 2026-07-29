@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "build": "node scripts/build-pages.mjs",
     "build:vite": "vite build",
+    "doctor:gateway": "bash scripts/doctor-gateway.sh",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
