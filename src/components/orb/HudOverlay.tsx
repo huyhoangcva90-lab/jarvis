@@ -3,6 +3,17 @@ import type { AiActivity, EnergyPalette } from "../../App";
 import { gatewayFetch, getGatewayReply } from "../../utils/gatewayClient.js";
 import { useStoneState } from "../../utils/stoneState.jsx";
 import { ORB_UI_STORAGE_KEY } from "../../utils/orbPreferences";
+import DynamicHub from "./DynamicHub";
+import {
+  HUB_TEMPLATES,
+  createHubArtifact,
+  hubDemoItems,
+  hubTemplate,
+  recoverHubArtifact,
+  resolveHubArtifact,
+  type HubArtifact,
+  type HubKind,
+} from "../../utils/hubRuntime";
 
 type Message = {
   id: string;
@@ -298,7 +309,15 @@ function loadState() {
   try {
     const raw = localStorage.getItem(ORB_UI_STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as { messages?: Message[]; palette?: Palette; voiceReply?: boolean; handsFree?: boolean; advisorMode?: boolean };
+    return JSON.parse(raw) as {
+      messages?: Message[];
+      palette?: Palette;
+      voiceReply?: boolean;
+      handsFree?: boolean;
+      advisorMode?: boolean;
+      hubArtifacts?: HubArtifact[];
+      activeHubId?: string | null;
+    };
   } catch {
     return null;
   }
@@ -352,10 +371,20 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [routerOpen, setRouterOpen] = useState(false);
   const [intelOpen, setIntelOpen] = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [terminalMinimized, setTerminalMinimized] = useState(false);
   const [agentsMinimized, setAgentsMinimized] = useState(false);
   const [routerMinimized, setRouterMinimized] = useState(false);
   const [intelMinimized, setIntelMinimized] = useState(false);
+  const [workspaceMinimized, setWorkspaceMinimized] = useState(false);
+  const [hubArtifacts, setHubArtifacts] = useState<HubArtifact[]>(() =>
+    (initial?.hubArtifacts ?? []).map((artifact) =>
+      artifact.status === "loading"
+        ? recoverHubArtifact(artifact, "Phiên xử lý trước đã bị gián đoạn.")
+        : artifact
+    )
+  );
+  const [activeHubId, setActiveHubId] = useState<string | null>(() => initial?.activeHubId ?? initial?.hubArtifacts?.[0]?.id ?? null);
   const [activeWindow, setActiveWindow] = useState("chat");
   const [intelMode, setIntelMode] = useState<"youtube" | "docs">("youtube");
   const [selectedIntelDocument, setSelectedIntelDocument] = useState("gateway");
@@ -395,6 +424,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const agentsDrag = usePanelDrag();
   const routerDrag = usePanelDrag();
   const intelDrag = usePanelDrag();
+  const workspaceDrag = usePanelDrag();
 
   const minimizeFromWheel = useCallback((event: ReactWheelEvent<HTMLElement>, minimize: () => void) => {
     if (window.innerWidth <= 760 || event.deltaY < 24) return;
@@ -404,8 +434,16 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(ORB_UI_STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, handsFree, advisorMode }));
-  }, [advisorMode, handsFree, messages, palette, voiceReply]);
+    localStorage.setItem(ORB_UI_STORAGE_KEY, JSON.stringify({
+      messages,
+      palette,
+      voiceReply,
+      handsFree,
+      advisorMode,
+      hubArtifacts,
+      activeHubId,
+    }));
+  }, [activeHubId, advisorMode, handsFree, hubArtifacts, messages, palette, voiceReply]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
   useEffect(() => {
@@ -468,6 +506,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       return;
     }
     const messageText = trimmed || `Đã ghim ${pendingAttachment?.name ?? "tệp"}.`;
+    const spawnedHub = createHubArtifact(messageText);
     const userMessage = { id: createId(), role: "user" as const, text: messageText, at: Date.now() };
     const requestMessages = [...messages, userMessage].slice(-30);
     setMessages((current) => [...current, userMessage].slice(-80));
@@ -476,6 +515,13 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     setHistoryOpen(true);
     setActivity("thinking");
     setIsSending(true);
+    if (spawnedHub) {
+      setHubArtifacts((current) => [...current, spawnedHub].slice(-8));
+      setActiveHubId(spawnedHub.id);
+      setWorkspaceOpen(true);
+      setWorkspaceMinimized(false);
+      setActiveWindow("workspace");
+    }
 
     requestControllerRef.current?.abort();
     const controller = new AbortController();
@@ -491,6 +537,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           messages: requestMessages.map((message) => ({ role: message.role, content: message.text })),
           operator: data?.username || "Operator",
           attachment: pendingAttachment ? { name: pendingAttachment.name, type: pendingAttachment.type, size: pendingAttachment.size } : null,
+          clientCapabilities: {
+            responseMode: "jarvis-hub",
+            hubKinds: HUB_TEMPLATES.map((template) => template.kind),
+            structuredArtifacts: true,
+          },
         }),
       });
       const replyText = getGatewayReply(response);
@@ -500,6 +551,13 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       if (!replyText) throw new Error("AI upstream phản hồi nhưng không có nội dung.");
       const reply = { id: createId(), role: "assistant" as const, text: replyText, at: Date.now() };
       setMessages((current) => [...current, reply].slice(-80));
+      if (spawnedHub) {
+        setHubArtifacts((current) =>
+          current.map((artifact) =>
+            artifact.id === spawnedHub.id ? resolveHubArtifact(artifact, replyText, response) : artifact
+          )
+        );
+      }
       speak(reply.text);
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -512,6 +570,13 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         at: Date.now(),
       };
       setMessages((current) => [...current, reply].slice(-80));
+      if (spawnedHub) {
+        setHubArtifacts((current) =>
+          current.map((artifact) =>
+            artifact.id === spawnedHub.id ? recoverHubArtifact(artifact, message) : artifact
+          )
+        );
+      }
       setActivity("idle");
       setToast("Không thể nhận phản hồi từ AI upstream.");
       scheduleVoiceRestart(1800);
@@ -717,6 +782,31 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       setIntelOpen(true);
       setIntelMinimized(false);
     }
+    if (windowId === "workspace") {
+      setWorkspaceOpen(true);
+      setWorkspaceMinimized(false);
+    }
+  }, []);
+
+  const createTemplateHub = useCallback((kind: HubKind) => {
+    const template = hubTemplate(kind);
+    const artifact = createHubArtifact(`${template.label} Hub`, kind);
+    if (!artifact) return;
+    const readyArtifact = resolveHubArtifact(
+      artifact,
+      `${template.description}. Mẫu giao diện đã được nạp và đang chờ Jarvis truyền dữ liệu vào.`,
+      { results: hubDemoItems(kind) },
+    );
+    setHubArtifacts((current) => [...current, readyArtifact].slice(-8));
+    setActiveHubId(readyArtifact.id);
+  }, []);
+
+  const removeHubArtifact = useCallback((id: string) => {
+    setHubArtifacts((current) => {
+      const remaining = current.filter((artifact) => artifact.id !== id);
+      setActiveHubId((activeId) => activeId === id ? remaining[remaining.length - 1]?.id ?? null : activeId);
+      return remaining;
+    });
   }, []);
 
   const activeIntelDocument = useMemo(
@@ -779,7 +869,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     if (command === "open") {
       const app = args[0] || "";
       const target = app === "gateway" ? "settings" : app;
-      if (["system", "chat", "agents", "router", "settings", "terminal", "intel"].includes(target)) {
+      if (["system", "chat", "agents", "router", "settings", "terminal", "intel", "workspace"].includes(target)) {
         openOsWindow(target);
         pushTerminal(`Window '${target}' opened.`);
       } else {
@@ -814,6 +904,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         "5": "router",
         "6": "settings",
         "7": "intel",
+        "8": "workspace",
       };
       const target = shortcuts[event.key];
       if (!target) return;
@@ -861,6 +952,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     agentsOpen && agentsMinimized ? { id: "agents", label: "Agent Matrix", code: "AGNT", icon: "agents" } : null,
     routerOpen && routerMinimized ? { id: "router", label: "Router Matrix", code: "ROUT", icon: "router" } : null,
     intelOpen && intelMinimized ? { id: "intel", label: "Intel Library", code: "INTL", icon: "media" } : null,
+    workspaceOpen && workspaceMinimized ? { id: "workspace", label: "Universal Workspace", code: "HUB", icon: "hub" } : null,
     settingsOpen && settingsMinimized ? { id: "settings", label: "Gateway Settings", code: "GATE", icon: "settings" } : null,
   ] as Array<{ id: string; label: string; code: string; icon: IconName } | null>)
     .filter((item): item is { id: string; label: string; code: string; icon: IconName } => Boolean(item));
@@ -878,6 +970,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           <button className={agentsOpen ? "active" : ""} type="button" aria-label="Mở Agent Matrix" onClick={() => openOsWindow("agents")}><Icon name="agents" /><span>Agents</span></button>
           <button className={routerOpen ? "active" : ""} type="button" aria-label="Mở Router Matrix" onClick={() => openOsWindow("router")}><Icon name="router" /><span>Router</span></button>
           <button className={intelOpen ? "active" : ""} type="button" aria-label="Mở Intel Library" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Intel</span></button>
+          <button className={workspaceOpen ? "active" : ""} type="button" aria-label="Mở Universal Workspace" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Workspace</span></button>
           <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở Gateway Settings" onClick={toggleSettings}><Icon name="settings" /><span>Gateway</span></button>
         </div>
         <div className="os-tray">
@@ -1030,6 +1123,28 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             <button className="danger-text" type="button" onClick={clearChat}><Icon name="trash" /><span>Xóa lịch sử</span></button>
           </section>
         </aside>
+      )}
+
+      {workspaceOpen && (
+        <OsWindow
+          title="Universal Workspace"
+          code="JARVIS://HUB-RUNTIME"
+          drag={workspaceDrag}
+          minimized={workspaceMinimized}
+          active={activeWindow === "workspace"}
+          className="workspace-os-window"
+          onActivate={() => setActiveWindow("workspace")}
+          onClose={() => setWorkspaceOpen(false)}
+          onToggleMinimize={() => setWorkspaceMinimized(true)}
+        >
+          <DynamicHub
+            artifacts={hubArtifacts}
+            activeId={activeHubId}
+            onSelect={setActiveHubId}
+            onCreateDemo={createTemplateHub}
+            onRemove={removeHubArtifact}
+          />
+        </OsWindow>
       )}
 
       {terminalOpen && (
