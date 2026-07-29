@@ -6,7 +6,7 @@ import AuthScreen from "./components/AuthScreen.jsx";
 import { StoneStateProvider } from "./utils/stoneState.jsx";
 import { loadData, saveData } from "./utils/storage.js";
 import { soundManager } from "./utils/soundManager.js";
-import { loadStoredEnergyPalette, type EnergyPalette } from "./utils/orbPreferences";
+import { loadStoredEnergyPalette, saveStoredEnergyPalette, type EnergyPalette } from "./utils/orbPreferences";
 
 export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
 export type { EnergyPalette } from "./utils/orbPreferences";
@@ -41,6 +41,11 @@ export default function App() {
   useEffect(() => {
     document.body.dataset.activity = activity;
   }, [activity]);
+
+  useEffect(() => {
+    document.body.dataset.palette = energyPalette;
+    saveStoredEnergyPalette(energyPalette);
+  }, [energyPalette]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

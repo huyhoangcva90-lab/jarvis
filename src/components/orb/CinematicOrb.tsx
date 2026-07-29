@@ -70,9 +70,17 @@ export default function CinematicOrb({ activity, palette = "gold", resetSignal =
       });
     };
     const scan = () => host.querySelectorAll("canvas").forEach(watchCanvas);
-    const observer = new MutationObserver(scan);
+    const refreshCanvases = () => {
+      cleanups.forEach((cleanup, canvas) => {
+        if (host.contains(canvas)) return;
+        cleanup();
+        cleanups.delete(canvas);
+      });
+      scan();
+    };
+    const observer = new MutationObserver(refreshCanvases);
     observer.observe(host, { childList: true, subtree: true });
-    scan();
+    refreshCanvases();
 
     return () => {
       observer.disconnect();
@@ -80,6 +88,10 @@ export default function CinematicOrb({ activity, palette = "gold", resetSignal =
       cleanups.clear();
     };
   }, []);
+
+  useEffect(() => {
+    setContextLost(false);
+  }, [palette]);
 
   return (
     <div ref={hostRef} className="orb-render-host">

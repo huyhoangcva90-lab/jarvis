@@ -404,10 +404,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   }, []);
 
   useEffect(() => {
-    document.body.dataset.palette = palette;
-    onPaletteChange(palette);
     localStorage.setItem(ORB_UI_STORAGE_KEY, JSON.stringify({ messages, palette, voiceReply, handsFree, advisorMode }));
-  }, [advisorMode, handsFree, messages, onPaletteChange, palette, voiceReply]);
+  }, [advisorMode, handsFree, messages, palette, voiceReply]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
   useEffect(() => {

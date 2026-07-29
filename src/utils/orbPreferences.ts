@@ -30,3 +30,15 @@ export function loadStoredEnergyPalette(): EnergyPalette {
     return "gold";
   }
 }
+
+export function saveStoredEnergyPalette(palette: EnergyPalette) {
+  if (typeof window === "undefined") return;
+
+  try {
+    const raw = window.localStorage.getItem(ORB_UI_STORAGE_KEY);
+    const stored = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+    window.localStorage.setItem(ORB_UI_STORAGE_KEY, JSON.stringify({ ...stored, palette }));
+  } catch {
+    window.localStorage.setItem(ORB_UI_STORAGE_KEY, JSON.stringify({ palette }));
+  }
+}
