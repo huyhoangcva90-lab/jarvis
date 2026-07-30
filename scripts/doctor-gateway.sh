@@ -7,7 +7,7 @@ set -u
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${JCORE_ENV_FILE:-$ROOT_DIR/.env.local}"
-PUBLIC_GATEWAY="${JCORE_PUBLIC_GATEWAY:-https://jarvis.huykl.id.vn}"
+PUBLIC_GATEWAY="${JCORE_PUBLIC_GATEWAY:-https://jarvisidhuykl.huykl.id.vn}"
 SERVICE_NAME="${JCORE_SERVICE_NAME:-gateway-api.service}"
 PASS_COUNT=0
 WARN_COUNT=0
@@ -197,10 +197,10 @@ http_check "OpenClaw models" "http://127.0.0.1:18789/v1/models" "$OPENCLAW_TOKEN
 http_check "n9router models" "http://127.0.0.1:20128/v1/models" "$NINEROUTER_TOKEN"
 
 section "Public route"
-if getent ahosts jarvis.huykl.id.vn >/dev/null 2>&1; then
-  pass "jarvis.huykl.id.vn resolves in system DNS"
+if getent ahosts jarvisidhuykl.huykl.id.vn >/dev/null 2>&1; then
+  pass "jarvisidhuykl.huykl.id.vn resolves in system DNS"
 else
-  fail "jarvis.huykl.id.vn does not resolve in system DNS"
+  fail "jarvisidhuykl.huykl.id.vn does not resolve in system DNS"
 fi
 http_check "Public gateway health" "$PUBLIC_GATEWAY/health" "$JCORE_TOKEN"
 

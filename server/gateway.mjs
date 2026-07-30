@@ -1,4 +1,4 @@
-import { createServer } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
 import { randomUUID } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -27,6 +27,7 @@ const IS_LOOPBACK = new Set(["127.0.0.1", "localhost", "::1"]).has(HOST);
 const STARTED_AT = Date.now();
 const CIRCUIT_FAILURE_THRESHOLD = Number(process.env.JCORE_CIRCUIT_FAILURE_THRESHOLD || 3);
 const CIRCUIT_OPEN_MS = Number(process.env.JCORE_CIRCUIT_OPEN_MS || 30000);
+const DASHBOARD_SESSION_TTL_MS = Number(process.env.JCORE_DASHBOARD_SESSION_TTL_MS || 30 * 60 * 1000);
 
 const gatewayStats = {
   requests: 0,
@@ -36,6 +37,7 @@ const gatewayStats = {
 };
 
 const upstreamCircuits = new Map();
+const dashboardSessions = new Map();
 
 if (!TOKEN && !IS_LOOPBACK) {
   throw new Error("JCORE_GATEWAY_TOKEN is required when the gateway listens beyond localhost.");
@@ -74,7 +76,7 @@ const services = {
 
 function getCorsOrigin(req) {
   const requestOrigin = (req.headers.origin || "").replace(/\/+$/, "");
-  if (CORS_ORIGINS.includes("*")) return "*";
+  if (CORS_ORIGINS.includes("*")) return requestOrigin || "*";
   if (requestOrigin && CORS_ORIGINS.includes(requestOrigin)) return requestOrigin;
   return CORS_ORIGINS[0] || "null";
 }
@@ -89,6 +91,7 @@ function sendJson(req, res, status, payload, extraHeaders = {}) {
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "access-control-allow-headers": "content-type,authorization,x-request-id",
     "access-control-expose-headers": "x-request-id,x-jcore-upstream,server-timing",
+    "access-control-allow-credentials": "true",
     "access-control-max-age": "86400",
     "vary": "Origin",
     ...extraHeaders,
@@ -99,6 +102,41 @@ function sendJson(req, res, status, payload, extraHeaders = {}) {
 function authorized(req) {
   if (!TOKEN) return true;
   return req.headers.authorization === `Bearer ${TOKEN}`;
+}
+
+function cookieValue(req, name) {
+  const cookies = String(req.headers.cookie || "").split(";");
+  for (const cookie of cookies) {
+    const [key, ...value] = cookie.trim().split("=");
+    if (key === name) return decodeURIComponent(value.join("="));
+  }
+  return "";
+}
+
+function authorizedDashboardSession(req) {
+  const sessionId = cookieValue(req, "jcore_9router_session");
+  const expiresAt = dashboardSessions.get(sessionId) || 0;
+  if (!sessionId || expiresAt <= Date.now()) {
+    if (sessionId) dashboardSessions.delete(sessionId);
+    return false;
+  }
+  return true;
+}
+
+function issueDashboardSession(req) {
+  const sessionId = randomUUID();
+  dashboardSessions.set(sessionId, Date.now() + DASHBOARD_SESSION_TTL_MS);
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const secure = forwardedProto === "https" || (!forwardedProto && !IS_LOOPBACK);
+  const attributes = [
+    `jcore_9router_session=${encodeURIComponent(sessionId)}`,
+    "Path=/",
+    "HttpOnly",
+    `Max-Age=${Math.floor(DASHBOARD_SESSION_TTL_MS / 1000)}`,
+    secure ? "SameSite=None" : "SameSite=Lax",
+  ];
+  if (secure) attributes.push("Secure", "Partitioned");
+  return attributes.join("; ");
 }
 
 async function readJson(req) {
@@ -139,6 +177,85 @@ async function probe(url, apiKey = "") {
       error: error?.name === "AbortError" ? "timeout" : "offline",
     };
   }
+}
+
+async function fetchJson(url, apiKey = "", timeoutMs = 5000) {
+  const started = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const headers = apiKey ? { authorization: `Bearer ${apiKey}` } : {};
+    const response = await fetch(url, { method: "GET", headers, signal: controller.signal });
+    const text = await response.text();
+    let data = text;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      // Preserve non-JSON upstream responses for diagnostics.
+    }
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+      latencyMs: Date.now() - started,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      status: 0,
+      data: { error: error?.name === "AbortError" ? "upstream_timeout" : "upstream_offline" },
+      latencyMs: Date.now() - started,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function proxyNineRouter(req, res) {
+  return new Promise((resolve) => {
+    const upstreamBase = new URL(services.nineRouter.base);
+    const headers = { ...req.headers, host: upstreamBase.host };
+    delete headers.authorization;
+    delete headers["x-forwarded-host"];
+    delete headers["x-forwarded-proto"];
+
+    const upstream = httpRequest({
+      protocol: upstreamBase.protocol,
+      hostname: upstreamBase.hostname,
+      port: upstreamBase.port || 80,
+      method: req.method,
+      path: req.url,
+      headers,
+    }, (upstreamResponse) => {
+      const responseHeaders = { ...upstreamResponse.headers };
+      responseHeaders["cache-control"] = responseHeaders["cache-control"] || "no-store";
+      responseHeaders["x-content-type-options"] = "nosniff";
+      delete responseHeaders["x-frame-options"];
+      const frameAncestors = CORS_ORIGINS.includes("*")
+        ? "*"
+        : CORS_ORIGINS.map((origin) => origin.replace(/\/+$/, "")).join(" ");
+      const upstreamCsp = String(responseHeaders["content-security-policy"] || "")
+        .replace(/(?:^|;)\s*frame-ancestors\s+[^;]*/gi, "")
+        .replace(/^;\s*|\s*;$/g, "");
+      responseHeaders["content-security-policy"] = [
+        upstreamCsp,
+        `frame-ancestors ${frameAncestors || "'self'"}`,
+      ].filter(Boolean).join("; ");
+      res.writeHead(upstreamResponse.statusCode || 502, responseHeaders);
+      upstreamResponse.pipe(res);
+      upstreamResponse.on("end", resolve);
+    });
+
+    upstream.on("error", () => {
+      if (!res.headersSent) {
+        sendJson(req, res, 502, { error: "ninerouter_dashboard_offline" });
+      } else {
+        res.end();
+      }
+      resolve();
+    });
+    req.pipe(upstream);
+  });
 }
 
 function getCircuit(name) {
@@ -259,10 +376,18 @@ const server = createServer(async (req, res) => {
   req.requestId = /^[a-zA-Z0-9._:-]{8,128}$/.test(suppliedRequestId) ? suppliedRequestId : randomUUID();
   if (req.method === "OPTIONS") return sendJson(req, res, 204, {});
   gatewayStats.requests += 1;
-  if (!authorized(req)) return sendJson(req, res, 401, { error: "unauthorized" });
 
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host}`);
+    const hasGatewayAuthorization = authorized(req);
+    const hasDashboardSession = authorizedDashboardSession(req);
+
+    if (!hasGatewayAuthorization && hasDashboardSession) {
+      return proxyNineRouter(req, res);
+    }
+    if (!hasGatewayAuthorization) {
+      return sendJson(req, res, 401, { error: "unauthorized" });
+    }
 
     if (req.method === "GET" && url.pathname === "/health") {
       const healthStarted = Date.now();
@@ -289,6 +414,50 @@ const server = createServer(async (req, res) => {
           claude: { ...claude, configured: Boolean(services.claude.chat), circuit: circuitSnapshot("claude") },
         },
       }, { "server-timing": `gateway;dur=${Date.now() - healthStarted}` });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/session/9router") {
+      const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+      const protocol = forwardedProto || (IS_LOOPBACK ? "http" : "https");
+      const origin = `${protocol}://${req.headers.host}`;
+      return sendJson(req, res, 200, {
+        dashboardUrl: `${origin}/dashboard`,
+        expiresInSeconds: Math.floor(DASHBOARD_SESSION_TTL_MS / 1000),
+      }, {
+        "set-cookie": issueDashboardSession(req),
+      });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/9router/models") {
+      const result = await fetchJson(`${services.nineRouter.base.replace(/\/+$/, "")}/v1/models`, services.nineRouter.apiKey);
+      return sendJson(req, res, result.ok ? 200 : 502, {
+        source: "nineRouter",
+        upstreamStatus: result.status,
+        latencyMs: result.latencyMs,
+        models: Array.isArray(result.data?.data) ? result.data.data : [],
+        raw: result.data,
+      });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/hermes/capabilities") {
+      const result = await fetchJson(`${services.hermes.base.replace(/\/+$/, "")}/v1/capabilities`, services.hermes.apiKey);
+      return sendJson(req, res, result.ok ? 200 : 502, {
+        source: "hermes",
+        upstreamStatus: result.status,
+        latencyMs: result.latencyMs,
+        capabilities: result.data,
+      });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/openclaw/models") {
+      const result = await fetchJson(`${services.openclaw.base.replace(/\/+$/, "")}/v1/models`, services.openclaw.apiKey);
+      return sendJson(req, res, result.ok ? 200 : 502, {
+        source: "openclaw",
+        upstreamStatus: result.status,
+        latencyMs: result.latencyMs,
+        models: Array.isArray(result.data?.data) ? result.data.data : [],
+        raw: result.data,
+      });
     }
 
     if (req.method === "POST" && url.pathname === "/api/ai/chat") {
@@ -401,6 +570,10 @@ const server = createServer(async (req, res) => {
         raw: result.data,
         source: "openclaw",
       });
+    }
+
+    if (authorizedDashboardSession(req)) {
+      return proxyNineRouter(req, res);
     }
 
     return sendJson(req, res, 404, { error: "not_found" });

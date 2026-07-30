@@ -15,9 +15,11 @@ const GATEWAY_ERROR_MESSAGES = {
 
 export function getGatewayConfig(data) {
   const gateway = data?.endpoints?.gateway || DEFAULT_GATEWAY_URL;
-  const token = data?.endpoints?.gatewayToken || "";
+  const token = String(data?.endpoints?.gatewayToken || "")
+    .trim()
+    .replace(/^Bearer\s+/i, "");
   return {
-    gateway: gateway.replace(/\/+$/, ""),
+    gateway: String(gateway).trim().replace(/\/+$/, ""),
     token,
   };
 }

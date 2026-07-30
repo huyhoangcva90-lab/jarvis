@@ -2,6 +2,46 @@ import { DEFAULT_GATEWAY_URL } from "./gatewayClient.js";
 import { DEFAULT_NINEROUTER_MODEL } from "./nineRouterModels.js";
 
 export const STORAGE_KEY = "j-core-console:data:v1";
+export const GATEWAY_SESSION_TOKEN_KEY = "j-core-console:gateway-token:session";
+export const GATEWAY_PERSISTENT_TOKEN_KEY = "j-core-console:gateway-token:persistent";
+
+export function loadGatewayToken() {
+  try {
+    return (
+      sessionStorage.getItem(GATEWAY_SESSION_TOKEN_KEY) ||
+      localStorage.getItem(GATEWAY_PERSISTENT_TOKEN_KEY) ||
+      ""
+    );
+  } catch {
+    return "";
+  }
+}
+
+export function isGatewayTokenRemembered() {
+  try {
+    return Boolean(localStorage.getItem(GATEWAY_PERSISTENT_TOKEN_KEY));
+  } catch {
+    return false;
+  }
+}
+
+export function saveGatewayToken(token, remember = false) {
+  const normalized = String(token || "").trim();
+  try {
+    sessionStorage.removeItem(GATEWAY_SESSION_TOKEN_KEY);
+    localStorage.removeItem(GATEWAY_PERSISTENT_TOKEN_KEY);
+    if (!normalized) return;
+    const storage = remember ? localStorage : sessionStorage;
+    const key = remember ? GATEWAY_PERSISTENT_TOKEN_KEY : GATEWAY_SESSION_TOKEN_KEY;
+    storage.setItem(key, normalized);
+  } catch {
+    // Storage can be unavailable in private or restricted browser contexts.
+  }
+}
+
+export function clearGatewayToken() {
+  saveGatewayToken("");
+}
 
 export const defaultToolUrls = {
   ChatGPT: "https://chatgpt.com/",
@@ -61,19 +101,34 @@ export const defaultData = {
 export function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultData;
-    return mergeData(defaultData, JSON.parse(raw));
+    if (!raw) {
+      return {
+        ...defaultData,
+        endpoints: { ...defaultData.endpoints, gatewayToken: loadGatewayToken() },
+      };
+    }
+    const saved = JSON.parse(raw);
+    const legacyToken = saved.endpoints?.gatewayToken || "";
+    const gatewayToken = loadGatewayToken() || legacyToken;
+    if (legacyToken && !loadGatewayToken()) saveGatewayToken(legacyToken, false);
+    return mergeData(defaultData, {
+      ...saved,
+      endpoints: { ...(saved.endpoints || {}), gatewayToken },
+    });
   } catch {
     return defaultData;
   }
 }
 
 export function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  const endpoints = { ...(data.endpoints || {}) };
+  delete endpoints.gatewayToken;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...data, endpoints }));
 }
 
 export function resetData() {
   localStorage.removeItem(STORAGE_KEY);
+  clearGatewayToken();
 }
 
 function mergeData(base, saved) {

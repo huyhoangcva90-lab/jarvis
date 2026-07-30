@@ -23,6 +23,7 @@ The production files will be generated in `dist/`.
 
 ## Gateway
 
+The public web app is served from `https://jarvis.huykl.id.vn`.
 The online console uses `https://jarvisidhuykl.huykl.id.vn` as its default gateway.
 Hermes chat, OpenClaw tasks, 9Router chat, and health checks all go through that
 gateway. Configure the Ubuntu service with `.env.local`; never put upstream API

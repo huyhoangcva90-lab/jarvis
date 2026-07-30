@@ -1,9 +1,14 @@
 import { FormEvent, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiActivity, EnergyPalette } from "../../App";
-import { gatewayFetch, getGatewayReply } from "../../utils/gatewayClient.js";
+import { gatewayFetch, getGatewayConfig, getGatewayReply } from "../../utils/gatewayClient.js";
 import { useStoneState } from "../../utils/stoneState.jsx";
 import { ORB_UI_STORAGE_KEY } from "../../utils/orbPreferences";
 import { DEFAULT_NINEROUTER_MODEL, NINEROUTER_MODELS, getNineRouterModel } from "../../utils/nineRouterModels.js";
+import {
+  clearGatewayToken,
+  isGatewayTokenRemembered,
+  saveGatewayToken,
+} from "../../utils/storage.js";
 import DynamicHub from "./DynamicHub";
 import {
   HUB_TEMPLATES,
@@ -411,9 +416,29 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [toast, setToast] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [gatewayTest, setGatewayTest] = useState<"idle" | "testing" | "success" | "error">("idle");
+  const [gatewayTestMessage, setGatewayTestMessage] = useState("");
+  const [gatewayHealth, setGatewayHealth] = useState<any>(null);
   const [gatewayDraft, setGatewayDraft] = useState(data.endpoints?.gateway || "");
   const [gatewayTokenDraft, setGatewayTokenDraft] = useState(data.endpoints?.gatewayToken || "");
+  const [rememberGatewayToken, setRememberGatewayToken] = useState(() => isGatewayTokenRemembered());
+  const [showGatewayToken, setShowGatewayToken] = useState(false);
+  const [routerDashboardUrl, setRouterDashboardUrl] = useState("");
+  const [routerDashboardState, setRouterDashboardState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [routerDashboardError, setRouterDashboardError] = useState("");
+  const [routerModels, setRouterModels] = useState<Array<{ id?: string }>>([]);
   const nineRouterModel = getNineRouterModel(data);
+  const routerModelOptions = useMemo(() => {
+    const discovered = routerModels
+      .map((model) => String(model.id || "").trim())
+      .filter(Boolean)
+      .map((id) => ({ id, label: id, detail: "Model từ 9Router" }));
+    const seen = new Set<string>();
+    return [...discovered, ...NINEROUTER_MODELS].filter((model) => {
+      if (seen.has(model.id)) return false;
+      seen.add(model.id);
+      return true;
+    });
+  }, [routerModels]);
   const recognitionRef = useRef<any>(null);
   const voiceModeRef = useRef(false);
   const recognitionActiveRef = useRef(false);
@@ -718,19 +743,88 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
   const testGateway = async () => {
     setGatewayTest("testing");
+    setGatewayTestMessage("Đang kiểm tra Gateway và các dịch vụ nội bộ...");
+    setGatewayHealth(null);
+    const normalizedToken = gatewayTokenDraft.trim().replace(/^Bearer\s+/i, "");
     const endpoints = {
       ...data.endpoints,
       gateway: gatewayDraft.trim(),
-      gatewayToken: gatewayTokenDraft.trim(),
+      gatewayToken: normalizedToken,
     };
     updateData({ endpoints });
+    saveGatewayToken(normalizedToken, rememberGatewayToken);
     try {
-      await gatewayFetch({ ...data, endpoints }, "/health", { method: "GET", timeoutMs: 7000 });
+      const health = await gatewayFetch({ ...data, endpoints }, "/health", { method: "GET", timeoutMs: 7000 });
       setGatewayTest("success");
+      setGatewayHealth(health);
+      setGatewayTestMessage("Gateway đã xác thực. Trạng thái dịch vụ được cập nhật bên dưới.");
       setToast("Gateway đã kết nối.");
-    } catch {
+    } catch (error: any) {
       setGatewayTest("error");
-      setToast("Gateway hoặc token không hợp lệ.");
+      const message = error?.status === 401
+        ? "Jarvis token bị Gateway từ chối. Kiểm tra token đang chạy trên Ubuntu."
+        : error?.message || "Không thể kết nối Gateway.";
+      setGatewayTestMessage(message);
+      setToast(message);
+    }
+  };
+
+  const clearSavedGatewayToken = () => {
+    clearGatewayToken();
+    setGatewayTokenDraft("");
+    setRememberGatewayToken(false);
+    setGatewayTest("idle");
+    setGatewayTestMessage("");
+    updateData({
+      endpoints: {
+        ...data.endpoints,
+        gateway: gatewayDraft.trim(),
+        gatewayToken: "",
+      },
+    });
+    setToast("Đã xóa Jarvis token khỏi trình duyệt.");
+  };
+
+  const connectNineRouterDashboard = async (openInNewTab = false) => {
+    if (routerDashboardState === "loading") return;
+    const dashboardTab = openInNewTab ? window.open("", "_blank") : null;
+    const normalizedToken = gatewayTokenDraft.trim().replace(/^Bearer\s+/i, "");
+    const endpoints = {
+      ...data.endpoints,
+      gateway: gatewayDraft.trim(),
+      gatewayToken: normalizedToken,
+    };
+    updateData({ endpoints });
+    saveGatewayToken(normalizedToken, rememberGatewayToken);
+    setRouterDashboardState("loading");
+    setRouterDashboardError("");
+    try {
+      const [session, models]: [any, any] = await Promise.all([
+        gatewayFetch({ ...data, endpoints }, "/api/session/9router", {
+          method: "POST",
+          credentials: "include",
+          timeoutMs: 7000,
+        }),
+        gatewayFetch({ ...data, endpoints }, "/api/9router/models", {
+          method: "GET",
+          timeoutMs: 7000,
+        }).catch(() => ({ models: [] })),
+      ]);
+      const dashboardUrl = String(session.dashboardUrl || `${getGatewayConfig({ ...data, endpoints }).gateway}/dashboard`);
+      setRouterModels(Array.isArray(models.models) ? models.models : []);
+      setRouterDashboardUrl(dashboardUrl);
+      setRouterDashboardState("ready");
+      if (dashboardTab) {
+        dashboardTab.opener = null;
+        dashboardTab.location.href = dashboardUrl;
+      }
+    } catch (error: any) {
+      dashboardTab?.close();
+      const message = error?.status === 401
+        ? "Jarvis token không hợp lệ nên chưa mở được 9Router."
+        : error?.message || "Không thể tạo phiên điều khiển 9Router.";
+      setRouterDashboardError(message);
+      setRouterDashboardState("error");
     }
   };
 
@@ -988,7 +1082,17 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở Neural Chat" onClick={toggleHistory}><Icon name="chat" /><span>Chat</span></button>
           <button className={terminalOpen ? "active" : ""} type="button" aria-label="Mở Terminal" onClick={() => openOsWindow("terminal")}><Icon name="terminal" /><span>Terminal</span></button>
           <button className={agentsOpen ? "active" : ""} type="button" aria-label="Mở Agent Matrix" onClick={() => openOsWindow("agents")}><Icon name="agents" /><span>Agents</span></button>
-          <button className={routerOpen ? "active" : ""} type="button" aria-label="Mở Router Matrix" onClick={() => openOsWindow("router")}><Icon name="router" /><span>Router</span></button>
+          <button
+            className={routerOpen ? "active" : ""}
+            type="button"
+            aria-label="Mở bảng điều khiển 9Router"
+            onClick={() => {
+              openOsWindow("router");
+              void connectNineRouterDashboard();
+            }}
+          >
+            <Icon name="router" /><span>9Router</span>
+          </button>
           <button className={intelOpen ? "active" : ""} type="button" aria-label="Mở Intel Library" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Intel</span></button>
           <button className={workspaceOpen ? "active" : ""} type="button" aria-label="Mở Universal Workspace" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Workspace</span></button>
           <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở Gateway Settings" onClick={toggleSettings}><Icon name="settings" /><span>Gateway</span></button>
@@ -1104,26 +1208,56 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               />
             </label>
             <label className="gateway-field">
-              <span>Device token</span>
+              <span>Jarvis device token</span>
+              <div className="gateway-token-control">
+                <input
+                  type={showGatewayToken ? "text" : "password"}
+                  value={gatewayTokenDraft}
+                  placeholder="Chỉ nhập chuỗi token, không cần Bearer"
+                  autoComplete="off"
+                  onChange={(event) => {
+                    setGatewayTokenDraft(event.target.value);
+                    setGatewayTest("idle");
+                    setGatewayTestMessage("");
+                  }}
+                />
+                <button type="button" onClick={() => setShowGatewayToken((visible) => !visible)}>
+                  {showGatewayToken ? "Ẩn" : "Hiện"}
+                </button>
+              </div>
+            </label>
+            <label className="toggle-row gateway-remember-row">
+              <span>
+                Nhớ token trên thiết bị
+                <small>{rememberGatewayToken ? "Lưu lâu dài trong trình duyệt này" : "Chỉ giữ đến khi đóng tab"}</small>
+              </span>
               <input
-                type="password"
-                value={gatewayTokenDraft}
-                placeholder="Nhập token gateway"
+                checked={rememberGatewayToken}
+                type="checkbox"
                 onChange={(event) => {
-                  setGatewayTokenDraft(event.target.value);
-                  setGatewayTest("idle");
+                  const remember = event.target.checked;
+                  setRememberGatewayToken(remember);
+                  saveGatewayToken(gatewayTokenDraft, remember);
                 }}
               />
             </label>
-            <p className={`gateway-test-status ${gatewayTest}`}>
-              {gatewayTest === "success"
-                ? "Kết nối thành công."
-                : gatewayTest === "error"
-                ? "Không thể xác thực gateway."
-                : connections.gateway
-                ? "Health check đang hoạt động."
-                : "Gateway chưa kết nối."}
+            <p className={`gateway-test-status ${gatewayTest}`} role={gatewayTest === "error" ? "alert" : "status"}>
+              {gatewayTestMessage || (connections.gateway ? "Health check đang hoạt động." : "Gateway chưa kết nối.")}
             </p>
+            {gatewayHealth?.services && (
+              <div className="gateway-service-grid" aria-label="Trạng thái dịch vụ nội bộ">
+                {Object.entries(gatewayHealth.services).map(([name, service]: [string, any]) => (
+                  <div className={service.online ? "online" : "offline"} key={name}>
+                    <span>{name}</span>
+                    <b>{service.online ? "ONLINE" : "OFFLINE"}</b>
+                    <small>{Number.isFinite(service.latencyMs) ? `${service.latencyMs}ms` : "Không phản hồi"}</small>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button className="gateway-clear-token" type="button" onClick={clearSavedGatewayToken}>
+              Xóa token khỏi trình duyệt
+            </button>
           </section>
           <section className="settings-block model-settings">
             <div className="settings-block-head">
@@ -1131,7 +1265,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               <b className="active-model-readout">{nineRouterModel}</b>
             </div>
             <div className="model-grid" role="group" aria-label="Chọn model 9Router">
-              {NINEROUTER_MODELS.map((model) => (
+              {routerModelOptions.map((model) => (
                 <button
                   className={nineRouterModel === model.id ? "active" : ""}
                   type="button"
@@ -1264,17 +1398,58 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => setRouterOpen(false)}
           onToggleMinimize={() => setRouterMinimized(true)}
         >
-          <div className="router-flow" aria-label="Luồng định tuyến">
-            <div><span>01</span><b>BROWSER</b><small>J-Core OS</small></div>
-            <i>→</i>
-            <div className={connections.gateway ? "online" : "offline"}><span>02</span><b>GATEWAY</b><small>HTTPS + token</small></div>
-            <i>→</i>
-            <div className={connections.nineRouter ? "online" : "offline"}><span>03</span><b>9ROUTER</b><small>{nineRouterModel}</small></div>
-          </div>
-          <div className="router-diagnostics">
-            <p><span>Transport</span><b>{connections.gateway ? "ENCRYPTED / READY" : "DISCONNECTED"}</b></p>
-            <p><span>Routing core</span><b>{connections.nineRouter ? `${nineRouterModel} / READY` : "NOT CONFIGURED"}</b></p>
-            <p><span>Policy</span><b>GATEWAY ONLY</b></p>
+          <div className="native-router-shell">
+            <header className="native-router-toolbar">
+              <div>
+                <i className={connections.nineRouter ? "online" : "offline"} />
+                <span>
+                  <b>{connections.nineRouter ? "9ROUTER ONLINE" : "9ROUTER OFFLINE"}</b>
+                  <small>{routerModels.length ? `${routerModels.length} models · ${nineRouterModel}` : `Model ${nineRouterModel}`}</small>
+                </span>
+              </div>
+              <nav aria-label="Điều khiển 9Router">
+                <button
+                  type="button"
+                  disabled={routerDashboardState === "loading"}
+                  onClick={() => void connectNineRouterDashboard()}
+                >
+                  {routerDashboardState === "loading" ? "Đang tải" : "Kết nối lại"}
+                </button>
+                <button
+                  className="primary"
+                  type="button"
+                  disabled={!routerDashboardUrl}
+                  onClick={() => void connectNineRouterDashboard(true)}
+                >
+                  <Icon name="external" /> Mở toàn màn hình
+                </button>
+              </nav>
+            </header>
+
+            {routerDashboardState === "ready" && routerDashboardUrl ? (
+              <iframe
+                className="native-router-frame"
+                src={routerDashboardUrl}
+                title="9Router native dashboard"
+                referrerPolicy="no-referrer"
+                onLoad={() => setRouterDashboardState("ready")}
+              />
+            ) : (
+              <div className={`native-router-state ${routerDashboardState}`} role={routerDashboardState === "error" ? "alert" : "status"}>
+                <Icon name="router" />
+                <b>
+                  {routerDashboardState === "loading"
+                    ? "Đang tạo phiên điều khiển an toàn"
+                    : routerDashboardState === "error"
+                    ? "Không mở được dashboard 9Router"
+                    : "Dashboard 9Router chưa được kết nối"}
+                </b>
+                <p>{routerDashboardError || "Jarvis token sẽ mở một phiên tạm thời; port 20128 vẫn chỉ chạy nội bộ trên Ubuntu."}</p>
+                <button type="button" onClick={() => void connectNineRouterDashboard()}>
+                  Thử kết nối
+                </button>
+              </div>
+            )}
           </div>
         </OsWindow>
       )}

@@ -73,13 +73,14 @@ Frontend mặc định dùng:
 https://jarvisidhuykl.huykl.id.vn
 ```
 
-Trên Ubuntu, `JCORE_CORS_ORIGIN` phải chứa origin của GitHub Pages, không kèm
-đường dẫn `/jarvis`:
+Trên Ubuntu, `JCORE_CORS_ORIGIN` phải chứa origin của web J-Core và các origin
+dev được phép, không kèm đường dẫn:
 
 ```env
 JCORE_GATEWAY_HOST=0.0.0.0
 JCORE_GATEWAY_TOKEN=<device-token-dai-va-ngau-nhien>
-JCORE_CORS_ORIGIN=https://huyhoangcva90-lab.github.io
+JCORE_CORS_ORIGIN=https://jarvis.huykl.id.vn
+JCORE_DASHBOARD_SESSION_TTL_MS=1800000
 ```
 
 Gateway sẽ từ chối khởi động trên `0.0.0.0` nếu chưa đặt
@@ -89,13 +90,13 @@ Internet mà không có xác thực.
 Có thể cho phép cả local dev bằng danh sách phân cách bởi dấu phẩy:
 
 ```env
-JCORE_CORS_ORIGIN=http://127.0.0.1:5173,https://huyhoangcva90-lab.github.io
+JCORE_CORS_ORIGIN=http://127.0.0.1:5173,https://jarvis.huykl.id.vn,https://huyhoangcva90-lab.github.io
 ```
 
 Sau khi cập nhật code và `.env.local`, restart gateway rồi kiểm tra:
 
 ```powershell
-curl.exe https://jarvisidhuykl.huykl.id.vn/health
+curl.exe -H "Authorization: Bearer <jarvis-token>" https://jarvisidhuykl.huykl.id.vn/health
 ```
 
 `services.*.online` cho biết tiến trình upstream có chạy hay không.
@@ -117,9 +118,9 @@ Mỗi response có header `x-request-id`; khi chat qua router thành công có t
 
 J-Core gửi hội thoại tới `/api/ai/chat`. Gateway thử lần lượt:
 
-1. Hermes (`HERMES_CHAT_URL`)
-2. OpenClaw (`OPENCLAW_CHAT_URL`)
-3. 9Router (`NINEROUTER_CHAT_URL`)
+1. 9Router (`NINEROUTER_CHAT_URL`)
+2. Hermes (`HERMES_CHAT_URL`)
+3. OpenClaw (`OPENCLAW_CHAT_URL`)
 4. Claude bridge (`CLAUDE_CHAT_URL`)
 
 Chỉ cần ít nhất một endpoint chat hoạt động là J-Core có thể trả lời. OpenClaw
@@ -140,9 +141,17 @@ Ví dụ cấu hình tối thiểu nếu 9Router cung cấp API tương thích O
 NINEROUTER_BASE_URL=http://127.0.0.1:20128
 NINEROUTER_HEALTH_URL=http://127.0.0.1:20128/v1/models
 NINEROUTER_CHAT_URL=http://127.0.0.1:20128/v1/chat/completions
-NINEROUTER_API_KEY=<token-tao-trong-dashboard>
+# Có thể để trống nếu 9Router chỉ bind loopback và REQUIRE_API_KEY=false.
+NINEROUTER_API_KEY=
 NINEROUTER_MODEL=Code
 ```
+
+Dashboard native 9Router được J-Core Gateway reverse-proxy sau khi xác thực
+Jarvis token. Không expose port `20128` ra Internet. Nếu muốn người dùng chỉ
+nhập đúng một Jarvis token, tắt login riêng của dashboard 9Router trong cấu
+hình local; lớp bảo vệ public lúc đó là phiên `HttpOnly` tạm do J-Core Gateway
+cấp. Nếu vẫn bật login 9Router, dashboard nhúng sẽ hiển thị màn hình login
+native của 9Router.
 
 Claude Code CLI không tự mở HTTP API. Không cho gateway public chạy trực tiếp
 lệnh shell `claude`. Nếu cần dùng Claude Code, hãy dựng một local bridge có xác
@@ -153,7 +162,8 @@ Sau khi sửa `.env.local` trên Ubuntu:
 ```bash
 git pull origin main
 sudo systemctl restart j-core-gateway
-curl https://jarvisidhuykl.huykl.id.vn/health
+curl -H "Authorization: Bearer $JCORE_GATEWAY_TOKEN" \
+  https://jarvisidhuykl.huykl.id.vn/health
 ```
 
 Kết quả sẵn sàng phải có ít nhất một dịch vụ chat với:
