@@ -362,7 +362,11 @@ const server = createServer(async (req, res) => {
       if (!services.nineRouter.chat) {
         return sendJson(req, res, 503, { error: "ninerouter_not_configured" });
       }
-      const result = await proxyJson(services.nineRouter.chat, body, services.nineRouter.apiKey);
+      const result = await proxyJson(
+        services.nineRouter.chat,
+        toOpenAiPayload(body, services.nineRouter.model),
+        services.nineRouter.apiKey,
+      );
       return sendJson(req, res, result.ok ? 200 : 502, {
         reply: normalizeReply(result.data),
         upstreamStatus: result.status,
