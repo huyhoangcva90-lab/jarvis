@@ -2387,6 +2387,75 @@ body[data-activity="speaking"] .prompt-shell {
   grid-template-columns: 48px auto minmax(0, 1fr) 48px;
 }
 
+.quick-command-strip {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.quick-command-strip::-webkit-scrollbar { display: none; }
+
+.quick-command-strip > span {
+  flex: 0 0 auto;
+  color: rgba(var(--accent-rgb), 0.58);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+.quick-command-strip button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+  border-radius: 3px;
+  padding: 0 10px;
+  background: rgba(2, 2, 2, 0.68);
+  color: rgba(255, 245, 225, 0.62);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.quick-command-strip button:hover,
+.quick-command-strip button:focus-visible {
+  outline: 2px solid transparent;
+  color: var(--hot);
+  border-color: rgba(var(--accent-rgb), 0.62);
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+.system-signal {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.system-signal:not(.idle) { opacity: 1; }
+
+.system-signal i {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(var(--accent-rgb), 0.14);
+  background: linear-gradient(180deg, transparent 0 46%, rgba(var(--accent-rgb), 0.08) 50%, transparent 54%);
+  animation: systemSignalSweep 2.6s linear infinite;
+}
+
+.system-signal i:nth-child(2) { inset: 12px; animation-delay: -0.8s; opacity: 0.58; }
+.system-signal i:nth-child(3) { inset: 24px; animation-delay: -1.6s; opacity: 0.32; }
+
+@keyframes systemSignalSweep {
+  from { transform: translateY(-55%); }
+  to { transform: translateY(55%); }
+}
+
 .legacy-chat-tools {
   align-self: stretch;
   display: flex;
@@ -2429,6 +2498,15 @@ body[data-activity="speaking"] .prompt-shell {
 @media (max-width: 760px) {
   .prompt-shell-with-tools { grid-template-columns: 44px auto minmax(86px, 1fr) 44px; }
   .legacy-chat-tools button { width: 44px; height: 44px; }
+  .quick-command-strip {
+    justify-content: flex-start;
+    width: calc(100vw - 24px);
+    padding-bottom: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .system-signal i { animation: none; }
 }
 
 /* Palette-native window controls and desktop panel dragging. */

@@ -47,6 +47,13 @@ const BACKCHANNELS = new Set([
   "de xem"
 ]);
 
+const QUICK_COMMANDS = [
+  { label: "Tình trạng", prompt: "Kiểm tra tình trạng hệ thống và báo ngắn gọn." },
+  { label: "Lên kế hoạch", prompt: "Lập kế hoạch hành động cho mục tiêu hiện tại của tôi." },
+  { label: "Phân tích", prompt: "Phân tích vấn đề tôi đang gặp và đề xuất bước tiếp theo." },
+  { label: "Viết code", prompt: "Hỗ trợ tôi xử lý một tác vụ lập trình." },
+];
+
 const paletteLabels: Record<Palette, string> = {
   gold: "Gold Core",
   blue: "Stark Tech",
@@ -971,6 +978,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
   return (
     <div className="hud-overlay" aria-label="J-Core AI interface">
+      <div className={`system-signal ${activity}`} aria-hidden="true"><i /><i /><i /></div>
       <nav className="os-taskbar" aria-label="J-Core OS taskbar">
         <button className="os-start" type="button" aria-label="Mở System Core" onClick={() => openOsWindow("system")}>
           <span>J</span><b>J-CORE OS</b>
@@ -1409,6 +1417,14 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           <div className="voice-wave" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} style={{ animationDelay: `${index * 48}ms` }} />)}</div>
         </div>
         {pendingAttachment && <div className="legacy-attachment-tray"><span>{pendingAttachment.name}</span><button type="button" aria-label="Gỡ tệp đính kèm" onClick={() => setPendingAttachment(null)}><Icon name="close" /></button></div>}
+        <div className="quick-command-strip" aria-label="Lệnh gợi ý">
+          <span>QUICK://</span>
+          {QUICK_COMMANDS.map((command) => (
+            <button type="button" key={command.label} onClick={() => setInput(command.prompt)}>
+              {command.label}
+            </button>
+          ))}
+        </div>
         <form className="prompt-shell prompt-shell-with-tools" onSubmit={submit}>
           <button className={voiceMode || listening ? "listening" : ""} type="button" aria-label="Bật chế độ giọng nói" onClick={toggleVoiceMode}><Icon name="mic" /></button>
           <div className="legacy-chat-tools" aria-label="Công cụ chat">
