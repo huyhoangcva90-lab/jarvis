@@ -25,6 +25,7 @@ type Message = {
 type Palette = EnergyPalette;
 type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "maximize" | "mic" | "attach" | "screen" | "send" | "terminal" | "agents" | "router" | "media" | "document";
 
+const DEFAULT_NINEROUTER_MODEL = "Code";
 const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
 const REQUEST_INTENTS =
   /\b(giup|hoi|tu van|phan tich|lam sao|nen|co nen|hay|cho t|cho tao|cho minh|debug|sua|mo|tim|nhac|ghi nho|ke hoach|y kien|danh gia)\b/;
@@ -536,6 +537,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           timeoutMs: 60000,
           signal: controller.signal,
           body: JSON.stringify({
+            model: DEFAULT_NINEROUTER_MODEL,
             message: messageText,
             messages: requestMessages.map((message) => ({ role: message.role, content: message.text })),
             operator: data?.username || "Operator",

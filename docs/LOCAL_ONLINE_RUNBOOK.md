@@ -141,7 +141,7 @@ NINEROUTER_BASE_URL=http://127.0.0.1:20128
 NINEROUTER_HEALTH_URL=http://127.0.0.1:20128/v1/models
 NINEROUTER_CHAT_URL=http://127.0.0.1:20128/v1/chat/completions
 NINEROUTER_API_KEY=<token-tao-trong-dashboard>
-NINEROUTER_MODEL=<model-id-trong-dashboard>
+NINEROUTER_MODEL=Code
 ```
 
 Claude Code CLI không tự mở HTTP API. Không cho gateway public chạy trực tiếp

@@ -62,7 +62,7 @@ const services = {
     health: process.env.NINEROUTER_HEALTH_URL || "http://127.0.0.1:20128/v1/models",
     chat: process.env.NINEROUTER_CHAT_URL || "",
     apiKey: process.env.NINEROUTER_API_KEY || "",
-    model: process.env.NINEROUTER_MODEL || "",
+    model: process.env.NINEROUTER_MODEL || "Code",
   },
   claude: {
     base: process.env.CLAUDE_BASE_URL || "http://127.0.0.1:3001",

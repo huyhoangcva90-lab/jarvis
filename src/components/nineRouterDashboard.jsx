@@ -34,6 +34,7 @@ export default function NineRouterDashboard({ data, addLog }) {
         method: "POST",
         timeoutMs: 60000,
         body: JSON.stringify({
+          model: "Code",
           message,
           messages: [{ role: "user", content: message }],
           routingMode: mode,
