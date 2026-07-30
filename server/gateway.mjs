@@ -295,9 +295,9 @@ const server = createServer(async (req, res) => {
       gatewayStats.aiRequests += 1;
       const body = await readJson(req);
       const configuredCandidates = [
+        ["nineRouter", services.nineRouter.chat, services.nineRouter.apiKey, services.nineRouter.model],
         ["hermes", services.hermes.chat, services.hermes.apiKey, services.hermes.model],
         ["openclaw", services.openclaw.chat, services.openclaw.apiKey, services.openclaw.model],
-        ["nineRouter", services.nineRouter.chat, services.nineRouter.apiKey, services.nineRouter.model],
         ["claude", services.claude.chat, services.claude.apiKey, ""],
       ].filter(([, endpoint]) => Boolean(endpoint));
 

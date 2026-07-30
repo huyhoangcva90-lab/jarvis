@@ -528,22 +528,26 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     requestControllerRef.current = controller;
 
     try {
-      const response: any = await gatewayFetch(data, "/api/ai/chat", {
-        method: "POST",
-        timeoutMs: 60000,
-        signal: controller.signal,
-        body: JSON.stringify({
-          message: messageText,
-          messages: requestMessages.map((message) => ({ role: message.role, content: message.text })),
-          operator: data?.username || "Operator",
-          attachment: pendingAttachment ? { name: pendingAttachment.name, type: pendingAttachment.type, size: pendingAttachment.size } : null,
-          clientCapabilities: {
-            responseMode: "jarvis-hub",
-            hubKinds: HUB_TEMPLATES.map((template) => template.kind),
-            structuredArtifacts: true,
-          },
-        }),
-      });
+      const response: any = await gatewayFetch(
+        data,
+        connections.nineRouter ? "/api/9router/chat" : "/api/ai/chat",
+        {
+          method: "POST",
+          timeoutMs: 60000,
+          signal: controller.signal,
+          body: JSON.stringify({
+            message: messageText,
+            messages: requestMessages.map((message) => ({ role: message.role, content: message.text })),
+            operator: data?.username || "Operator",
+            attachment: pendingAttachment ? { name: pendingAttachment.name, type: pendingAttachment.type, size: pendingAttachment.size } : null,
+            clientCapabilities: {
+              responseMode: "jarvis-hub",
+              hubKinds: HUB_TEMPLATES.map((template) => template.kind),
+              structuredArtifacts: true,
+            },
+          }),
+        }
+      );
       const replyText = getGatewayReply(response);
       if (response.source === "mock") {
         throw new Error(replyText || "Chưa có AI upstream nào được cấu hình trên gateway.");
