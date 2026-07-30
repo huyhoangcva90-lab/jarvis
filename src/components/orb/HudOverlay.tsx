@@ -3,6 +3,7 @@ import type { AiActivity, EnergyPalette } from "../../App";
 import { gatewayFetch, getGatewayReply } from "../../utils/gatewayClient.js";
 import { useStoneState } from "../../utils/stoneState.jsx";
 import { ORB_UI_STORAGE_KEY } from "../../utils/orbPreferences";
+import { DEFAULT_NINEROUTER_MODEL, NINEROUTER_MODELS, getNineRouterModel } from "../../utils/nineRouterModels.js";
 import DynamicHub from "./DynamicHub";
 import {
   HUB_TEMPLATES,
@@ -25,7 +26,6 @@ type Message = {
 type Palette = EnergyPalette;
 type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "maximize" | "mic" | "attach" | "screen" | "send" | "terminal" | "agents" | "router" | "media" | "document";
 
-const DEFAULT_NINEROUTER_MODEL = "Code";
 const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
 const REQUEST_INTENTS =
   /\b(giup|hoi|tu van|phan tich|lam sao|nen|co nen|hay|cho t|cho tao|cho minh|debug|sua|mo|tim|nhac|ghi nho|ke hoach|y kien|danh gia)\b/;
@@ -406,6 +406,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [gatewayTest, setGatewayTest] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [gatewayDraft, setGatewayDraft] = useState(data.endpoints?.gateway || "");
   const [gatewayTokenDraft, setGatewayTokenDraft] = useState(data.endpoints?.gatewayToken || "");
+  const nineRouterModel = getNineRouterModel(data);
   const recognitionRef = useRef<any>(null);
   const voiceModeRef = useRef(false);
   const recognitionActiveRef = useRef(false);
@@ -537,7 +538,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           timeoutMs: 60000,
           signal: controller.signal,
           body: JSON.stringify({
-            model: DEFAULT_NINEROUTER_MODEL,
+            model: nineRouterModel,
             message: messageText,
             messages: requestMessages.map((message) => ({ role: message.role, content: message.text })),
             operator: data?.username || "Operator",
@@ -726,6 +727,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     }
   };
 
+  const selectNineRouterModel = (model: string) => {
+    updateData({ endpoints: { ...data.endpoints, nineRouterModel: model } });
+    setToast(`9Router model: ${model}`);
+  };
+
   const moduleStatus = useMemo(() => {
     const serviceDetail = (key: string, fallback: string) => {
       const service = connections.services?.[key];
@@ -745,13 +751,13 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       { label: "GATEWAY", value: connections.gateway ? "ONLINE" : "OFFLINE", detail: gatewayDetail, tone: connections.gateway ? "online" : "offline" },
       { label: "HERMES", value: connections.hermes ? "AI READY" : "OFFLINE", detail: serviceDetail("hermes", "Chat orchestrator"), tone: connections.hermes ? "online" : "offline" },
       { label: "OPENCLAW", value: connections.openclaw ? "ONLINE" : "OFFLINE", detail: serviceDetail("openclaw", "Agent workforce"), tone: connections.openclaw ? "online" : "offline" },
-      { label: "9ROUTER", value: connections.nineRouter ? "ONLINE" : "OFFLINE", detail: serviceDetail("nineRouter", "Multi-model routing"), tone: connections.nineRouter ? "online" : "offline" },
+      { label: "9ROUTER", value: connections.nineRouter ? "ONLINE" : "OFFLINE", detail: serviceDetail("nineRouter", `Model ${nineRouterModel}`), tone: connections.nineRouter ? "online" : "offline" },
       { label: "CLAUDE", value: connections.claude ? "AI READY" : "OFFLINE", detail: serviceDetail("claude", "Reasoning bridge"), tone: connections.claude ? "online" : "offline" },
       { label: "VOICE", value: voiceMode ? "OPEN CHANNEL" : "STANDBY", detail: advisorMode ? "Cố vấn, lọc câu vu vơ" : "Phản hồi mọi câu nghe được" },
       { label: "MODE", value: paletteLabels[palette].toUpperCase(), detail: "Orb đổi màu và cấu trúc" },
       { label: "MEMORY", value: `${messages.length} LOGS`, detail: "Lưu cục bộ trong trình duyệt" }
     ];
-  }, [advisorMode, connections, data.endpoints?.gateway, messages.length, palette, voiceMode]);
+  }, [advisorMode, connections, data.endpoints?.gateway, messages.length, nineRouterModel, palette, voiceMode]);
 
   const pushTerminal = (lines: string | string[]) => {
     const nextLines = Array.isArray(lines) ? lines : [lines];
@@ -1111,6 +1117,27 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 : "Gateway chưa kết nối."}
             </p>
           </section>
+          <section className="settings-block model-settings">
+            <div className="settings-block-head">
+              <span>9Router model</span>
+              <b className="active-model-readout">{nineRouterModel}</b>
+            </div>
+            <div className="model-grid" role="group" aria-label="Chọn model 9Router">
+              {NINEROUTER_MODELS.map((model) => (
+                <button
+                  className={nineRouterModel === model.id ? "active" : ""}
+                  type="button"
+                  aria-pressed={nineRouterModel === model.id}
+                  key={model.id}
+                  onClick={() => selectNineRouterModel(model.id)}
+                >
+                  <b>{model.label}</b>
+                  <small>{model.detail}</small>
+                </button>
+              ))}
+            </div>
+            <p>Model được gửi trực tiếp tới 9Router cho mọi cửa sổ chat. Mặc định: {DEFAULT_NINEROUTER_MODEL}.</p>
+          </section>
           <section className="settings-block">
             <div className="settings-block-head"><span>Voice link</span><button className={voiceMode ? "danger" : "primary"} type="button" onClick={toggleVoiceMode}>{voiceMode ? "Tắt" : "Bật"}</button></div>
             <label className="toggle-row"><span>Chế độ cố vấn</span><input checked={advisorMode} type="checkbox" onChange={(event) => setAdvisorMode(event.target.checked)} /></label>
@@ -1234,11 +1261,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             <i>→</i>
             <div className={connections.gateway ? "online" : "offline"}><span>02</span><b>GATEWAY</b><small>HTTPS + token</small></div>
             <i>→</i>
-            <div className={connections.nineRouter ? "online" : "offline"}><span>03</span><b>9ROUTER</b><small>Model routing</small></div>
+            <div className={connections.nineRouter ? "online" : "offline"}><span>03</span><b>9ROUTER</b><small>{nineRouterModel}</small></div>
           </div>
           <div className="router-diagnostics">
             <p><span>Transport</span><b>{connections.gateway ? "ENCRYPTED / READY" : "DISCONNECTED"}</b></p>
-            <p><span>Routing core</span><b>{connections.nineRouter ? "AVAILABLE" : "NOT CONFIGURED"}</b></p>
+            <p><span>Routing core</span><b>{connections.nineRouter ? `${nineRouterModel} / READY` : "NOT CONFIGURED"}</b></p>
             <p><span>Policy</span><b>GATEWAY ONLY</b></p>
           </div>
         </OsWindow>

@@ -3,6 +3,7 @@ import Panel from "./Panel.jsx";
 import { soundManager } from "../utils/soundManager.js";
 import { gatewayFetch, getGatewayReply } from "../utils/gatewayClient.js";
 import { useStoneState } from "../utils/stoneState.jsx";
+import { getNineRouterModel } from "../utils/nineRouterModels.js";
 
 const ROUTING_MODES = [
   { id: "balanced", name: "Balanced", description: "Cân bằng tốc độ, chất lượng và chi phí." },
@@ -13,6 +14,7 @@ const ROUTING_MODES = [
 
 export default function NineRouterDashboard({ data, addLog }) {
   const { connections } = useStoneState();
+  const nineRouterModel = getNineRouterModel(data);
   const [mode, setMode] = useState("balanced");
   const [prompt, setPrompt] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -34,7 +36,7 @@ export default function NineRouterDashboard({ data, addLog }) {
         method: "POST",
         timeoutMs: 60000,
         body: JSON.stringify({
-          model: "Code",
+          model: nineRouterModel,
           message,
           messages: [{ role: "user", content: message }],
           routingMode: mode,
@@ -64,7 +66,7 @@ export default function NineRouterDashboard({ data, addLog }) {
               ? "border-greenCore/30 bg-greenCore/10 text-greenCore"
               : "border-redCore/30 bg-redCore/10 text-redCore"
           }`}>
-            9Router upstream: {connections.nineRouter ? "ONLINE" : "OFFLINE"}
+            9Router upstream: {connections.nineRouter ? "ONLINE" : "OFFLINE"} · MODEL: {nineRouterModel}
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2">
@@ -105,7 +107,7 @@ export default function NineRouterDashboard({ data, addLog }) {
         </div>
       </Panel>
 
-      <Panel title="Model response" kicker={`Routing mode: ${mode}`}>
+      <Panel title="Model response" kicker={`${nineRouterModel} · Routing mode: ${mode}`}>
         <div className="terminal-window min-h-[360px] max-h-[500px] overflow-auto whitespace-pre-wrap rounded border border-cyanCore/15 bg-black/70 p-4 font-mono text-xs text-cyanCore/90">
           {error ? (
             <span className="text-redCore">ERROR: {error}</span>

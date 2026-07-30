@@ -1,4 +1,5 @@
 import { DEFAULT_GATEWAY_URL } from "./gatewayClient.js";
+import { DEFAULT_NINEROUTER_MODEL } from "./nineRouterModels.js";
 
 export const STORAGE_KEY = "j-core-console:data:v1";
 
@@ -47,6 +48,7 @@ export const defaultData = {
   endpoints: {
     gateway: DEFAULT_GATEWAY_URL,
     gatewayToken: '',
+    nineRouterModel: DEFAULT_NINEROUTER_MODEL,
   },
   auth: {
     pinEnabled: false,

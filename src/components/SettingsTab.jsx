@@ -3,6 +3,7 @@ import Panel from "./Panel.jsx";
 import { defaultData } from "../utils/storage.js";
 import { soundManager } from "../utils/soundManager.js";
 import { gatewayFetch } from "../utils/gatewayClient.js";
+import { NINEROUTER_MODELS, getNineRouterModel } from "../utils/nineRouterModels.js";
 
 export default function SettingsTab({ data, updateData, hardReset, addLog }) {
   const [gatewayTest, setGatewayTest] = useState({ status: "idle", health: null, message: "" });
@@ -143,6 +144,21 @@ export default function SettingsTab({ data, updateData, hardReset, addLog }) {
             <label className="field-label">
               Gateway device token
               <input className="hud-input text-xs" type="password" value={data.endpoints?.gatewayToken || ""} onChange={(e) => updateEndpoint("gatewayToken", e.target.value)} />
+            </label>
+            <label className="field-label">
+              9Router model
+              <select
+                className="hud-input text-xs"
+                value={getNineRouterModel(data)}
+                onChange={(event) => {
+                  updateEndpoint("nineRouterModel", event.target.value);
+                  addLog(`9Router model set to ${event.target.value}.`);
+                }}
+              >
+                {NINEROUTER_MODELS.map((model) => (
+                  <option key={model.id} value={model.id}>{model.label}</option>
+                ))}
+              </select>
             </label>
             <p className="text-[11px] leading-relaxed text-cyan-100/50">
               Hermes, OpenClaw và 9Router được định tuyến tại Ubuntu. Trình duyệt chỉ kết nối tới gateway này.
