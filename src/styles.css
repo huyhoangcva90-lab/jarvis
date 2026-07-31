@@ -66,6 +66,27 @@ body[data-activity="speaking"] {
   box-sizing: border-box;
 }
 
+/* Global Futuristic Sci-Fi Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--accent-rgb), 0.35);
+  border-radius: 3px;
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-rgb), 0.7);
+  box-shadow: 0 0 8px rgba(var(--accent-rgb), 0.6);
+}
+
 html,
 body,
 #root {
