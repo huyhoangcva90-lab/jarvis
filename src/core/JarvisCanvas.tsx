@@ -12,6 +12,8 @@ import { SpaceScene } from "../realms/space/SpaceScene";
 import { RealityScene } from "../realms/reality/RealityScene";
 import { TimeScene } from "../realms/time/TimeScene";
 import { SpiderScene } from "../realms/spider/SpiderScene";
+import { PowerScene } from "../realms/power/PowerScene";
+import { SoulScene } from "../realms/soul/SoulScene";
 
 type JarvisCanvasProps = {
   activity: AiActivity;
@@ -28,6 +30,7 @@ const CLEAR_COLORS: Record<string, string> = {
   orange: "#080300",
   spider: "#000408",
 };
+
 
 function getClearColor(palette: string) {
   return CLEAR_COLORS[palette] || CLEAR_COLORS.gold;
@@ -278,10 +281,10 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: Jar
                 return <RealityScene activity={activity} />;
               }
               if (activePalette === "violet") {
-                return <MindScene activity={activity} palette="violet" />;
+                return <PowerScene activity={activity} />;
               }
               if (activePalette === "orange") {
-                return <MindScene activity={activity} palette="orange" />;
+                return <SoulScene activity={activity} />;
               }
               if (activePalette === "spider") {
                 return <SpiderScene activity={activity} />;
