@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import { HERMES_PROFILES, HermesProfileId } from "../../utils/hermesProfiles";
 
 type ServiceHealth = {
   latencyMs?: number;
@@ -18,6 +19,8 @@ type ServiceDashboardProps = {
   prompt: string;
   reply: string;
   sending: boolean;
+  selectedProfileId?: HermesProfileId;
+  onProfileSelect?: (profileId: HermesProfileId) => void;
   onPromptChange: (value: string) => void;
   onRefresh: () => void;
   onSubmit: () => void;
@@ -62,6 +65,8 @@ export default function ServiceDashboard({
   prompt,
   reply,
   sending,
+  selectedProfileId = "jarvis-core",
+  onProfileSelect,
   onPromptChange,
   onRefresh,
   onSubmit,
@@ -70,6 +75,7 @@ export default function ServiceDashboard({
   const capabilities = capabilityRows(overview);
   const circuit = health?.circuit?.state || "closed";
   const configured = overview?.configured ?? health?.configured;
+  const isHermes = label.toUpperCase() === "HERMES";
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -90,6 +96,32 @@ export default function ServiceDashboard({
           {state === "loading" ? "Đang quét" : "Quét lại"}
         </button>
       </header>
+
+      {/* Hermes Mission Control 2.0 Agent Profile Selector */}
+      {isHermes && (
+        <section className="hermes-profile-selector-panel" aria-label="Hermes Agent Profile Selector">
+          <header className="profile-panel-header">
+            <span>HERMES AGENT PROFILES</span>
+            <small>Active: {selectedProfileId}</small>
+          </header>
+          <div className="profile-chips">
+            {HERMES_PROFILES.map((prof) => {
+              const isSelected = selectedProfileId === prof.id;
+              return (
+                <button
+                  type="button"
+                  key={prof.id}
+                  className={`profile-chip ${isSelected ? "active" : ""}`}
+                  onClick={() => onProfileSelect && onProfileSelect(prof.id)}
+                >
+                  <b>{prof.name}</b>
+                  <small>{prof.role}</small>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="service-metrics" aria-label={`Trạng thái ${label}`}>
         <article>
@@ -141,14 +173,32 @@ export default function ServiceDashboard({
         </div>
       )}
 
+      {/* Quick Studio Presets for Content Machine */}
+      {isHermes && selectedProfileId === "cadence-content" && (
+        <div className="cadence-quick-presets">
+          <span>STUDIO PIPELINE PRESETS:</span>
+          <div className="preset-buttons">
+            <button type="button" onClick={() => onPromptChange("Lên kịch bản 5 bước cho bài viết AI Content Studio")}>
+              01/ Research & Scripting
+            </button>
+            <button type="button" onClick={() => onPromptChange("Tối ưu SEO & Tiêu đề thu hút cho video YouTube mới")}>
+              02/ SEO & Metadata
+            </button>
+            <button type="button" onClick={() => onPromptChange("Lên lịch đăng bài tự động trên các kênh truyền thông")}>
+              03/ Multi-channel Dispatch
+            </button>
+          </div>
+        </div>
+      )}
+
       <form className="service-test-console" onSubmit={submit}>
-        <label htmlFor={`${label.toLowerCase()}-test-prompt`}>Direct service test</label>
+        <label htmlFor={`${label.toLowerCase()}-test-prompt`}>Direct service test ({selectedProfileId})</label>
         <div>
           <input
             id={`${label.toLowerCase()}-test-prompt`}
             value={prompt}
             onChange={(event) => onPromptChange(event.target.value)}
-            placeholder={`Gửi lệnh kiểm tra trực tiếp tới ${label}`}
+            placeholder={`Gửi lệnh kiểm tra trực tiếp tới ${label} (${selectedProfileId})`}
             disabled={sending}
           />
           <button type="submit" disabled={sending || !prompt.trim()}>
@@ -156,7 +206,7 @@ export default function ServiceDashboard({
           </button>
         </div>
         <output aria-live="polite">
-          {reply || `Chỉ gọi endpoint ${label}; không tự chuyển sang dịch vụ khác.`}
+          {reply || `Chỉ gọi endpoint ${label}; định tuyến theo profile ${selectedProfileId}.`}
         </output>
       </form>
     </div>

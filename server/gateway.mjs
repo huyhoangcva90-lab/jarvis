@@ -543,18 +543,91 @@ const server = createServer(async (req, res) => {
       });
     }
 
+    if (req.method === "GET" && url.pathname === "/api/hermes/profiles") {
+      return sendJson(req, res, 200, {
+        source: "hermes",
+        defaultProfile: "jarvis-core",
+        profiles: [
+          { id: "jarvis-core", name: "Jarvis Core Agent", role: "Trợ lý tổng quan & Cố vấn chỉ huy J-Core", icon: "terminal" },
+          { id: "cadence-content", name: "Cadence Content Studio", role: "Studio sáng tạo nội dung đa bước (Cadence)", icon: "media" },
+          { id: "code-architect", name: "Code Architect", role: "Kiến trúc sư phần mềm & Reviewer", icon: "router" },
+          { id: "security-auditor", name: "Security Auditor", role: "Kiểm thử an ninh & Quy tắc phòng thủ", icon: "shield" },
+        ],
+      });
+    }
+
     if (req.method === "POST" && url.pathname === "/api/hermes/chat") {
       const body = await readJson(req);
       if (!services.hermes.chat) {
         return sendJson(req, res, 503, { error: "hermes_not_configured" });
       }
-      const result = await proxyJson(services.hermes.chat, body, services.hermes.apiKey);
+
+      const profile = body.profile || "jarvis-core";
+      const sessionId = body.sessionId || "jarvis-default-session";
+      const openAiPayload = toOpenAiPayload(body, services.hermes.model);
+
+      if (body.systemPrompt) {
+        openAiPayload.messages = [
+          { role: "system", content: body.systemPrompt },
+          ...(openAiPayload.messages || []),
+        ];
+      }
+
+      const payloadWithProfile = {
+        ...openAiPayload,
+        profile,
+        session_id: sessionId,
+        user_id: body.operator || "Operator",
+      };
+
+      const result = await proxyJson(services.hermes.chat, payloadWithProfile, services.hermes.apiKey);
       return sendJson(req, res, result.ok ? 200 : 502, {
         reply: normalizeReply(result.data),
         upstreamStatus: result.status,
         raw: result.data,
         source: "hermes",
+        profile,
+        sessionId,
       });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/workspace/tree") {
+      try {
+        const rootDir = process.cwd();
+        const readDirRecursive = (dir, depth = 0) => {
+          if (depth > 3) return [];
+          const entries = readdirSync(dir, { withFileTypes: true });
+          const items = [];
+          for (const entry of entries) {
+            if (entry.name.startsWith(".") || entry.name === "node_modules" || entry.name === "dist") continue;
+            const fullPath = join(dir, entry.name);
+            const relPath = relative(rootDir, fullPath).replace(/\\/g, "/");
+            if (entry.isDirectory()) {
+              items.push({ name: entry.name, path: relPath, type: "directory", children: readDirRecursive(fullPath, depth + 1) });
+            } else {
+              items.push({ name: entry.name, path: relPath, type: "file" });
+            }
+          }
+          return items;
+        };
+        return sendJson(req, res, 200, { root: rootDir, tree: readDirRecursive(rootDir) });
+      } catch (err) {
+        return sendJson(req, res, 500, { error: "failed_to_read_tree", details: String(err) });
+      }
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/workspace/file") {
+      try {
+        const rootDir = process.cwd();
+        const fileRel = url.searchParams.get("path");
+        if (!fileRel) return sendJson(req, res, 400, { error: "missing_path" });
+        const targetPath = resolve(rootDir, fileRel);
+        if (!targetPath.startsWith(rootDir)) return sendJson(req, res, 403, { error: "access_denied" });
+        const content = readFileSync(targetPath, "utf-8");
+        return sendJson(req, res, 200, { path: fileRel, content });
+      } catch (err) {
+        return sendJson(req, res, 404, { error: "file_not_found", details: String(err) });
+      }
     }
 
     if (req.method === "POST" && url.pathname === "/api/9router/chat") {

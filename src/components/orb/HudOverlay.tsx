@@ -11,6 +11,8 @@ import {
 } from "../../utils/storage.js";
 import DynamicHub from "./DynamicHub";
 import ServiceDashboard from "./ServiceDashboard";
+import ObsidianMindmap from "./ObsidianMindmap";
+import { HERMES_PROFILES, HermesProfileId, loadStoredHermesProfileId, saveStoredHermesProfileId } from "../../utils/hermesProfiles";
 import {
   HUB_TEMPLATES,
   createHubArtifact,
@@ -424,8 +426,9 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     )
   );
   const [activeHubId, setActiveHubId] = useState<string | null>(() => initial?.activeHubId ?? initial?.hubArtifacts?.[0]?.id ?? null);
+  const [hermesProfileId, setHermesProfileId] = useState<HermesProfileId>(() => loadStoredHermesProfileId());
   const [activeWindow, setActiveWindow] = useState("chat");
-  const [intelMode, setIntelMode] = useState<"youtube" | "docs">("youtube");
+  const [intelMode, setIntelMode] = useState<"youtube" | "docs" | "obsidian">("youtube");
   const [selectedIntelDocument, setSelectedIntelDocument] = useState("gateway");
   const [youtubeDraft, setYoutubeDraft] = useState("https://www.youtube.com/watch?v=ciNHn38EyRc");
   const [youtubeVideoId, setYoutubeVideoId] = useState("ciNHn38EyRc");
@@ -436,6 +439,12 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     "Restricted command environment ready.",
     "Type 'help' to list commands.",
   ]);
+
+  const handleHermesProfileSelect = (id: HermesProfileId) => {
+    setHermesProfileId(id);
+    saveStoredHermesProfileId(id);
+    setToast(`Đã chuyển Hermes Profile: ${id}`);
+  };
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const [listening, setListening] = useState(false);
   const [activity, setActivity] = useState<AiActivity>("idle");
@@ -594,14 +603,25 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     requestControllerRef.current = controller;
 
     try {
+      const targetUrl = connections.hermes
+        ? "/api/hermes/chat"
+        : connections.nineRouter
+        ? "/api/9router/chat"
+        : "/api/ai/chat";
+
+      const activeProfile = HERMES_PROFILES.find((p) => p.id === hermesProfileId) || HERMES_PROFILES[0];
+
       const response: any = await gatewayFetch(
         data,
-        connections.nineRouter ? "/api/9router/chat" : "/api/ai/chat",
+        targetUrl,
         {
           method: "POST",
           timeoutMs: 60000,
           signal: controller.signal,
           body: JSON.stringify({
+            profile: hermesProfileId,
+            sessionId: "jarvis-default-session",
+            systemPrompt: activeProfile.systemPrompt,
             model: nineRouterModel,
             message: messageText,
             messages: requestMessages.map((message) => ({ role: message.role, content: message.text })),
@@ -1602,6 +1622,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             prompt={servicePanels.hermes.prompt}
             reply={servicePanels.hermes.reply}
             sending={servicePanels.hermes.sending}
+            selectedProfileId={hermesProfileId}
+            onProfileSelect={handleHermesProfileSelect}
             onPromptChange={(prompt) => updateServicePanel("hermes", { prompt })}
             onRefresh={() => void refreshServicePanel("hermes")}
             onSubmit={() => void testServicePanel("hermes")}
@@ -1640,25 +1662,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       )}
 
       {intelOpen && (
-        <OsWindow
-          title="Intel Library"
-          code="NET://KNOWLEDGE"
-          drag={intelDrag}
-          minimized={intelMinimized}
-          active={activeWindow === "intel"}
-          className="intel-os-window"
-          onActivate={() => setActiveWindow("intel")}
-          onClose={() => setIntelOpen(false)}
-          onToggleMinimize={() => setIntelMinimized(true)}
-        >
-          <div className="intel-shell">
-            <header className="intel-toolbar">
-              <div className="intel-tabs" role="tablist" aria-label="Nguồn dữ liệu Intel">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-label="YouTube"
-                  aria-selected={intelMode === "youtube"}
                   className={intelMode === "youtube" ? "active" : ""}
                   onClick={() => setIntelMode("youtube")}
                 >
