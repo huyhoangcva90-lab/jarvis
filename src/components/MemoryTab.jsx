@@ -19,7 +19,16 @@ export default function MemoryTab({ data, updateData, copyText }) {
       <Panel
         title="Memory Vault"
         kicker="Persistent context"
-        action={<button className="hud-button" type="button" onClick={() => copyText(buildFullContext(data), "Full memory context copied.")}>Copy Full Context</button>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <button className="hud-button text-xs" type="button" onClick={() => copyText(JSON.stringify(data.memory, null, 2), "Memory JSON copied.")}>
+              Export JSON
+            </button>
+            <button className="hud-button primary text-xs" type="button" onClick={() => copyText(buildFullContext(data), "Full memory context copied.")}>
+              Copy Full Context
+            </button>
+          </div>
+        }
       >
         <div className="grid gap-4 lg:grid-cols-2">
           {fields.map(([key, label]) => (

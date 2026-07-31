@@ -42,6 +42,10 @@ export default function TerminalTab({ data, updateData, copyText, addLog, onLock
           "  sys-info                      - Print system configurations & specs",
           "  stone-set <stone> <status>    - Force-set an Infinity Stone status",
           "  mission-list                  - Print ASCII table of all missions",
+          "  palette <gold|violet|blue...> - Switch Orb energy palette theme",
+          "  ping                          - Test gateway connection and latency",
+          "  export-data                   - Export console data to JSON string",
+          "  version                       - Print J-Core Console version info",
           "  auth-lock                     - Lock console immediately",
           "  scan                          - Check current J-Core states",
           "  mood <calm|tired>             - Update operator mood channel",
@@ -124,6 +128,39 @@ export default function TerminalTab({ data, updateData, copyText, addLog, onLock
           push(["Error: Auth screen lock handler not connected."]);
         }
         break;
+      case "version":
+        push([...prefix, "J-Core Console V2.0 (Jarvis Architecture) - Build 2026.07"]);
+        break;
+      case "palette": {
+        const nextPalette = tokens[1]?.toLowerCase();
+        const validPalettes = ["gold", "violet", "blue", "green", "red", "orange", "spider"];
+        if (!nextPalette || !validPalettes.includes(nextPalette)) {
+          push([...prefix, `Usage: palette <${validPalettes.join("|")}>`]);
+        } else {
+          document.body.dataset.palette = nextPalette;
+          window.dispatchEvent(new CustomEvent("jarvis-palette-change", { detail: nextPalette }));
+          push([...prefix, `Orb energy palette switched to "${nextPalette}"`]);
+          addLog(`Terminal: Palette set to '${nextPalette}'`);
+        }
+        break;
+      }
+      case "ping":
+        push([...prefix, "Pinging J-Core Gateway..."]);
+        fetch(data?.endpoints?.gateway ? `${data.endpoints.gateway}/health` : "/health")
+          .then((res) => res.json())
+          .then((health) => {
+            push([`Gateway response: ONLINE (status=${health.status || "ok"})`]);
+          })
+          .catch((err) => {
+            push([`Gateway response: OFFLINE (${err.message})`]);
+          });
+        break;
+      case "export-data": {
+        const jsonStr = JSON.stringify(data, null, 2);
+        copyText(jsonStr, "Console data JSON copied to clipboard.");
+        push([...prefix, "Full console data JSON copied to clipboard."]);
+        break;
+      }
       case "scan":
         push([...prefix, `Mood=${data.mood}; Energy=${data.energy}; Mission=${data.missionStatus}; Core=ONLINE.`]);
         break;
