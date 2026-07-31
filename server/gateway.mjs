@@ -440,12 +440,43 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && url.pathname === "/api/hermes/capabilities") {
-      const result = await fetchJson(`${services.hermes.base.replace(/\/+$/, "")}/v1/capabilities`, services.hermes.apiKey);
-      return sendJson(req, res, result.ok ? 200 : 502, {
+      const [capabilities, models] = await Promise.all([
+        fetchJson(`${services.hermes.base.replace(/\/+$/, "")}/v1/capabilities`, services.hermes.apiKey),
+        fetchJson(`${services.hermes.base.replace(/\/+$/, "")}/v1/models`, services.hermes.apiKey),
+      ]);
+      const ok = capabilities.ok || models.ok;
+      return sendJson(req, res, ok ? 200 : 502, {
         source: "hermes",
-        upstreamStatus: result.status,
-        latencyMs: result.latencyMs,
-        capabilities: result.data,
+        configured: Boolean(services.hermes.chat),
+        model: services.hermes.model,
+        upstreamStatus: capabilities.ok ? capabilities.status : models.status,
+        latencyMs: Math.max(capabilities.latencyMs, models.latencyMs),
+        capabilities: capabilities.ok ? capabilities.data : {},
+        models: Array.isArray(models.data?.data) ? models.data.data : [],
+        diagnostics: {
+          capabilitiesStatus: capabilities.status,
+          modelsStatus: models.status,
+        },
+      });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/claude/capabilities") {
+      const [health, models] = await Promise.all([
+        fetchJson(services.claude.health, services.claude.apiKey),
+        fetchJson(`${services.claude.base.replace(/\/+$/, "")}/v1/models`, services.claude.apiKey),
+      ]);
+      const ok = health.ok || models.ok;
+      return sendJson(req, res, ok ? 200 : 502, {
+        source: "claude",
+        configured: Boolean(services.claude.chat),
+        upstreamStatus: health.ok ? health.status : models.status,
+        latencyMs: Math.max(health.latencyMs, models.latencyMs),
+        capabilities: health.ok ? health.data : {},
+        models: Array.isArray(models.data?.data) ? models.data.data : [],
+        diagnostics: {
+          healthStatus: health.status,
+          modelsStatus: models.status,
+        },
       });
     }
 

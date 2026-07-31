@@ -10,6 +10,7 @@ import {
   saveGatewayToken,
 } from "../../utils/storage.js";
 import DynamicHub from "./DynamicHub";
+import ServiceDashboard from "./ServiceDashboard";
 import {
   HUB_TEMPLATES,
   createHubArtifact,
@@ -29,7 +30,25 @@ type Message = {
 };
 
 type Palette = EnergyPalette;
-type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "maximize" | "mic" | "attach" | "screen" | "send" | "terminal" | "agents" | "router" | "media" | "document";
+type ServiceKey = "hermes" | "claude";
+type ServicePanelState = {
+  state: "idle" | "loading" | "ready" | "error";
+  overview: any;
+  error: string;
+  prompt: string;
+  reply: string;
+  sending: boolean;
+};
+type IconName = "hub" | "chat" | "settings" | "reset" | "external" | "copy" | "trash" | "close" | "minimize" | "maximize" | "mic" | "attach" | "screen" | "send" | "terminal" | "agents" | "router" | "hermes" | "claude" | "media" | "document";
+
+const EMPTY_SERVICE_PANEL: ServicePanelState = {
+  state: "idle",
+  overview: null,
+  error: "",
+  prompt: "",
+  reply: "",
+  sending: false,
+};
 
 const WAKE_WORDS = /\b(jarvis|j core|jcore|jay core|tro ly)\b/;
 const REQUEST_INTENTS =
@@ -95,6 +114,8 @@ function Icon({ name }: { name: IconName }) {
     terminal: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="m7 9 3 3-3 3M13 15h4" /></>,
     agents: <><circle cx="12" cy="8" r="3" /><path d="M6 20v-2a6 6 0 0 1 12 0v2M5 9H3v6h2M19 9h2v6h-2" /></>,
     router: <><circle cx="5" cy="6" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="12" cy="18" r="2" /><path d="m7 7 4 9M17 7l-4 9M7 6h10" /></>,
+    hermes: <><path d="M12 3 5 7v5c0 4.7 2.8 7.5 7 9 4.2-1.5 7-4.3 7-9V7Z" /><path d="M9 9h6M9 13h6M12 9v7" /></>,
+    claude: <><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6 5.6 18.4" /><circle cx="12" cy="12" r="4" /></>,
     media: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m10 9 5 3-5 3Z" /></>,
     document: <><path d="M6 3h8l4 4v14H6Z" /><path d="M14 3v5h5M9 12h6M9 16h6" /></>
   };
@@ -360,6 +381,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       services?: Record<string, {
         latencyMs?: number;
         status?: number;
+        configured?: boolean;
         circuit?: { state?: string };
       }>;
       error?: string | null;
@@ -383,11 +405,15 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [terminalOpen, setTerminalOpen] = useState(false);
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [routerOpen, setRouterOpen] = useState(false);
+  const [hermesOpen, setHermesOpen] = useState(false);
+  const [claudeOpen, setClaudeOpen] = useState(false);
   const [intelOpen, setIntelOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [terminalMinimized, setTerminalMinimized] = useState(false);
   const [agentsMinimized, setAgentsMinimized] = useState(false);
   const [routerMinimized, setRouterMinimized] = useState(false);
+  const [hermesMinimized, setHermesMinimized] = useState(false);
+  const [claudeMinimized, setClaudeMinimized] = useState(false);
   const [intelMinimized, setIntelMinimized] = useState(false);
   const [workspaceMinimized, setWorkspaceMinimized] = useState(false);
   const [hubArtifacts, setHubArtifacts] = useState<HubArtifact[]>(() =>
@@ -426,6 +452,10 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [routerDashboardState, setRouterDashboardState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [routerDashboardError, setRouterDashboardError] = useState("");
   const [routerModels, setRouterModels] = useState<Array<{ id?: string }>>([]);
+  const [servicePanels, setServicePanels] = useState<Record<ServiceKey, ServicePanelState>>({
+    hermes: { ...EMPTY_SERVICE_PANEL },
+    claude: { ...EMPTY_SERVICE_PANEL },
+  });
   const nineRouterModel = getNineRouterModel(data);
   const routerModelOptions = useMemo(() => {
     const discovered = routerModels
@@ -457,6 +487,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const terminalDrag = usePanelDrag();
   const agentsDrag = usePanelDrag();
   const routerDrag = usePanelDrag();
+  const hermesDrag = usePanelDrag();
+  const claudeDrag = usePanelDrag();
   const intelDrag = usePanelDrag();
   const workspaceDrag = usePanelDrag();
 
@@ -828,6 +860,70 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     }
   };
 
+  const updateServicePanel = (service: ServiceKey, patch: Partial<ServicePanelState>) => {
+    setServicePanels((current) => ({
+      ...current,
+      [service]: { ...current[service], ...patch },
+    }));
+  };
+
+  const refreshServicePanel = async (service: ServiceKey) => {
+    updateServicePanel(service, { state: "loading", error: "" });
+    try {
+      const overview: any = await gatewayFetch(
+        data,
+        service === "hermes" ? "/api/hermes/capabilities" : "/api/claude/capabilities",
+        { method: "GET", timeoutMs: 7000 },
+      );
+      updateServicePanel(service, { state: "ready", overview, error: "" });
+    } catch (error: any) {
+      updateServicePanel(service, {
+        state: "error",
+        error: error?.message || `Không thể đọc trạng thái ${service}.`,
+      });
+    }
+  };
+
+  const openServicePanel = (service: ServiceKey) => {
+    setActiveWindow(service);
+    if (service === "hermes") {
+      setHermesOpen(true);
+      setHermesMinimized(false);
+    } else {
+      setClaudeOpen(true);
+      setClaudeMinimized(false);
+    }
+    if (servicePanels[service].state === "idle" || servicePanels[service].state === "error") {
+      void refreshServicePanel(service);
+    }
+  };
+
+  const testServicePanel = async (service: ServiceKey) => {
+    const prompt = servicePanels[service].prompt.trim();
+    if (!prompt || servicePanels[service].sending) return;
+    updateServicePanel(service, { sending: true, reply: "" });
+    try {
+      const result: any = await gatewayFetch(data, `/api/${service}/chat`, {
+        method: "POST",
+        timeoutMs: 60000,
+        body: JSON.stringify({
+          message: prompt,
+          messages: [{ role: "user", content: prompt }],
+          operator: data?.username || "Operator",
+        }),
+      });
+      updateServicePanel(service, {
+        sending: false,
+        reply: getGatewayReply(result) || `${service} đã phản hồi nhưng không có nội dung văn bản.`,
+      });
+    } catch (error: any) {
+      updateServicePanel(service, {
+        sending: false,
+        reply: error?.message || `Không thể gửi test tới ${service}.`,
+      });
+    }
+  };
+
   const selectNineRouterModel = (model: string) => {
     updateData({ endpoints: { ...data.endpoints, nineRouterModel: model } });
     setToast(`9Router model: ${model}`);
@@ -890,6 +986,14 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     if (windowId === "router") {
       setRouterOpen(true);
       setRouterMinimized(false);
+    }
+    if (windowId === "hermes") {
+      setHermesOpen(true);
+      setHermesMinimized(false);
+    }
+    if (windowId === "claude") {
+      setClaudeOpen(true);
+      setClaudeMinimized(false);
     }
     if (windowId === "intel") {
       setIntelOpen(true);
@@ -955,7 +1059,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         "help              danh sách lệnh",
         "status            trạng thái gateway/upstream",
         "scan              quét health qua gateway",
-        "open <app>        system|chat|agents|router|settings|intel",
+        "open <app>        system|chat|agents|router|hermes|claude|settings|intel",
         "whoami            thông tin operator",
         "date              thời gian hệ thống",
         "clear             xóa terminal",
@@ -968,6 +1072,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         `hermes    ${connections.hermes ? "READY" : "OFFLINE"}`,
         `openclaw  ${connections.openclaw ? "ONLINE" : "OFFLINE"}`,
         `9router   ${connections.nineRouter ? "ONLINE" : "OFFLINE"}`,
+        `claude    ${connections.claude ? "READY" : "OFFLINE"}`,
       ]);
       return;
     }
@@ -982,11 +1087,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     if (command === "open") {
       const app = args[0] || "";
       const target = app === "gateway" ? "settings" : app;
-      if (["system", "chat", "agents", "router", "settings", "terminal", "intel", "workspace"].includes(target)) {
+      if (["system", "chat", "agents", "router", "hermes", "claude", "settings", "terminal", "intel", "workspace"].includes(target)) {
         openOsWindow(target);
         pushTerminal(`Window '${target}' opened.`);
       } else {
-        pushTerminal("Unknown app. Use: system, chat, agents, router, settings, intel.");
+        pushTerminal("Unknown app. Use: system, chat, agents, router, hermes, claude, settings, intel.");
       }
       return;
     }
@@ -1015,9 +1120,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         "3": "terminal",
         "4": "agents",
         "5": "router",
-        "6": "settings",
-        "7": "intel",
-        "8": "workspace",
+        "6": "hermes",
+        "7": "claude",
+        "8": "settings",
+        "9": "intel",
+        "0": "workspace",
       };
       const target = shortcuts[event.key];
       if (!target) return;
@@ -1064,6 +1171,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     terminalOpen && terminalMinimized ? { id: "terminal", label: "Restricted Terminal", code: "TERM", icon: "terminal" } : null,
     agentsOpen && agentsMinimized ? { id: "agents", label: "Agent Matrix", code: "AGNT", icon: "agents" } : null,
     routerOpen && routerMinimized ? { id: "router", label: "Router Matrix", code: "ROUT", icon: "router" } : null,
+    hermesOpen && hermesMinimized ? { id: "hermes", label: "Hermes Core", code: "HRMS", icon: "hermes" } : null,
+    claudeOpen && claudeMinimized ? { id: "claude", label: "Claude Bridge", code: "CLDE", icon: "claude" } : null,
     intelOpen && intelMinimized ? { id: "intel", label: "Intel Library", code: "INTL", icon: "media" } : null,
     workspaceOpen && workspaceMinimized ? { id: "workspace", label: "Universal Workspace", code: "HUB", icon: "hub" } : null,
     settingsOpen && settingsMinimized ? { id: "settings", label: "Gateway Settings", code: "GATE", icon: "settings" } : null,
@@ -1092,6 +1201,22 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             }}
           >
             <Icon name="router" /><span>9Router</span>
+          </button>
+          <button
+            className={hermesOpen ? "active" : ""}
+            type="button"
+            aria-label="Mở bảng điều khiển Hermes"
+            onClick={() => openServicePanel("hermes")}
+          >
+            <Icon name="hermes" /><span>Hermes</span>
+          </button>
+          <button
+            className={claudeOpen ? "active" : ""}
+            type="button"
+            aria-label="Mở bảng điều khiển Claude"
+            onClick={() => openServicePanel("claude")}
+          >
+            <Icon name="claude" /><span>Claude</span>
           </button>
           <button className={intelOpen ? "active" : ""} type="button" aria-label="Mở Intel Library" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Intel</span></button>
           <button className={workspaceOpen ? "active" : ""} type="button" aria-label="Mở Universal Workspace" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Workspace</span></button>
@@ -1451,6 +1576,66 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               </div>
             )}
           </div>
+        </OsWindow>
+      )}
+
+      {hermesOpen && (
+        <OsWindow
+          title="Hermes Core"
+          code="AI://HERMES"
+          drag={hermesDrag}
+          minimized={hermesMinimized}
+          active={activeWindow === "hermes"}
+          className="service-os-window hermes-os-window"
+          onActivate={() => setActiveWindow("hermes")}
+          onClose={() => setHermesOpen(false)}
+          onToggleMinimize={() => setHermesMinimized(true)}
+        >
+          <ServiceDashboard
+            label="HERMES"
+            description="Reasoning orchestrator · capability and direct-chat diagnostics"
+            online={connections.hermes}
+            state={servicePanels.hermes.state}
+            health={connections.services?.hermes}
+            overview={servicePanels.hermes.overview}
+            error={servicePanels.hermes.error}
+            prompt={servicePanels.hermes.prompt}
+            reply={servicePanels.hermes.reply}
+            sending={servicePanels.hermes.sending}
+            onPromptChange={(prompt) => updateServicePanel("hermes", { prompt })}
+            onRefresh={() => void refreshServicePanel("hermes")}
+            onSubmit={() => void testServicePanel("hermes")}
+          />
+        </OsWindow>
+      )}
+
+      {claudeOpen && (
+        <OsWindow
+          title="Claude Bridge"
+          code="AI://CLAUDE"
+          drag={claudeDrag}
+          minimized={claudeMinimized}
+          active={activeWindow === "claude"}
+          className="service-os-window claude-os-window"
+          onActivate={() => setActiveWindow("claude")}
+          onClose={() => setClaudeOpen(false)}
+          onToggleMinimize={() => setClaudeMinimized(true)}
+        >
+          <ServiceDashboard
+            label="CLAUDE"
+            description="Local Claude Code bridge · health and direct-chat diagnostics"
+            online={connections.claude}
+            state={servicePanels.claude.state}
+            health={connections.services?.claude}
+            overview={servicePanels.claude.overview}
+            error={servicePanels.claude.error}
+            prompt={servicePanels.claude.prompt}
+            reply={servicePanels.claude.reply}
+            sending={servicePanels.claude.sending}
+            onPromptChange={(prompt) => updateServicePanel("claude", { prompt })}
+            onRefresh={() => void refreshServicePanel("claude")}
+            onSubmit={() => void testServicePanel("claude")}
+          />
         </OsWindow>
       )}
 

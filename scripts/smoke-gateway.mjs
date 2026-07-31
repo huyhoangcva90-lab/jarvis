@@ -63,6 +63,7 @@ const gateway = spawn(process.execPath, ["server/gateway.mjs"], {
     NINEROUTER_CHAT_URL: `http://127.0.0.1:${upstreamPort}/v1/chat/completions`,
     CLAUDE_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
     CLAUDE_HEALTH_URL: `http://127.0.0.1:${upstreamPort}/v1/models`,
+    CLAUDE_CHAT_URL: `http://127.0.0.1:${upstreamPort}/v1/chat/completions`,
   },
   stdio: ["ignore", "pipe", "pipe"],
 });
@@ -93,6 +94,37 @@ try {
   const modelsBody = await models.json();
   if (!models.ok || modelsBody.models?.length !== 2) {
     throw new Error(`Models failed: ${JSON.stringify(modelsBody)}`);
+  }
+
+  const [hermesCapabilities, claudeCapabilities] = await Promise.all([
+    fetch(`${base}/api/hermes/capabilities`, { headers: authHeaders }),
+    fetch(`${base}/api/claude/capabilities`, { headers: authHeaders }),
+  ]);
+  const [hermesBody, claudeBody] = await Promise.all([
+    hermesCapabilities.json(),
+    claudeCapabilities.json(),
+  ]);
+  if (!hermesCapabilities.ok || !hermesBody.configured || hermesBody.models?.length !== 2) {
+    throw new Error(`Hermes capabilities failed: ${JSON.stringify(hermesBody)}`);
+  }
+  if (!claudeCapabilities.ok || !claudeBody.configured || claudeBody.models?.length !== 2) {
+    throw new Error(`Claude capabilities failed: ${JSON.stringify(claudeBody)}`);
+  }
+
+  const [hermesChat, claudeChat] = await Promise.all([
+    fetch(`${base}/api/hermes/chat`, {
+      method: "POST",
+      headers: { ...authHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ message: "ping", messages: [{ role: "user", content: "ping" }] }),
+    }),
+    fetch(`${base}/api/claude/chat`, {
+      method: "POST",
+      headers: { ...authHeaders, "content-type": "application/json" },
+      body: JSON.stringify({ message: "ping", messages: [{ role: "user", content: "ping" }] }),
+    }),
+  ]);
+  if (!hermesChat.ok || !claudeChat.ok) {
+    throw new Error(`Service chat failed: Hermes ${hermesChat.status}, Claude ${claudeChat.status}`);
   }
 
   const session = await fetch(`${base}/api/session/9router`, {
@@ -126,7 +158,7 @@ try {
     throw new Error(`Native management API proxy failed: ${JSON.stringify(nativeSettingsBody)}`);
   }
 
-  console.log("Gateway smoke test passed: auth, health, models, credentialed session, dashboard and native management API.");
+  console.log("Gateway smoke test passed: auth, health, service capabilities, credentialed session, dashboard and native management API.");
 } finally {
   gateway.kill();
   upstream.close();
