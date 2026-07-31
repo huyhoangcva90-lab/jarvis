@@ -192,13 +192,13 @@ export default function ServiceDashboard({
       )}
 
       <form className="service-test-console" onSubmit={submit}>
-        <label htmlFor={`${label.toLowerCase()}-test-prompt`}>Direct service test ({selectedProfileId})</label>
+        <label htmlFor={`${label.toLowerCase()}-test-prompt`}>Direct service test {isHermes ? `(${selectedProfileId})` : ""}</label>
         <div>
           <input
             id={`${label.toLowerCase()}-test-prompt`}
             value={prompt}
             onChange={(event) => onPromptChange(event.target.value)}
-            placeholder={`Gửi lệnh kiểm tra trực tiếp tới ${label} (${selectedProfileId})`}
+            placeholder={isHermes ? `Gửi lệnh kiểm tra trực tiếp tới ${label} (${selectedProfileId})` : `Gửi lệnh kiểm tra trực tiếp tới ${label}`}
             disabled={sending}
           />
           <button type="submit" disabled={sending || !prompt.trim()}>
@@ -206,7 +206,7 @@ export default function ServiceDashboard({
           </button>
         </div>
         <output aria-live="polite">
-          {reply || `Chỉ gọi endpoint ${label}; định tuyến theo profile ${selectedProfileId}.`}
+          {reply || (isHermes ? `Chỉ gọi endpoint ${label}; định tuyến theo profile ${selectedProfileId}.` : `Chỉ gọi endpoint ${label}.`)}
         </output>
       </form>
     </div>
