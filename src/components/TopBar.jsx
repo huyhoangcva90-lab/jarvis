@@ -11,6 +11,7 @@ export default function TopBar({ data, currentTime }) {
           <h1 className="font-mono text-xl uppercase text-cyan-50 sm:text-2xl">JARVIS</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase">
+          {/* GATEWAY Status */}
           <span className={`flex items-center gap-1.5 rounded border px-2 py-1 status-dot ${
             connections.gateway
               ? "border-greenCore/30 bg-greenCore/10 text-greenCore"
@@ -46,6 +47,15 @@ export default function TopBar({ data, currentTime }) {
             <span className={`h-1.5 w-1.5 rounded-full ${connections.nineRouter ? "bg-cyanCore animate-pulse" : "bg-slate-500"}`}></span> 9ROUTER
           </span>
 
+          {/* CLAUDE Status */}
+          <span className={`flex items-center gap-1.5 rounded border px-2 py-1 status-dot ${
+            connections.claude 
+              ? "border-amberCore/30 bg-amberCore/10 text-amberCore" 
+              : "border-slate-500/30 bg-slate-500/10 text-slate-400"
+          }`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${connections.claude ? "bg-amberCore animate-pulse" : "bg-slate-500"}`}></span> CLAUDE
+          </span>
+
           <span className="rounded border border-cyan-300/20 px-3 py-2 text-cyan-100">{data.username}</span>
           <time className="rounded border border-cyan-300/20 px-3 py-2 text-cyan-100">{currentTime}</time>
         </div>
@@ -53,4 +63,3 @@ export default function TopBar({ data, currentTime }) {
     </header>
   );
 }
-
