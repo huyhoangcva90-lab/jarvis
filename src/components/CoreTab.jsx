@@ -1,8 +1,11 @@
 import Panel from "./Panel.jsx";
+import { useStoneState } from "../utils/stoneState.jsx";
 
 export default function CoreTab({ data, currentTime }) {
+  const { connections } = useStoneState();
   const recentLogs = data.logs.slice(-6).reverse();
   const threat = data.energy === "low" || data.mood === "tired" ? "Warning" : "Nominal";
+  const coreStatus = connections.gateway ? "ONLINE" : "OFFLINE";
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1.3fr_0.9fr]">
@@ -17,7 +20,7 @@ export default function CoreTab({ data, currentTime }) {
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
-              <Metric label="AI Core" value="ONLINE" tone="green" />
+              <Metric label="AI Core" value={coreStatus} tone={connections.gateway ? "green" : "amber"} />
               <Metric label="Current Time" value={currentTime} />
               <Metric label="Threat Level" value={threat} tone={threat === "Warning" ? "amber" : "green"} />
             </div>
