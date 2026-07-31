@@ -11,7 +11,7 @@ const COPPER_GLOW = new THREE.Color("#d65f10");
 const LATTICE_COLORS: Record<LegacyOrbPalette, [string, string]> = {
   gold: ["#fff8d6", "#d65f10"],
   green: ["#f5fff6", "#18bd58"],
-  violet: ["#fff6ff", "#7f35ff"],
+  violet: ["#faf5ff", "#7c3aed"],
   orange: ["#fff5de", "#ed5f12"],
 };
 

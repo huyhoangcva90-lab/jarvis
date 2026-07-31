@@ -24,7 +24,7 @@ const CLEAR_COLORS: Record<string, string> = {
   green: "#000704",
   blue: "#00040a",
   red: "#080002",
-  violet: "#040008",
+  violet: "#02000a",
   orange: "#080300",
   spider: "#000408",
 };

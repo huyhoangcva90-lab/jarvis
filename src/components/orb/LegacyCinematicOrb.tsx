@@ -78,12 +78,12 @@ const ORB_PALETTES: Record<
     clear: "#080002"
   },
   violet: {
-    plasma: "#b35cff",
-    hot: "#e8b7ff",
-    white: "#fff6ff",
-    deep: "#2d0f58",
-    copper: "#7f35ff",
-    clear: "#040008"
+    plasma: "#a855f7",
+    hot: "#d8b4fe",
+    white: "#faf5ff",
+    deep: "#1e0547",
+    copper: "#7c3aed",
+    clear: "#02000a"
   },
   orange: {
     plasma: "#ff7a18",
@@ -103,7 +103,7 @@ const ORB_MODE: Record<
   blue: { speed: 0.92, bloom: 0.96, scaffold: 1.72, shell: 0.86, pulse: 0.92, packet: 1.08 },
   green: { speed: 0.74, bloom: 1.04, scaffold: 0.74, shell: 1.48, pulse: 0.82, packet: 0.92 },
   red: { speed: 1.44, bloom: 1.12, scaffold: 1.18, shell: 0.92, pulse: 1.42, packet: 1.55 },
-  violet: { speed: 1.12, bloom: 1.2, scaffold: 1.08, shell: 1.08, pulse: 1.34, packet: 1.26 },
+  violet: { speed: 1.18, bloom: 1.35, scaffold: 1.22, shell: 1.18, pulse: 1.48, packet: 1.38 },
   orange: { speed: 1, bloom: 1, scaffold: 1, shell: 1, pulse: 1, packet: 1 }
 };
 

@@ -30,9 +30,9 @@ body[data-palette="red"] {
 }
 
 body[data-palette="violet"] {
-  --accent: #b35cff;
-  --accent-rgb: 179, 92, 255;
-  --hot: #f0b8ff;
+  --accent: #a855f7;
+  --accent-rgb: 168, 85, 247;
+  --hot: #d8b4fe;
 }
 
 body[data-palette="orange"] {

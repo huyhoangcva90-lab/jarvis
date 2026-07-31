@@ -16,7 +16,7 @@ export type LegacyOrbPalette = "gold" | "green" | "violet" | "orange";
 const LEGACY_ORB_COLORS: Record<LegacyOrbPalette, [string, string, string, string, string]> = {
   gold: ["#ff8a18", "#ffd15c", "#fff8d6", "#b8490b", "#d65f10"],
   green: ["#4cff85", "#b9ffc9", "#f5fff6", "#0b4f24", "#18bd58"],
-  violet: ["#b35cff", "#e8b7ff", "#fff6ff", "#2d0f58", "#7f35ff"],
+  violet: ["#a855f7", "#d8b4fe", "#faf5ff", "#1e0547", "#7c3aed"],
   orange: ["#ff7a18", "#ffc46b", "#fff5de", "#7a2608", "#ed5f12"],
 };
 

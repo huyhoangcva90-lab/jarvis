@@ -97,7 +97,7 @@ export default function CinematicOrb({ activity, palette = "gold", resetSignal =
     <div ref={hostRef} className="orb-render-host">
       <OrbErrorBoundary resetKey={palette}>
         <Suspense fallback={<div className="orb-loading" aria-hidden="true" />}>
-          {palette === "gold" || palette === "red" || palette === "orange" ? (
+          {palette === "gold" || palette === "red" || palette === "orange" || palette === "violet" ? (
             <LegacyCinematicOrb
               activity={activity}
               palette={palette as LegacyEnergyPalette}
