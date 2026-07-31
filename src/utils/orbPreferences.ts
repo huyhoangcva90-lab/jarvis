@@ -19,15 +19,15 @@ export function isEnergyPalette(value: unknown): value is EnergyPalette {
 }
 
 export function loadStoredEnergyPalette(): EnergyPalette {
-  if (typeof window === "undefined") return "violet";
+  if (typeof window === "undefined") return "gold";
 
   try {
     const raw = window.localStorage.getItem(ORB_UI_STORAGE_KEY);
-    if (!raw) return "violet";
+    if (!raw) return "gold";
     const stored = JSON.parse(raw) as { palette?: unknown };
-    return isEnergyPalette(stored.palette) ? stored.palette : "violet";
+    return isEnergyPalette(stored.palette) ? stored.palette : "gold";
   } catch {
-    return "violet";
+    return "gold";
   }
 }
 
