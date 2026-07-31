@@ -25,6 +25,45 @@ export default function MissionTab({ data, updateData, addLog }) {
   const [simIntervalId, setSimIntervalId] = useState(null);
   const [showApproval, setShowApproval] = useState(false);
 
+  // Pomodoro Timer states
+  const [timerMode, setTimerMode] = useState("focus"); // 'focus' (25m), 'shortBreak' (5m), 'longBreak' (15m)
+  const [timerSeconds, setTimerSeconds] = useState(25 * 60);
+  const [timerRunning, setTimerRunning] = useState(false);
+
+  useEffect(() => {
+    let interval = null;
+    if (timerRunning) {
+      interval = setInterval(() => {
+        setTimerSeconds((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setTimerRunning(false);
+            soundManager.play("success");
+            addLog?.(`Pomodoro timer [${timerMode}] completed!`);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [timerRunning, timerMode]);
+
+  const switchTimerMode = (mode, minutes) => {
+    soundManager.play("click");
+    setTimerMode(mode);
+    setTimerSeconds(minutes * 60);
+    setTimerRunning(false);
+  };
+
+  const formatTime = (totalSec) => {
+    const mins = Math.floor(totalSec / 60).toString().padStart(2, "0");
+    const secs = (totalSec % 60).toString().padStart(2, "0");
+    return `${mins}:${secs}`;
+  };
+
   // Sync data with storage on initial load if empty
   useEffect(() => {
     if (missions.length === 0) {
@@ -422,12 +461,61 @@ export default function MissionTab({ data, updateData, addLog }) {
           )}
         </Panel>
 
-        {/* Focus timer panel (Giữ lại cấu trúc HUD cũ) */}
-        <Panel title="Focus Control" kicker="Pomodoro Timer">
-          <div className="rounded border border-cyan-300/20 bg-slate-950/60 p-4 text-center">
-            <p className="font-mono text-xs uppercase text-cyan-100/60">Focus timer</p>
-            <p className="mt-2 font-mono text-5xl text-cyan-50">25:00</p>
-            <p className="mt-2 text-sm text-cyan-100/60">Timer module reserved for next upgrade.</p>
+        {/* Focus timer panel (Pomodoro Control) */}
+        <Panel title="Focus Control" kicker={`Pomodoro · ${timerMode.toUpperCase()}`}>
+          <div className="rounded border border-cyan-300/20 bg-slate-950/60 p-4 text-center font-mono">
+            <div className="flex justify-center gap-1 mb-3">
+              <button
+                type="button"
+                className={`hud-mini-button ${timerMode === "focus" ? "primary border-cyanCore text-cyanCore" : ""}`}
+                onClick={() => switchTimerMode("focus", 25)}
+              >
+                Focus 25m
+              </button>
+              <button
+                type="button"
+                className={`hud-mini-button ${timerMode === "shortBreak" ? "primary border-cyanCore text-cyanCore" : ""}`}
+                onClick={() => switchTimerMode("shortBreak", 5)}
+              >
+                Break 5m
+              </button>
+              <button
+                type="button"
+                className={`hud-mini-button ${timerMode === "longBreak" ? "primary border-cyanCore text-cyanCore" : ""}`}
+                onClick={() => switchTimerMode("longBreak", 15)}
+              >
+                Long 15m
+              </button>
+            </div>
+
+            <p className="font-mono text-5xl font-bold tracking-wider text-cyan-50 my-2 drop-shadow-[0_0_15px_rgba(34,211,238,0.4)]">
+              {formatTime(timerSeconds)}
+            </p>
+
+            <div className="flex justify-center gap-2 mt-4">
+              <button
+                type="button"
+                className={`hud-button uppercase text-xs px-6 ${timerRunning ? "danger border-red-500/40 bg-red-500/20" : "primary"}`}
+                onClick={() => {
+                  soundManager.play("click");
+                  setTimerRunning(!timerRunning);
+                }}
+              >
+                {timerRunning ? "Pause" : "Start Focus"}
+              </button>
+              <button
+                type="button"
+                className="hud-button text-xs uppercase px-4"
+                onClick={() => {
+                  soundManager.play("click");
+                  setTimerRunning(false);
+                  const initialMins = timerMode === "focus" ? 25 : timerMode === "shortBreak" ? 5 : 15;
+                  setTimerSeconds(initialMins * 60);
+                }}
+              >
+                Reset
+              </button>
+            </div>
           </div>
         </Panel>
       </div>
