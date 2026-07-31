@@ -4,8 +4,11 @@ import Panel from './Panel.jsx';
 import { ALL_STONES, STONE_META } from '../types/stones.js';
 import { useAllStoneStatuses } from '../utils/stoneState.jsx';
 
+import { loadMissions, getActiveMissions } from '../utils/missionEngine.js';
+
 export default function CommandCenter({ data, currentTime, onStoneClick, onOpenChat }) {
   const stoneStatuses = useAllStoneStatuses();
+  const activeMissionsCount = getActiveMissions(loadMissions()).length;
 
   const recentLogs = (data.logs || []).slice(-4).reverse();
 
@@ -53,7 +56,7 @@ export default function CommandCenter({ data, currentTime, onStoneClick, onOpenC
         {/* Quick Info Row */}
         <div className="grid w-full max-w-[560px] grid-cols-3 gap-3">
           <div className="rounded border border-cyan-300/20 bg-slate-950/60 p-3 text-center">
-            <p className="font-mono text-2xl text-cyanCore">0</p>
+            <p className="font-mono text-2xl text-cyanCore">{activeMissionsCount}</p>
             <p className="font-mono text-[10px] uppercase text-cyan-100/50">Active Missions</p>
           </div>
           <div className="rounded border border-cyan-300/20 bg-slate-950/60 p-3 text-center">
