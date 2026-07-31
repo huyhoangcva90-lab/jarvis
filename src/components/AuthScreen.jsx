@@ -63,9 +63,21 @@ export default function AuthScreen({ data, onUnlock }) {
   if (attempts >= 3) {
     return (
       <div className="fixed inset-0 bg-void flex items-center justify-center z-50 text-dangerCore font-mono text-center p-6">
-        <div>
+        <div className="max-w-md rounded-xl border border-dangerCore/40 bg-slate-950/90 p-8 shadow-[0_0_40px_rgba(239,68,68,0.2)]">
           <div className="text-4xl mb-4">⚠️ SYSTEM LOCKED</div>
-          <div className="text-sm opacity-80">Maximum attempts exceeded. Reboot required.</div>
+          <div className="text-sm text-cyan-100/70 mb-6">Maximum security attempts exceeded. Re-authentication required.</div>
+          <button
+            type="button"
+            className="hud-button danger w-full uppercase py-3 text-xs font-bold"
+            onClick={() => {
+              soundManager.play("click");
+              setAttempts(0);
+              setPin("");
+              setError(false);
+            }}
+          >
+            Reset Security Lock & Retry
+          </button>
         </div>
       </div>
     );
