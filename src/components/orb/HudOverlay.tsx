@@ -1662,6 +1662,25 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       )}
 
       {intelOpen && (
+        <OsWindow
+          title="Intel Library"
+          code="NET://KNOWLEDGE"
+          drag={intelDrag}
+          minimized={intelMinimized}
+          active={activeWindow === "intel"}
+          className="intel-os-window"
+          onActivate={() => setActiveWindow("intel")}
+          onClose={() => setIntelOpen(false)}
+          onToggleMinimize={() => setIntelMinimized(true)}
+        >
+          <div className="intel-shell">
+            <header className="intel-toolbar">
+              <div className="intel-tabs" role="tablist" aria-label="Nguồn dữ liệu Intel">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-label="YouTube"
+                  aria-selected={intelMode === "youtube"}
                   className={intelMode === "youtube" ? "active" : ""}
                   onClick={() => setIntelMode("youtube")}
                 >
