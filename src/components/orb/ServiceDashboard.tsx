@@ -20,6 +20,7 @@ type ServiceDashboardProps = {
   reply: string;
   sending: boolean;
   selectedProfileId?: HermesProfileId;
+  onSelectProfile?: (profileId: HermesProfileId) => void;
   onPromptChange: (value: string) => void;
   onRefresh: () => void;
   onSubmit: () => void;
@@ -65,6 +66,7 @@ export default function ServiceDashboard({
   reply,
   sending,
   selectedProfileId = DEFAULT_HERMES_PROFILE_ID,
+  onSelectProfile,
   onPromptChange,
   onRefresh,
   onSubmit,
@@ -95,19 +97,23 @@ export default function ServiceDashboard({
         </button>
       </header>
 
-      {/* Main console deliberately uses one persistent Hermes profile. */}
       {isHermes && (
-        <section className="hermes-profile-selector-panel" aria-label="Profile Hermes mặc định">
+        <section className="hermes-profile-selector-panel" aria-label="Profile Hermes">
           <header className="profile-panel-header">
-            <span>PROFILE HERMES MẶC ĐỊNH</span>
-            <small>Ubuntu · đang dùng: {DEFAULT_HERMES_PROFILE_ID}</small>
+            <span>CHỌN PROFILE HERMES</span>
+            <small>Ubuntu · đang dùng: {selectedProfileId}</small>
           </header>
           <div className="profile-chips">
-            {HERMES_PROFILES.filter((profile) => profile.id === DEFAULT_HERMES_PROFILE_ID).map((profile) => (
-              <article className="profile-chip active is-locked" key={profile.id}>
+            {HERMES_PROFILES.map((profile) => (
+              <button
+                type="button"
+                className={`profile-chip ${selectedProfileId === profile.id ? "active" : ""}`}
+                key={profile.id}
+                onClick={() => onSelectProfile?.(profile.id)}
+              >
                 <b>{profile.name}</b>
-                <small>Một profile cố định · bộ nhớ phiên bền vững · tiếng Việt</small>
-              </article>
+                <small>{profile.description || `${profile.id} · bộ nhớ phiên bền vững`}</small>
+              </button>
             ))}
           </div>
         </section>

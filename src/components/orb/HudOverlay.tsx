@@ -13,7 +13,9 @@ import DynamicHub from "./DynamicHub";
 import ServiceDashboard from "./ServiceDashboard";
 import ObsidianVaultPanel from "./ObsidianVaultPanel";
 import UbuntuWorkspace from "./UbuntuWorkspace";
-import { DEFAULT_HERMES_PROFILE_ID } from "../../utils/hermesProfiles";
+import OpenclawDashboard from "../openclawDashboard.jsx";
+import NineRouterDashboard from "../nineRouterDashboard.jsx";
+import { DEFAULT_HERMES_PROFILE_ID, HermesProfileId } from "../../utils/hermesProfiles";
 import {
   HUB_TEMPLATES,
   createHubArtifact,
@@ -485,6 +487,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [routerDashboardState, setRouterDashboardState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [routerDashboardError, setRouterDashboardError] = useState("");
   const [routerModels, setRouterModels] = useState<Array<{ id?: string }>>([]);
+  const [selectedHermesProfileId, setSelectedHermesProfileId] = useState<HermesProfileId>(DEFAULT_HERMES_PROFILE_ID);
   const [servicePanels, setServicePanels] = useState<Record<ServiceKey, ServicePanelState>>({
     hermes: { ...EMPTY_SERVICE_PANEL },
     claude: { ...EMPTY_SERVICE_PANEL },
@@ -947,7 +950,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           message: prompt,
           messages: [{ role: "user", content: prompt }],
           operator: data?.username || "Operator",
-          ...(service === "hermes" ? { profile: DEFAULT_HERMES_PROFILE_ID } : {}),
+          ...(service === "hermes" ? { profile: selectedHermesProfileId } : {}),
         }),
       });
       updateServicePanel(service, {
@@ -1589,7 +1592,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
       {agentsOpen && (
         <OsWindow
-          title="Agent Matrix"
+          title="Agent Matrix & OpenClaw Console"
           code="PWR://OPENCLAW"
           drag={agentsDrag}
           minimized={agentsMinimized}
@@ -1618,13 +1621,15 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               </article>
             ))}
           </div>
-          <p className="os-window-note">Mission dispatch dùng endpoint `/api/openclaw/task` qua gateway được bảo vệ.</p>
+          <div className="mt-3">
+            <OpenclawDashboard data={data} addLog={(msg: string) => setToast(msg)} />
+          </div>
         </OsWindow>
       )}
 
       {routerOpen && (
         <OsWindow
-          title="Router Matrix"
+          title="Router Matrix & 9Router Control"
           code="SPC://9ROUTER"
           drag={routerDrag}
           minimized={routerMinimized}
@@ -1649,7 +1654,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                   disabled={routerDashboardState === "loading"}
                   onClick={() => void connectNineRouterDashboard()}
                 >
-                  {routerDashboardState === "loading" ? "Đang tải" : "Kết nối lại"}
+                  {routerDashboardState === "loading" ? "Đang tải" : "Kết nối phiên native"}
                 </button>
                 <button
                   className="primary"
@@ -1661,6 +1666,10 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 </button>
               </nav>
             </header>
+
+            <div className="p-3 border-b border-cyan-300/15">
+              <NineRouterDashboard data={data} addLog={(msg: string) => setToast(msg)} />
+            </div>
 
             {routerDashboardState === "ready" && routerDashboardUrl ? (
               <iframe
@@ -1682,7 +1691,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 </b>
                 <p>{routerDashboardError || "Jarvis token sẽ mở một phiên tạm thời; port 20128 vẫn chỉ chạy nội bộ trên Ubuntu."}</p>
                 <button type="button" onClick={() => void connectNineRouterDashboard()}>
-                  Thử kết nối
+                  Thử kết nối phiên iframe native
                 </button>
               </div>
             )}
@@ -1713,7 +1722,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             prompt={servicePanels.hermes.prompt}
             reply={servicePanels.hermes.reply}
             sending={servicePanels.hermes.sending}
-            selectedProfileId={DEFAULT_HERMES_PROFILE_ID}
+            selectedProfileId={selectedHermesProfileId}
+            onSelectProfile={(profileId) => {
+              setSelectedHermesProfileId(profileId);
+              setToast(`Đã chuyển sang Hermes profile: ${profileId}`);
+            }}
             onPromptChange={(prompt) => updateServicePanel("hermes", { prompt })}
             onRefresh={() => void refreshServicePanel("hermes")}
             onSubmit={() => void testServicePanel("hermes")}
