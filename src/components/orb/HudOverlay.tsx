@@ -408,6 +408,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       latencyMs?: number | null;
       requestId?: string | null;
       services?: Record<string, {
+        online?: boolean;
         latencyMs?: number;
         status?: number;
         configured?: boolean;
@@ -967,29 +968,65 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   };
 
   const moduleStatus = useMemo(() => {
+    const findService = (key: string) => {
+      const target = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const matchKey = Object.keys(connections.services || {}).find(
+        (k) => k.toLowerCase().replace(/[^a-z0-9]/g, "") === target
+      );
+      return matchKey ? connections.services?.[matchKey] : null;
+    };
+
     const serviceDetail = (key: string, fallback: string) => {
-      const service = connections.services?.[key];
+      const service = findService(key);
       if (!service) return fallback;
       const latency = Number.isFinite(service.latencyMs) ? `${service.latencyMs}ms` : null;
       const circuit = service.circuit?.state && service.circuit.state !== "closed"
         ? `circuit ${service.circuit.state}`
         : null;
-      return [latency, circuit, fallback].filter(Boolean).join(" · ");
+      const httpStatus = service.status ? `HTTP ${service.status}` : null;
+      return [latency, circuit, httpStatus, fallback].filter(Boolean).join(" · ");
     };
+
+    const isServiceReady = (key: string, stateFlag: boolean) => {
+      const service = findService(key);
+      if (service) return !!service.online && service.configured !== false;
+      return stateFlag;
+    };
+
     const gatewayDetail = [
       Number.isFinite(connections.latencyMs) ? `${connections.latencyMs}ms` : null,
+      connections.requestId ? `req: ${connections.requestId.slice(0, 8)}` : null,
       data.endpoints?.gateway || "Chưa cấu hình",
     ].filter(Boolean).join(" · ");
 
-    return [
+    const coreServices = [
       { label: "CỔNG KẾT NỐI", value: connections.gateway ? "TRỰC TUYẾN" : "NGẮT KẾT NỐI", detail: gatewayDetail, tone: connections.gateway ? "online" : "offline" },
-      { label: "HERMES", value: connections.hermes ? "AI SẴN SÀNG" : "NGẮT KẾT NỐI", detail: serviceDetail("hermes", "Bộ điều phối hội thoại"), tone: connections.hermes ? "online" : "offline" },
-      { label: "OPENCLAW", value: connections.openclaw ? "TRỰC TUYẾN" : "NGẮT KẾT NỐI", detail: serviceDetail("openclaw", "Đội tác nhân chuyên môn"), tone: connections.openclaw ? "online" : "offline" },
-      { label: "9ROUTER", value: connections.nineRouter ? "TRỰC TUYẾN" : "NGẮT KẾT NỐI", detail: serviceDetail("nineRouter", `Mô hình ${nineRouterModel}`), tone: connections.nineRouter ? "online" : "offline" },
-      { label: "CLAUDE", value: connections.claude ? "AI SẴN SÀNG" : "NGẮT KẾT NỐI", detail: serviceDetail("claude", "Cầu nối suy luận"), tone: connections.claude ? "online" : "offline" },
-      { label: "GIỌNG NÓI", value: voiceMode ? "ĐANG NGHE" : "SẴN SÀNG", detail: `${VOICE_STYLE_LABELS[voiceStyle]} · ${advisorMode ? "lọc câu vu vơ" : "phản hồi mọi câu"}` },
-      { label: "CHẾ ĐỘ LÕI", value: paletteLabels[palette].toUpperCase(), detail: "Màu và cấu trúc 3D độc lập" },
-      { label: "BỘ NHỚ", value: `${messages.length} BẢN GHI`, detail: "Lưu cục bộ trong trình duyệt" }
+      { label: "HERMES", value: isServiceReady("hermes", connections.hermes) ? "AI SẴN SÀNG" : "NGẮT KẾT NỐI", detail: serviceDetail("hermes", "Bộ điều phối hội thoại"), tone: isServiceReady("hermes", connections.hermes) ? "online" : "offline" },
+      { label: "OPENCLAW", value: isServiceReady("openclaw", connections.openclaw) ? "TRỰC TUYẾN" : "NGẮT KẾT NỐI", detail: serviceDetail("openclaw", "Đội tác nhân chuyên môn"), tone: isServiceReady("openclaw", connections.openclaw) ? "online" : "offline" },
+      { label: "9ROUTER", value: isServiceReady("nineRouter", connections.nineRouter) ? "TRỰC TUYẾN" : "NGẮT KẾT NỐI", detail: serviceDetail("nineRouter", `Mô hình ${nineRouterModel}`), tone: isServiceReady("nineRouter", connections.nineRouter) ? "online" : "offline" },
+      { label: "CLAUDE", value: isServiceReady("claude", connections.claude) ? "AI SẴN SÀNG" : "NGẮT KẾT NỐI", detail: serviceDetail("claude", "Cầu nối suy luận"), tone: isServiceReady("claude", connections.claude) ? "online" : "offline" },
+    ];
+
+    const knownKeys = new Set(["hermes", "openclaw", "ninerouter", "claude"]);
+    const extraServices = Object.entries(connections.services || {})
+      .filter(([k]) => !knownKeys.has(k.toLowerCase().replace(/[^a-z0-9]/g, "")))
+      .map(([name, service]: [string, any]) => ({
+        label: name.toUpperCase().replace(/_/g, " "),
+        value: service.online && service.configured !== false ? "TRỰC TUYẾN" : "NGẮT KẾT NỐI",
+        detail: [
+          Number.isFinite(service.latencyMs) ? `${service.latencyMs}ms` : null,
+          service.configured === false ? "Chưa cấu hình" : "Gateway service",
+          service.status ? `HTTP ${service.status}` : null
+        ].filter(Boolean).join(" · "),
+        tone: service.online && service.configured !== false ? "online" : "offline"
+      }));
+
+    return [
+      ...coreServices,
+      ...extraServices,
+      { label: "GIỌNG NÓI", value: voiceMode ? "ĐANG NGHE" : "SẴN SÀNG", detail: `${VOICE_STYLE_LABELS[voiceStyle]} · ${advisorMode ? "lọc câu vu vơ" : "phản hồi mọi câu"}`, tone: "online" },
+      { label: "CHẾ ĐỘ LÕI", value: paletteLabels[palette].toUpperCase(), detail: "Màu và cấu trúc 3D độc lập", tone: "online" },
+      { label: "BỘ NHỚ", value: `${messages.length} BẢN GHI`, detail: "Lưu cục bộ trong trình duyệt", tone: "online" }
     ];
   }, [advisorMode, connections, data.endpoints?.gateway, messages.length, nineRouterModel, palette, voiceMode, voiceStyle]);
 

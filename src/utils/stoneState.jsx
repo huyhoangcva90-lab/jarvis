@@ -96,10 +96,26 @@ export function StoneStateProvider({ children, data }) {
       try {
         const health = await gatewayFetch(data, "/health", { method: "GET", timeoutMs: 5000 });
         if (cancelled) return;
-        hOnline = !!health.services?.hermes?.online && health.services?.hermes?.configured !== false;
-        oOnline = !!health.services?.openclaw?.online && health.services?.openclaw?.configured !== false;
-        nOnline = !!health.services?.nineRouter?.online && health.services?.nineRouter?.configured !== false;
-        cOnline = !!health.services?.claude?.online && health.services?.claude?.configured !== false;
+
+        const getService = (name) => {
+          const lower = name.toLowerCase().replace(/[^a-z0-9]/g, "");
+          const services = health.services || {};
+          const matchKey = Object.keys(services).find(
+            (k) => k.toLowerCase().replace(/[^a-z0-9]/g, "") === lower
+          );
+          return matchKey ? services[matchKey] : null;
+        };
+
+        const hSvc = getService("hermes");
+        const oSvc = getService("openclaw");
+        const nSvc = getService("nineRouter") || getService("ninerouter");
+        const cSvc = getService("claude");
+
+        hOnline = !!hSvc?.online && hSvc?.configured !== false;
+        oOnline = !!oSvc?.online && oSvc?.configured !== false;
+        nOnline = !!nSvc?.online && nSvc?.configured !== false;
+        cOnline = !!cSvc?.online && cSvc?.configured !== false;
+
         setConnections({
           gateway: true,
           hermes: hOnline,
@@ -110,6 +126,12 @@ export function StoneStateProvider({ children, data }) {
           latencyMs: Math.round(performance.now() - startedAt),
           requestId: health.requestId || health.meta?.requestId || null,
           services: health.services || {},
+          telemetry: {
+            version: health.version || health.meta?.version || "1.0.0",
+            uptime: health.uptime || health.meta?.uptime || null,
+            environment: health.environment || health.meta?.environment || "production",
+            activeConnections: health.activeConnections || health.meta?.activeConnections || null,
+          },
           error: null,
         });
       } catch (error) {
