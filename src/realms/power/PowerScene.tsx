@@ -345,7 +345,7 @@ function QuantumFilamentBranches({ activity }: { activity: AiActivity }) {
 // --- MAIN POWER SCENE ---
 export function PowerScene({ activity = "idle" }: { activity?: AiActivity }) {
   return (
-    <group name="quantum-power-singularity-mcu" scale={0.94}>
+    <group name="quantum-power-singularity-mcu" scale={1.25}>
       <ambientLight intensity={0.5} color={VIOLET} />
 
       {/* 1. Quantum Filament Energy Branches */}

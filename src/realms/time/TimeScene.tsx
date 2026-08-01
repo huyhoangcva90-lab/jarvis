@@ -466,7 +466,7 @@ export interface TimeSceneProps {
 
 export function TimeScene({ activity = "idle" }: TimeSceneProps) {
   return (
-    <group name="agamotto-temporal-eye-scene" scale={0.94}>
+    <group name="agamotto-temporal-eye-scene" scale={1.25}>
       {/* 1. Ambient & Point Lighting */}
       <ambientLight intensity={0.5} color={BRONZE} />
       <directionalLight position={[4, 4, 4]} intensity={1.8} color={MINT} />

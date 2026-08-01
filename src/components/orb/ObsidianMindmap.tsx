@@ -106,7 +106,16 @@ export default function ObsidianMindmap({ notes, onSelectNote }: ObsidianMindmap
                     key={node.id}
                     className={`mindmap-node-group ${isSelected ? "selected" : ""}`}
                     transform={`translate(${node.x || 0}, ${node.y || 0})`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Mở ghi chú ${node.title}`}
                     onClick={() => {
+                      setSelectedNodeId(node.id);
+                      if (onSelectNote) onSelectNote(node.path);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter" && event.key !== " ") return;
+                      event.preventDefault();
                       setSelectedNodeId(node.id);
                       if (onSelectNote) onSelectNote(node.path);
                     }}

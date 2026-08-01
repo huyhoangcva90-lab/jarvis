@@ -647,7 +647,7 @@ function SpacetimeDistortionShockwaves({ activity }: { activity: AiActivity }) {
 // --- MAIN SPACE SCENE ---
 export function SpaceScene({ activity = "idle" }: { activity?: AiActivity }) {
   return (
-    <group name="mcu-tesseract-space-scene" scale={0.92}>
+    <group name="mcu-tesseract-space-scene" scale={1.25}>
       {/* 1. Cinematic Environment Lighting */}
       <ambientLight intensity={0.6} color={DEEP} />
       <pointLight position={[0, 0, 0]} intensity={5.0} distance={8} color={ICE} />

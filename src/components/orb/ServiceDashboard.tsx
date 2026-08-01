@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { HERMES_PROFILES, HermesProfileId } from "../../utils/hermesProfiles";
+import { DEFAULT_HERMES_PROFILE_ID, HERMES_PROFILES, HermesProfileId } from "../../utils/hermesProfiles";
 
 type ServiceHealth = {
   latencyMs?: number;
@@ -20,7 +20,6 @@ type ServiceDashboardProps = {
   reply: string;
   sending: boolean;
   selectedProfileId?: HermesProfileId;
-  onProfileSelect?: (profileId: HermesProfileId) => void;
   onPromptChange: (value: string) => void;
   onRefresh: () => void;
   onSubmit: () => void;
@@ -65,8 +64,7 @@ export default function ServiceDashboard({
   prompt,
   reply,
   sending,
-  selectedProfileId = "jarvis",
-  onProfileSelect,
+  selectedProfileId = DEFAULT_HERMES_PROFILE_ID,
   onPromptChange,
   onRefresh,
   onSubmit,
@@ -97,30 +95,20 @@ export default function ServiceDashboard({
         </button>
       </header>
 
-      {/* Hermes Mission Control 2.0 Agent Profile Selector */}
+      {/* Main console deliberately uses one persistent Hermes profile. */}
       {isHermes && (
-        <section className="hermes-profile-selector-panel" aria-label="Hermes Agent Profile Selector">
+        <section className="hermes-profile-selector-panel" aria-label="Profile Hermes mặc định">
           <header className="profile-panel-header">
-            <span>HERMES AGENT PROFILES</span>
-            <small>Active: {selectedProfileId}</small>
+            <span>PROFILE HERMES MẶC ĐỊNH</span>
+            <small>Ubuntu · đang dùng: {DEFAULT_HERMES_PROFILE_ID}</small>
           </header>
           <div className="profile-chips">
-            {HERMES_PROFILES.map((prof) => {
-              const isSelected = selectedProfileId === prof.id;
-              const profileAvailable = prof.id === overview?.defaultProfile || overview?.multiplexProfiles !== false;
-              return (
-                <button
-                  type="button"
-                  key={prof.id}
-                  className={`profile-chip ${isSelected ? "active" : ""}`}
-                  disabled={!profileAvailable}
-                  onClick={() => onProfileSelect && onProfileSelect(prof.id)}
-                >
-                  <b>{prof.name}</b>
-                  <small>{profileAvailable ? prof.role : "Cần bật Hermes multiplex profiles"}</small>
-                </button>
-              );
-            })}
+            {HERMES_PROFILES.filter((profile) => profile.id === DEFAULT_HERMES_PROFILE_ID).map((profile) => (
+              <article className="profile-chip active is-locked" key={profile.id}>
+                <b>{profile.name}</b>
+                <small>Một profile cố định · bộ nhớ phiên bền vững · tiếng Việt</small>
+              </article>
+            ))}
           </div>
         </section>
       )}
@@ -175,32 +163,14 @@ export default function ServiceDashboard({
         </div>
       )}
 
-      {/* Quick Studio Presets for Content Machine */}
-      {isHermes && selectedProfileId === "cadence-content" && (
-        <div className="cadence-quick-presets">
-          <span>STUDIO PIPELINE PRESETS:</span>
-          <div className="preset-buttons">
-            <button type="button" onClick={() => onPromptChange("Lên kịch bản 5 bước cho bài viết AI Content Studio")}>
-              01/ Research & Scripting
-            </button>
-            <button type="button" onClick={() => onPromptChange("Tối ưu SEO & Tiêu đề thu hút cho video YouTube mới")}>
-              02/ SEO & Metadata
-            </button>
-            <button type="button" onClick={() => onPromptChange("Lên lịch đăng bài tự động trên các kênh truyền thông")}>
-              03/ Multi-channel Dispatch
-            </button>
-          </div>
-        </div>
-      )}
-
       <form className="service-test-console" onSubmit={submit}>
-        <label htmlFor={`${label.toLowerCase()}-test-prompt`}>Direct service test {isHermes ? `(${selectedProfileId})` : ""}</label>
+        <label htmlFor={`${label.toLowerCase()}-test-prompt`}>{isHermes ? `Kiểm tra trực tiếp profile ${DEFAULT_HERMES_PROFILE_ID}` : "Kiểm tra dịch vụ trực tiếp"}</label>
         <div>
           <input
             id={`${label.toLowerCase()}-test-prompt`}
             value={prompt}
             onChange={(event) => onPromptChange(event.target.value)}
-            placeholder={isHermes ? `Gửi lệnh kiểm tra trực tiếp tới ${label} (${selectedProfileId})` : `Gửi lệnh kiểm tra trực tiếp tới ${label}`}
+            placeholder={isHermes ? `Gửi lệnh tới Hermes (${DEFAULT_HERMES_PROFILE_ID})` : `Gửi lệnh kiểm tra trực tiếp tới ${label}`}
             disabled={sending}
           />
           <button type="submit" disabled={sending || !prompt.trim()}>
@@ -208,7 +178,7 @@ export default function ServiceDashboard({
           </button>
         </div>
         <output aria-live="polite">
-          {reply || (isHermes ? `Chỉ gọi endpoint ${label}; định tuyến theo profile ${selectedProfileId}.` : `Chỉ gọi endpoint ${label}.`)}
+          {reply || (isHermes ? `Mọi lệnh được định tuyến cố định tới profile ${DEFAULT_HERMES_PROFILE_ID} trên Ubuntu.` : `Chỉ gọi endpoint ${label}.`)}
         </output>
       </form>
     </div>

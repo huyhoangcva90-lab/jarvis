@@ -381,7 +381,7 @@ function RealityDustEmbers({ activity }: { activity: AiActivity }) {
 // --- MAIN REALITY SCENE ---
 export function RealityScene({ activity = "idle" }: { activity?: AiActivity }) {
   return (
-    <group name="reality-aether-forge-mcu" scale={0.92}>
+    <group name="reality-aether-forge-mcu" scale={1.25}>
       <ambientLight intensity={0.5} color={CRIMSON} />
 
       {/* 1. Spatial Reality Glass Fracture Grid */}

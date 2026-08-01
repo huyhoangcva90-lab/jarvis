@@ -3159,7 +3159,7 @@ body.hud-dragging {
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto minmax(140px, 1fr) auto;
   gap: 12px;
   padding: 12px;
   overflow: auto;
@@ -4222,7 +4222,7 @@ body.hud-dragging {
   }
 
   .service-console {
-    grid-template-rows: auto auto minmax(180px, 1fr) auto;
+    grid-template-rows: auto auto auto minmax(180px, 1fr) auto;
     padding: 8px;
   }
 
@@ -6197,7 +6197,7 @@ body.hud-dragging {
 
 .profile-chips {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -6443,7 +6443,573 @@ body.hud-dragging {
   font-weight: 700;
 }
 
+.profile-chip.is-locked {
+  cursor: default;
+}
+
 .profile-chip:disabled {
   cursor: not-allowed;
   opacity: 0.46;
+}
+
+/* 2026 control pass: palette-native activity, aligned controls and Vietnamese voice presets. */
+.orb-stage {
+  transition: opacity 180ms ease, filter 220ms ease;
+}
+
+.orb-stage.is-core-minimized {
+  opacity: 0;
+  visibility: hidden;
+}
+
+body[data-activity="listening"] .orb-stage {
+  filter: saturate(1.12) brightness(1.06) drop-shadow(0 0 18px rgba(var(--accent-rgb), 0.34));
+}
+
+body[data-activity="thinking"] .orb-stage {
+  filter: saturate(1.24) brightness(1.1) drop-shadow(0 0 26px rgba(var(--accent-rgb), 0.46));
+}
+
+body[data-activity="speaking"] .orb-stage {
+  filter: saturate(1.45) brightness(1.18) contrast(1.06) drop-shadow(0 0 38px rgba(var(--accent-rgb), 0.68));
+}
+
+body[data-activity="speaking"] .prompt-shell {
+  border-color: rgba(var(--accent-rgb), 0.78);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.16), rgba(0, 0, 0, 0.8));
+  box-shadow: 0 0 72px rgba(var(--accent-rgb), 0.48), inset 0 0 38px rgba(var(--accent-rgb), 0.12);
+}
+
+.prompt-shell button.listening {
+  color: var(--hot);
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.18);
+  box-shadow: 0 0 32px rgba(var(--accent-rgb), 0.48);
+}
+
+.settings-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-panel {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.settings-hero > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.settings-window-actions,
+.hub-actions {
+  position: static !important;
+  inset: auto !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  align-self: center !important;
+  flex: 0 0 auto;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin: 0;
+  transform: none !important;
+}
+
+.settings-hero > .settings-window-actions {
+  width: 84px;
+  height: 40px;
+  flex: 0 0 84px;
+  gap: 4px;
+}
+
+.settings-window-actions button,
+.hub-actions button,
+.panel-actions button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.settings-window-actions button,
+.hub-actions button {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+}
+
+.settings-window-actions svg,
+.hub-actions svg,
+.panel-actions svg {
+  display: block;
+  margin: 0;
+}
+
+.prompt-shell-with-tools {
+  grid-template-columns: 48px auto minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 8px;
+  padding: 7px;
+}
+
+.prompt-shell-with-tools > button,
+.prompt-shell-with-tools > input:not(.attachment-input) {
+  height: 48px;
+}
+
+.prompt-shell-with-tools > button {
+  width: 48px;
+  padding: 0;
+}
+
+.legacy-chat-tools {
+  align-self: center;
+  height: 48px;
+  display: grid;
+  grid-template-columns: repeat(2, 38px);
+  place-items: center;
+  gap: 3px;
+  margin: 0;
+  padding: 4px;
+}
+
+.legacy-chat-tools button {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+}
+
+.prompt-shell-with-tools svg,
+.legacy-chat-tools svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+  margin: 0;
+}
+
+.voice-style-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.voice-style-grid button {
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid rgba(var(--accent-rgb), 0.2);
+  border-radius: 3px;
+  color: rgba(255, 245, 225, 0.68);
+  background: rgba(0, 0, 0, 0.4);
+  text-align: left;
+}
+
+.voice-style-grid button.active {
+  border-color: rgba(var(--accent-rgb), 0.72);
+  color: var(--hot);
+  background: rgba(var(--accent-rgb), 0.13);
+  box-shadow: inset 0 0 18px rgba(var(--accent-rgb), 0.08);
+}
+
+.voice-style-grid b {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.voice-style-grid small {
+  color: rgba(255, 245, 225, 0.44);
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+@media (max-width: 760px) {
+  .prompt-shell-with-tools {
+    grid-template-columns: 44px auto minmax(70px, 1fr) 44px;
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .prompt-shell-with-tools > button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .prompt-shell-with-tools > input:not(.attachment-input),
+  .legacy-chat-tools {
+    height: 44px;
+  }
+
+  .legacy-chat-tools {
+    grid-template-columns: repeat(2, 34px);
+    padding: 3px;
+  }
+
+  .legacy-chat-tools button {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* Ubuntu workspace and Obsidian data planes */
+.ubuntu-workspace {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  background: rgba(1, 5, 10, 0.88);
+}
+
+.workspace-toolbar,
+.workspace-pathbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.18);
+  background: rgba(var(--accent-rgb), 0.045);
+}
+
+.workspace-toolbar > div,
+.workspace-toolbar label,
+.workspace-toolbar label > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-toolbar svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+}
+
+.workspace-toolbar b,
+.workspace-toolbar label > span,
+.workspace-pathbar button {
+  color: var(--hot);
+  font: 700 9px/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.1em;
+}
+
+.workspace-toolbar small {
+  margin-left: 8px;
+  color: rgba(255, 245, 225, 0.44);
+  font: 600 8px/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.08em;
+}
+
+.workspace-toolbar select {
+  min-height: 36px;
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
+  border-radius: 3px;
+  padding: 0 30px 0 10px;
+  color: rgba(255, 245, 225, 0.86);
+  background: #05080b;
+  font: 600 10px/1 "JetBrains Mono", monospace;
+}
+
+.workspace-pathbar {
+  justify-content: flex-start;
+  background: rgba(0, 0, 0, 0.34);
+}
+
+.workspace-pathbar code {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: rgba(255, 245, 225, 0.7);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-pathbar button,
+.workspace-feedback button,
+.obsidian-vault-state button {
+  min-height: 36px;
+  border: 1px solid rgba(var(--accent-rgb), 0.32);
+  border-radius: 3px;
+  padding: 0 12px;
+  background: rgba(var(--accent-rgb), 0.08);
+  cursor: pointer;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.workspace-pathbar button:hover,
+.workspace-pathbar button:focus-visible,
+.workspace-feedback button:hover,
+.workspace-feedback button:focus-visible,
+.obsidian-vault-state button:hover,
+.obsidian-vault-state button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  color: var(--hot);
+  background: rgba(var(--accent-rgb), 0.16);
+}
+
+.workspace-pathbar button:disabled,
+.workspace-toolbar select:disabled,
+.os-terminal-input input:disabled,
+.os-terminal-input button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.workspace-browser {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 31%) minmax(0, 1fr);
+}
+
+.workspace-entry-list {
+  min-height: 0;
+  overflow: auto;
+  border-right: 1px solid rgba(var(--accent-rgb), 0.18);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.workspace-entry-list > p {
+  margin: 18px;
+  color: rgba(255, 245, 225, 0.54);
+  font-size: 11px;
+}
+
+.workspace-entry-list button {
+  width: 100%;
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.08);
+  padding: 7px 12px;
+  color: rgba(255, 245, 225, 0.72);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workspace-entry-list button:hover,
+.workspace-entry-list button:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.78);
+  outline-offset: -2px;
+  color: var(--hot);
+  background: rgba(var(--accent-rgb), 0.08);
+}
+
+.workspace-entry-icon {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  font: 700 20px/1 "JetBrains Mono", monospace;
+}
+
+.workspace-entry-icon.directory {
+  color: var(--hot);
+}
+
+.workspace-entry-list button > span:last-child {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.workspace-entry-list b {
+  overflow: hidden;
+  font: 600 10px/1.35 "JetBrains Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-entry-list small {
+  flex: 0 0 auto;
+  color: rgba(255, 245, 225, 0.36);
+  font-size: 8px;
+}
+
+.workspace-file-viewer {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.035), transparent 48%);
+}
+
+.workspace-file-viewer > header {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.14);
+}
+
+.workspace-file-viewer header span,
+.workspace-file-viewer header small {
+  color: rgba(255, 245, 225, 0.42);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+}
+
+.workspace-file-viewer header b {
+  overflow: hidden;
+  color: var(--hot);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-file-viewer pre {
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  padding: 16px;
+  color: #bdf7cf;
+  background: rgba(0, 0, 0, 0.28);
+  font: 500 11px/1.65 "JetBrains Mono", monospace;
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.workspace-empty-viewer,
+.workspace-feedback,
+.obsidian-vault-state {
+  min-height: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px;
+  color: rgba(255, 245, 225, 0.62);
+  text-align: center;
+}
+
+.workspace-empty-viewer svg,
+.obsidian-vault-state svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.4;
+}
+
+.workspace-empty-viewer b,
+.workspace-feedback b,
+.obsidian-vault-state b {
+  color: var(--hot);
+  font: 700 11px/1.4 "JetBrains Mono", monospace;
+  letter-spacing: 0.08em;
+}
+
+.workspace-empty-viewer span,
+.workspace-feedback span,
+.obsidian-vault-state p,
+.obsidian-vault-state small {
+  max-width: 560px;
+  margin: 0;
+  font: 500 11px/1.55 Inter, system-ui, sans-serif;
+}
+
+.workspace-feedback.error {
+  color: #ff9aae;
+}
+
+.obsidian-vault-state {
+  height: 100%;
+  background: rgba(1, 5, 10, 0.88);
+}
+
+.obsidian-vault-state button {
+  color: var(--hot);
+  font: 700 9px/1 "JetBrains Mono", monospace;
+  letter-spacing: 0.1em;
+}
+
+.obsidian-vault-state.loading svg {
+  animation: hubStatusPulse 800ms ease-in-out infinite alternate;
+}
+
+.mindmap-controls input {
+  min-height: 36px;
+}
+
+.mindmap-controls button,
+.view-full-note-btn {
+  min-height: 36px;
+}
+
+.mindmap-node-group:focus-visible .mindmap-node-circle {
+  stroke: #fff;
+  stroke-width: 4;
+}
+
+@media (max-width: 760px) {
+  .intel-tabs {
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  .intel-tabs button {
+    min-width: 48px;
+    min-height: 40px;
+    padding: 0 10px;
+  }
+
+  .workspace-toolbar small,
+  .workspace-toolbar label > span,
+  .intel-secure-status {
+    display: none;
+  }
+
+  .workspace-browser {
+    grid-template-columns: minmax(150px, 40%) minmax(0, 1fr);
+  }
+
+  .workspace-file-viewer > header {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .workspace-file-viewer header span {
+    display: none;
+  }
+
+  .obsidian-mindmap-toolbar {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .mindmap-title small,
+  .mindmap-controls input {
+    display: none;
+  }
+
+  .obsidian-mindmap-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mindmap-inspector {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obsidian-vault-state.loading svg {
+    animation: none;
+  }
 }

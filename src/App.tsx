@@ -20,6 +20,7 @@ export default function App() {
   const [energyPalette, setEnergyPalette] = useState<EnergyPalette>(loadStoredEnergyPalette);
   const [resetViewSignal, setResetViewSignal] = useState(0);
   const [hudVisible, setHudVisible] = useState(true);
+  const [coreMinimized, setCoreMinimized] = useState(false);
 
   useEffect(() => {
     const bootTimer = window.setTimeout(() => setBooting(false), 2000);
@@ -104,8 +105,8 @@ export default function App() {
   return (
     <StoneStateProvider data={data}>
       <main className={`jarvis-shell min-h-dvh overflow-hidden bg-void text-cyan-50 ${intensityClass}`}>
-        <div className="orb-stage fixed inset-0 z-0">
-          <CinematicOrb activity={activity} palette={energyPalette} resetSignal={resetViewSignal} />
+        <div className={`orb-stage fixed inset-0 z-0 ${coreMinimized ? "is-core-minimized" : ""}`}>
+          {!coreMinimized && <CinematicOrb activity={activity} palette={energyPalette} resetSignal={resetViewSignal} />}
         </div>
 
         {booting && <BootScreen />}
@@ -125,6 +126,8 @@ export default function App() {
             onActivityChange={setActivity}
             onPaletteChange={setEnergyPalette}
             onResetView={() => setResetViewSignal((signal) => signal + 1)}
+            coreMinimized={coreMinimized}
+            onCoreMinimizedChange={setCoreMinimized}
           />
         )}
       </main>

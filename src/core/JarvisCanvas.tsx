@@ -108,7 +108,7 @@ function CameraOrbitController({ resetSignal = 0 }: { resetSignal?: number }) {
 
   useEffect(() => {
     const narrow = size.width / size.height < 0.72;
-    const distance = narrow ? 12.9 : 7.15;
+    const distance = narrow ? 10.8 : 6.1;
     camera.position.set(0, 0, distance);
     controls.target.set(0, 0, 0);
     controls.update();
@@ -220,14 +220,14 @@ function SceneRig({
 
 function PostFX({ activity, palette }: { activity: AiActivity; palette: string }) {
   const profile = useMemo(() => {
-    const activityBoost = activity === "speaking" ? 1.18 : activity === "thinking" ? 1.08 : 1;
+    const activityBoost = activity === "speaking" ? 1.25 : activity === "thinking" ? 1.12 : 1;
     const profiles: Record<string, { intensity: number; threshold: number; smoothing: number }> = {
-      blue: { intensity: 1.08, threshold: 0.34, smoothing: 0.52 },
-      green: { intensity: 1.16, threshold: 0.3, smoothing: 0.58 },
-      red: { intensity: 0.96, threshold: 0.38, smoothing: 0.46 },
-      violet: { intensity: 1.22, threshold: 0.32, smoothing: 0.5 },
-      orange: { intensity: 0.92, threshold: 0.42, smoothing: 0.42 },
-      spider: { intensity: 0.74, threshold: 0.5, smoothing: 0.36 },
+      blue: { intensity: 1.32, threshold: 0.28, smoothing: 0.52 },
+      green: { intensity: 1.35, threshold: 0.26, smoothing: 0.55 },
+      red: { intensity: 1.28, threshold: 0.32, smoothing: 0.48 },
+      violet: { intensity: 1.42, threshold: 0.25, smoothing: 0.5 },
+      orange: { intensity: 1.3, threshold: 0.35, smoothing: 0.45 },
+      spider: { intensity: 1.25, threshold: 0.28, smoothing: 0.4 },
     };
     const selected = profiles[palette] ?? profiles.blue;
     return { ...selected, intensity: selected.intensity * activityBoost };
@@ -250,21 +250,9 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: Jar
   return (
     <div className="orb-webgl" aria-hidden="true">
       <Canvas
-        camera={{ fov: 41, near: 0.1, far: 30, position: [0, 0, 7.15] }}
+        camera={{ fov: 41, near: 0.1, far: 30, position: [0, 0, 6.1] }}
         dpr={reducedMotion ? 1 : [1, 1.45]}
         frameloop={reducedMotion ? "demand" : "always"}
-        gl={{
-          alpha: false,
-          antialias: false,
-          powerPreference: "high-performance",
-          stencil: false,
-        }}
-        onCreated={({ gl }) => {
-          gl.setClearColor(getClearColor(palette), 1);
-          gl.outputColorSpace = THREE.SRGBColorSpace;
-          gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 0.98;
-        }}
       >
         <CanvasPaletteBackground palette={palette} />
         <CameraOrbitController resetSignal={resetSignal} />

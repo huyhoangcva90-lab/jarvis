@@ -412,10 +412,10 @@ function FileDeckView({ artifact }: { artifact: HubArtifact }) {
       <header><span>LOCAL://WORKSPACE</span><b>{artifact.items.length} MOUNTS</b></header>
       <div className="hub-file-layout">
         <aside aria-label="Vị trí nhanh">
-          <button type="button" className="active">Workspace</button>
-          <button type="button">Recent</button>
-          <button type="button">Shared</button>
-          <button type="button">Archive</button>
+          <button type="button" className="active">Không gian làm việc</button>
+          <button type="button">Gần đây</button>
+          <button type="button">Được chia sẻ</button>
+          <button type="button">Lưu trữ</button>
         </aside>
         <div className="hub-file-list">
           {artifact.items.map((item, index) => (
@@ -427,7 +427,7 @@ function FileDeckView({ artifact }: { artifact: HubArtifact }) {
           ))}
         </div>
       </div>
-      <div className="hub-storage-meter"><span>LOCAL STORAGE</span><i><b /></i><em>68% FREE</em></div>
+      <div className="hub-storage-meter"><span>LƯU TRỮ CỤC BỘ</span><i><b /></i><em>CÒN TRỐNG 68%</em></div>
       <Summary artifact={artifact} />
     </div>
   );
@@ -601,14 +601,14 @@ function HubContent({ artifact }: { artifact: HubArtifact }) {
 }
 
 const HUB_GROUPS = [
-  ["intel", "INTELLIGENCE"],
-  ["spatial", "WORLD & SPACE"],
-  ["planning", "PLANNING"],
-  ["workspace", "WORK SUITE"],
-  ["data", "DATA SYSTEMS"],
-  ["media", "MEDIA DECK"],
-  ["creation", "CREATION LAB"],
-  ["system", "SYSTEM CORE"],
+  ["intel", "TÌNH BÁO"],
+  ["spatial", "THẾ GIỚI & KHÔNG GIAN"],
+  ["planning", "KẾ HOẠCH"],
+  ["workspace", "BỘ CÔNG CỤ LÀM VIỆC"],
+  ["data", "HỆ DỮ LIỆU"],
+  ["media", "TRUYỀN THÔNG"],
+  ["creation", "PHÒNG SÁNG TẠO"],
+  ["system", "LÕI HỆ THỐNG"],
 ] as const;
 
 const QUICK_HUBS: HubKind[] = ["web", "files", "tasks", "feed", "audio", "automation"];
@@ -677,24 +677,24 @@ export default function DynamicHub({ artifacts, activeId, onSelect, onCreateDemo
           ))}
         </div>
         <button className="hub-catalog-toggle" type="button" aria-expanded={catalogOpen} onClick={() => setCatalogOpen((open) => !open)}>
-          <span>APP MATRIX</span><b>{catalogOpen ? "−" : "+"}</b>
+          <span>MA TRẬN ỨNG DỤNG</span><b>{catalogOpen ? "−" : "+"}</b>
         </button>
       </header>
 
       {catalogOpen && (
         <div className="hub-template-catalog">
           <header className="hub-catalog-command">
-            <div><span>J-CORE APP LAUNCHER</span><b>{filteredTemplates.length}/{HUB_TEMPLATES.length} SURFACES</b></div>
+            <div><span>TRÌNH KHỞI CHẠY J-CORE</span><b>{filteredTemplates.length}/{HUB_TEMPLATES.length} BỀ MẶT</b></div>
             <label>
               <span className="sr-only">Tìm Hub</span>
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16 16 5 5" /></svg>
-              <input ref={catalogSearchRef} value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder="Tìm app, nội dung hoặc chức năng…" />
+              <input ref={catalogSearchRef} name="hub-search" value={catalogQuery} autoComplete="off" autoCorrect="off" spellCheck={false} data-1p-ignore="true" data-lpignore="true" onChange={(event) => setCatalogQuery(event.target.value)} placeholder="Tìm ứng dụng, nội dung hoặc chức năng…" />
               <kbd>/</kbd>
             </label>
           </header>
           {!catalogQuery && (
             <section className="hub-quick-lane">
-              <h3>QUICK LANE<span>06</span></h3>
+              <h3>TRUY CẬP NHANH<span>06</span></h3>
               <div>
                 {QUICK_HUBS.map((kind) => {
                   const template = hubTemplate(kind);
@@ -717,7 +717,7 @@ export default function DynamicHub({ artifacts, activeId, onSelect, onCreateDemo
               </div>
             </section>
           ))}
-          {!filteredTemplates.length && <div className="hub-catalog-empty"><b>Không tìm thấy surface phù hợp</b><span>Thử “audio”, “file”, “workflow”, “PDF” hoặc “dashboard”.</span></div>}
+          {!filteredTemplates.length && <div className="hub-catalog-empty"><b>Không tìm thấy Hub phù hợp</b><span>Thử “âm thanh”, “tệp”, “quy trình”, “PDF” hoặc “tổng quan”.</span></div>}
         </div>
       )}
 
@@ -734,13 +734,13 @@ export default function DynamicHub({ artifacts, activeId, onSelect, onCreateDemo
         ) : (
           <section className="dynamic-hub-empty">
             <div className="hub-empty-radar"><i /><i /><b>J</b></div>
-            <span>J-CORE UNIVERSAL WORKSPACE</span>
+            <span>KHÔNG GIAN LÀM VIỆC ĐA NĂNG J-CORE</span>
             <h2>Một hệ điều hành cho mọi dạng công việc số</h2>
-            <p>Jarvis có thể dựng không gian đọc, file, media, inbox, dữ liệu, workflow, terminal hoặc nghiên cứu theo đúng ngữ cảnh. Bấm một surface hoặc chỉ cần ra lệnh tự nhiên.</p>
+            <p>Jarvis có thể dựng không gian đọc, tệp, truyền thông, hộp thư, dữ liệu, quy trình, terminal hoặc nghiên cứu theo đúng ngữ cảnh. Chọn một Hub hoặc chỉ cần ra lệnh tự nhiên.</p>
             <div className="hub-empty-quick">
               {QUICK_HUBS.slice(0, 4).map((kind) => <button type="button" onClick={() => onCreateDemo(kind)} key={kind}><HubGlyph kind={kind} /><span>{hubTemplate(kind).label}</span></button>)}
             </div>
-            <button type="button" onClick={() => setCatalogOpen(true)}>Mở App Launcher · {HUB_TEMPLATES.length} surfaces</button>
+            <button type="button" onClick={() => setCatalogOpen(true)}>Mở trình ứng dụng · {HUB_TEMPLATES.length} Hub</button>
           </section>
         )}
       </main>

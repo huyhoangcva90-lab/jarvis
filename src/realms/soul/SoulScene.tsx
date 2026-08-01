@@ -330,7 +330,7 @@ function StarkDataStreams({ activity }: { activity: AiActivity }) {
 // --- MAIN SOUL SCENE ---
 export function SoulScene({ activity = "idle" }: { activity?: AiActivity }) {
   return (
-    <group name="stark-mark-l-arc-reactor" scale={0.96} rotation={[0.08, -0.18, 0.025]}>
+    <group name="stark-mark-l-arc-reactor" scale={1.25} rotation={[0.08, -0.18, 0.025]}>
       <ambientLight color={STARK_ORANGE} intensity={0.5} />
       <directionalLight color={AMBER_GOLD} intensity={1.8} position={[2.5, 3.2, 4]} />
 

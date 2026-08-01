@@ -11,8 +11,9 @@ import {
 } from "../../utils/storage.js";
 import DynamicHub from "./DynamicHub";
 import ServiceDashboard from "./ServiceDashboard";
-import ObsidianMindmap from "./ObsidianMindmap";
-import { HermesProfileId, loadStoredHermesProfileId, saveStoredHermesProfileId } from "../../utils/hermesProfiles";
+import ObsidianVaultPanel from "./ObsidianVaultPanel";
+import UbuntuWorkspace from "./UbuntuWorkspace";
+import { DEFAULT_HERMES_PROFILE_ID } from "../../utils/hermesProfiles";
 import {
   HUB_TEMPLATES,
   createHubArtifact,
@@ -32,6 +33,7 @@ type Message = {
 };
 
 type Palette = EnergyPalette;
+type VoiceStyle = "female" | "male";
 type ServiceKey = "hermes" | "claude";
 type ServicePanelState = {
   state: "idle" | "loading" | "ready" | "error";
@@ -96,6 +98,28 @@ const activityLabels: Record<AiActivity, string> = {
   thinking: "Đang xử lý",
   speaking: "Đang phản hồi"
 };
+
+const VOICE_STYLE_LABELS: Record<VoiceStyle, string> = {
+  female: "Nữ chuẩn",
+  male: "Nam trầm",
+};
+
+function selectVietnameseVoice(style: VoiceStyle) {
+  const voices = window.speechSynthesis?.getVoices?.() ?? [];
+  const vietnamese = voices.filter((voice) => /^vi(?:-|_)/i.test(voice.lang));
+  if (!vietnamese.length) return null;
+  const preferred = style === "female"
+    ? /hoai\s*my|hoài\s*my|female|woman|linh|mai|an\b/i
+    : /nam\s*minh|male|man|duy|long/i;
+  return [...vietnamese].sort((left, right) => {
+    const score = (voice: SpeechSynthesisVoice) =>
+      (voice.lang.toLowerCase() === "vi-vn" ? 6 : 0) +
+      (preferred.test(voice.name) ? 8 : 0) +
+      (voice.localService ? 2 : 0) +
+      (/natural|neural/i.test(voice.name) ? 2 : 0);
+    return score(right) - score(left);
+  })[0] ?? null;
+}
 
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, ReactNode> = {
@@ -349,6 +373,7 @@ function loadState() {
       messages?: Message[];
       palette?: Palette;
       voiceReply?: boolean;
+      voiceStyle?: VoiceStyle;
       handsFree?: boolean;
       advisorMode?: boolean;
       hubArtifacts?: HubArtifact[];
@@ -367,9 +392,11 @@ type HudOverlayProps = {
   onActivityChange: (activity: AiActivity) => void;
   onPaletteChange: (palette: EnergyPalette) => void;
   onResetView: () => void;
+  coreMinimized: boolean;
+  onCoreMinimizedChange: (minimized: boolean) => void;
 };
 
-export default function HudOverlay({ currentTime, data, palette, updateData, onActivityChange, onPaletteChange, onResetView }: HudOverlayProps) {
+export default function HudOverlay({ currentTime, data, palette, updateData, onActivityChange, onPaletteChange, onResetView, coreMinimized, onCoreMinimizedChange }: HudOverlayProps) {
   const initial = useMemo(() => (typeof window === "undefined" ? null : loadState()), []);
   const { connections } = useStoneState() as {
     connections: {
@@ -395,6 +422,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   );
 
   const [voiceReply, setVoiceReply] = useState(initial?.voiceReply ?? true);
+  const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>(initial?.voiceStyle ?? "female");
   const [handsFree, setHandsFree] = useState(initial?.handsFree ?? false);
   const [advisorMode, setAdvisorMode] = useState(initial?.advisorMode ?? true);
   const [voiceMode, setVoiceMode] = useState(false);
@@ -426,25 +454,20 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     )
   );
   const [activeHubId, setActiveHubId] = useState<string | null>(() => initial?.activeHubId ?? initial?.hubArtifacts?.[0]?.id ?? null);
-  const [hermesProfileId, setHermesProfileId] = useState<HermesProfileId>(() => loadStoredHermesProfileId());
   const [activeWindow, setActiveWindow] = useState("chat");
-  const [intelMode, setIntelMode] = useState<"youtube" | "docs" | "obsidian">("youtube");
+  const [intelMode, setIntelMode] = useState<"youtube" | "docs" | "files" | "obsidian">("youtube");
   const [selectedIntelDocument, setSelectedIntelDocument] = useState("gateway");
   const [youtubeDraft, setYoutubeDraft] = useState("https://www.youtube.com/watch?v=ciNHn38EyRc");
   const [youtubeVideoId, setYoutubeVideoId] = useState("ciNHn38EyRc");
   const [youtubeError, setYoutubeError] = useState("");
   const [terminalInput, setTerminalInput] = useState("");
+  const [terminalBusy, setTerminalBusy] = useState(false);
   const [terminalLines, setTerminalLines] = useState([
-    "J-CORE KERNEL 0.2 // operator shell",
-    "Restricted command environment ready.",
-    "Type 'help' to list commands.",
+    "J-CORE UBUNTU BROKER // phiên điều khiển chỉ đọc",
+    "Lệnh chạy tại Gateway Ubuntu theo danh mục cho phép.",
+    "Gõ 'help' để xem lệnh.",
   ]);
 
-  const handleHermesProfileSelect = (id: HermesProfileId) => {
-    setHermesProfileId(id);
-    saveStoredHermesProfileId(id);
-    setToast(`Đã chuyển Hermes Profile: ${id}`);
-  };
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
   const [listening, setListening] = useState(false);
   const [activity, setActivity] = useState<AiActivity>("idle");
@@ -513,12 +536,13 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       messages,
       palette,
       voiceReply,
+      voiceStyle,
       handsFree,
       advisorMode,
       hubArtifacts,
       activeHubId,
     }));
-  }, [activeHubId, advisorMode, handsFree, hubArtifacts, messages, palette, voiceReply]);
+  }, [activeHubId, advisorMode, handsFree, hubArtifacts, messages, palette, voiceReply, voiceStyle]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
   useEffect(() => {
@@ -563,8 +587,9 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "vi-VN";
-    utterance.rate = 1;
-    utterance.pitch = 0.92;
+    utterance.voice = selectVietnameseVoice(voiceStyle);
+    utterance.rate = voiceStyle === "female" ? 0.98 : 0.9;
+    utterance.pitch = voiceStyle === "female" ? 1.02 : 0.78;
     utterance.onend = finishSpeaking;
     utterance.onerror = finishSpeaking;
     window.speechSynthesis.speak(utterance);
@@ -613,7 +638,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           timeoutMs: 60000,
           signal: controller.signal,
           body: JSON.stringify({
-            profile: "jarvis",
+            profile: DEFAULT_HERMES_PROFILE_ID,
             message: messageText,
             messages: requestMessages.map((message) => ({ role: message.role, content: message.text })),
             operator: data?.username || "Operator",
@@ -718,7 +743,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
   async function startRecognition() {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) { setToast("Hãy mở bằng Chrome hoặc Edge để dùng Google Web Speech."); return; }
+    if (!SpeechRecognition) { setToast("Trình duyệt này chưa hỗ trợ nhận giọng nói. Hãy dùng Chrome hoặc Edge."); return; }
     if (recognitionActiveRef.current || activityRef.current === "thinking" || activityRef.current === "speaking") return;
     if (!microphonePermissionRef.current && navigator.mediaDevices?.getUserMedia) {
       try {
@@ -769,7 +794,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     if (voiceModeRef.current || listening) { stopVoice(); return; }
     setVoiceMode(true);
     voiceModeRef.current = true;
-    setToast("Voice mode đã bật. T sẽ tự nghe lại sau mỗi câu.");
+    setToast("Chế độ giọng nói đã bật. J-Core sẽ tiếp tục nghe sau mỗi câu.");
     await startRecognition();
   };
 
@@ -921,7 +946,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           message: prompt,
           messages: [{ role: "user", content: prompt }],
           operator: data?.username || "Operator",
-          ...(service === "hermes" ? { profile: hermesProfileId } : {}),
+          ...(service === "hermes" ? { profile: DEFAULT_HERMES_PROFILE_ID } : {}),
         }),
       });
       updateServicePanel(service, {
@@ -957,16 +982,16 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     ].filter(Boolean).join(" · ");
 
     return [
-      { label: "GATEWAY", value: connections.gateway ? "ONLINE" : "OFFLINE", detail: gatewayDetail, tone: connections.gateway ? "online" : "offline" },
-      { label: "HERMES", value: connections.hermes ? "AI READY" : "OFFLINE", detail: serviceDetail("hermes", "Chat orchestrator"), tone: connections.hermes ? "online" : "offline" },
-      { label: "OPENCLAW", value: connections.openclaw ? "ONLINE" : "OFFLINE", detail: serviceDetail("openclaw", "Agent workforce"), tone: connections.openclaw ? "online" : "offline" },
-      { label: "9ROUTER", value: connections.nineRouter ? "ONLINE" : "OFFLINE", detail: serviceDetail("nineRouter", `Model ${nineRouterModel}`), tone: connections.nineRouter ? "online" : "offline" },
-      { label: "CLAUDE", value: connections.claude ? "AI READY" : "OFFLINE", detail: serviceDetail("claude", "Reasoning bridge"), tone: connections.claude ? "online" : "offline" },
-      { label: "VOICE", value: voiceMode ? "OPEN CHANNEL" : "STANDBY", detail: advisorMode ? "Cố vấn, lọc câu vu vơ" : "Phản hồi mọi câu nghe được" },
-      { label: "MODE", value: paletteLabels[palette].toUpperCase(), detail: "Orb đổi màu và cấu trúc" },
-      { label: "MEMORY", value: `${messages.length} LOGS`, detail: "Lưu cục bộ trong trình duyệt" }
+      { label: "CỔNG KẾT NỐI", value: connections.gateway ? "TRỰC TUYẾN" : "NGẮT KẾT NỐI", detail: gatewayDetail, tone: connections.gateway ? "online" : "offline" },
+      { label: "HERMES", value: connections.hermes ? "AI SẴN SÀNG" : "NGẮT KẾT NỐI", detail: serviceDetail("hermes", "Bộ điều phối hội thoại"), tone: connections.hermes ? "online" : "offline" },
+      { label: "OPENCLAW", value: connections.openclaw ? "TRỰC TUYẾN" : "NGẮT KẾT NỐI", detail: serviceDetail("openclaw", "Đội tác nhân chuyên môn"), tone: connections.openclaw ? "online" : "offline" },
+      { label: "9ROUTER", value: connections.nineRouter ? "TRỰC TUYẾN" : "NGẮT KẾT NỐI", detail: serviceDetail("nineRouter", `Mô hình ${nineRouterModel}`), tone: connections.nineRouter ? "online" : "offline" },
+      { label: "CLAUDE", value: connections.claude ? "AI SẴN SÀNG" : "NGẮT KẾT NỐI", detail: serviceDetail("claude", "Cầu nối suy luận"), tone: connections.claude ? "online" : "offline" },
+      { label: "GIỌNG NÓI", value: voiceMode ? "ĐANG NGHE" : "SẴN SÀNG", detail: `${VOICE_STYLE_LABELS[voiceStyle]} · ${advisorMode ? "lọc câu vu vơ" : "phản hồi mọi câu"}` },
+      { label: "CHẾ ĐỘ LÕI", value: paletteLabels[palette].toUpperCase(), detail: "Màu và cấu trúc 3D độc lập" },
+      { label: "BỘ NHỚ", value: `${messages.length} BẢN GHI`, detail: "Lưu cục bộ trong trình duyệt" }
     ];
-  }, [advisorMode, connections, data.endpoints?.gateway, messages.length, nineRouterModel, palette, voiceMode]);
+  }, [advisorMode, connections, data.endpoints?.gateway, messages.length, nineRouterModel, palette, voiceMode, voiceStyle]);
 
   const pushTerminal = (lines: string | string[]) => {
     const nextLines = Array.isArray(lines) ? lines : [lines];
@@ -975,6 +1000,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
   const openOsWindow = useCallback((windowId: string) => {
     setActiveWindow(windowId);
+    if (windowId === "core") onCoreMinimizedChange(false);
     if (windowId === "system") {
       setHubOpen(true);
       setHubMinimized(false);
@@ -1015,7 +1041,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       setWorkspaceOpen(true);
       setWorkspaceMinimized(false);
     }
-  }, []);
+  }, [onCoreMinimizedChange]);
 
   const createTemplateHub = useCallback((kind: HubKind) => {
     const template = hubTemplate(kind);
@@ -1057,25 +1083,13 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const runTerminal = async (event: FormEvent) => {
     event.preventDefault();
     const raw = terminalInput.trim();
-    if (!raw) return;
+    if (!raw || terminalBusy) return;
     const [command, ...args] = raw.toLowerCase().split(/\s+/);
     pushTerminal(`operator@j-core:~$ ${raw}`);
     setTerminalInput("");
 
     if (command === "clear") {
       setTerminalLines([]);
-      return;
-    }
-    if (command === "help") {
-      pushTerminal([
-        "help              danh sách lệnh",
-        "status            trạng thái gateway/upstream",
-        "scan              quét health qua gateway",
-        "open <app>        system|chat|agents|router|hermes|claude|settings|intel",
-        "whoami            thông tin operator",
-        "date              thời gian hệ thống",
-        "clear             xóa terminal",
-      ]);
       return;
     }
     if (command === "status") {
@@ -1120,7 +1134,24 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       }
       return;
     }
-    pushTerminal(`Command not found: ${command}. Type 'help'.`);
+    setTerminalBusy(true);
+    try {
+      const result: any = await gatewayFetch(data, "/api/system/terminal", {
+        method: "POST",
+        body: JSON.stringify({ command: raw }),
+        timeoutMs: 35000,
+      });
+      const output = String(result.output || "(không có output)").split(/\r?\n/);
+      pushTerminal([
+        ...output,
+        `[exit ${result.exitCode ?? "?"}] ${result.durationMs ?? 0}ms${result.truncated ? " · output đã rút gọn" : ""}`,
+      ]);
+    } catch (error: any) {
+      const requestId = error?.requestId ? ` · request ${error.requestId}` : "";
+      pushTerminal(`BROKER ERROR: ${error instanceof Error ? error.message : "unknown error"}${requestId}`);
+    } finally {
+      setTerminalBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -1178,6 +1209,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   };
 
   const minimizedWindows = ([
+    coreMinimized ? { id: "core", label: "Lõi AI 3D", code: "CORE", icon: "hub" } : null,
     hubOpen && hubMinimized ? { id: "system", label: "System Monitor", code: "SYS", icon: "hub" } : null,
     historyOpen && historyMinimized ? { id: "chat", label: "Neural Chat", code: "CHAT", icon: "chat" } : null,
     terminalOpen && terminalMinimized ? { id: "terminal", label: "Restricted Terminal", code: "TERM", icon: "terminal" } : null,
@@ -1195,14 +1227,14 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     <div className="hud-overlay" aria-label="J-Core AI interface">
       <div className={`system-signal ${activity}`} aria-hidden="true"><i /><i /><i /></div>
       <nav className="os-taskbar" aria-label="J-Core OS taskbar">
-        <button className="os-start" type="button" aria-label="Mở System Core" onClick={() => openOsWindow("system")}>
+        <button className={`os-start ${coreMinimized ? "" : "active"}`} type="button" aria-label={coreMinimized ? "Khôi phục Lõi AI 3D" : "Thu nhỏ Lõi AI 3D"} aria-pressed={!coreMinimized} onClick={() => onCoreMinimizedChange(!coreMinimized)}>
           <span>J</span><b>J-CORE OS</b>
         </button>
         <div className="os-app-strip">
-          <button className={hubOpen ? "active" : ""} type="button" aria-label="Mở System Monitor" onClick={toggleHub}><Icon name="hub" /><span>System</span></button>
-          <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở Neural Chat" onClick={toggleHistory}><Icon name="chat" /><span>Chat</span></button>
+          <button className={hubOpen ? "active" : ""} type="button" aria-label="Mở giám sát hệ thống" onClick={toggleHub}><Icon name="hub" /><span>Hệ thống</span></button>
+          <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở trò chuyện" onClick={toggleHistory}><Icon name="chat" /><span>Trò chuyện</span></button>
           <button className={terminalOpen ? "active" : ""} type="button" aria-label="Mở Terminal" onClick={() => openOsWindow("terminal")}><Icon name="terminal" /><span>Terminal</span></button>
-          <button className={agentsOpen ? "active" : ""} type="button" aria-label="Mở Agent Matrix" onClick={() => openOsWindow("agents")}><Icon name="agents" /><span>Agents</span></button>
+          <button className={agentsOpen ? "active" : ""} type="button" aria-label="Mở ma trận tác nhân" onClick={() => openOsWindow("agents")}><Icon name="agents" /><span>Tác nhân</span></button>
           <button
             className={routerOpen ? "active" : ""}
             type="button"
@@ -1230,20 +1262,20 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           >
             <Icon name="claude" /><span>Claude</span>
           </button>
-          <button className={intelOpen ? "active" : ""} type="button" aria-label="Mở Intel Library" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Intel</span></button>
-          <button className={workspaceOpen ? "active" : ""} type="button" aria-label="Mở Universal Workspace" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Workspace</span></button>
-          <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở Gateway Settings" onClick={toggleSettings}><Icon name="settings" /><span>Gateway</span></button>
+          <button className={intelOpen ? "active" : ""} type="button" aria-label="Mở thư viện tình báo" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Thư viện</span></button>
+          <button className={workspaceOpen ? "active" : ""} type="button" aria-label="Mở không gian làm việc" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Không gian</span></button>
+          <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở cài đặt Gateway" onClick={toggleSettings}><Icon name="settings" /><span>Kết nối</span></button>
         </div>
         <div className="os-tray">
           <button type="button" aria-label="Reset góc nhìn lõi" onClick={onResetView}><Icon name="reset" /></button>
-          <span className={connections.gateway ? "online" : "offline"}>{connections.gateway ? "LINK" : "NO LINK"}</span>
+          <span className={connections.gateway ? "online" : "offline"}>{connections.gateway ? "ĐÃ NỐI" : "MẤT NỐI"}</span>
           <time>{currentTime}</time>
         </div>
       </nav>
 
       {minimizedWindows.length > 0 && (
         <nav className="os-minimized-dock" aria-label="Cửa sổ đang thu nhỏ">
-          <span>HIDDEN</span>
+              <span>ĐÃ ẨN</span>
           {minimizedWindows.map((windowItem) => (
             <button
               type="button"
@@ -1263,12 +1295,12 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         <aside ref={hubDrag.panelRef} className={`activity-hub draggable-panel ${hubMinimized ? "is-minimized" : ""} ${activeWindow === "system" ? "is-active" : ""}`} style={{ transform: `translate3d(${hubDrag.offset.x}px, ${hubDrag.offset.y}px, 0)` }} aria-label="Activity hub" onPointerDown={() => setActiveWindow("system")}>
           <div className="hub-title panel-drag-handle" {...hubDrag.dragHandleProps} onDoubleClick={hubDrag.resetPosition} onWheel={(event) => minimizeFromWheel(event, () => setHubMinimized(true))}>
             <div className="hub-title-copy">
-              <span>OPERATOR HUB</span>
-              <b>{activity === "speaking" ? "RESPONDING" : activity === "thinking" ? "ANALYZING" : activity === "listening" ? "LISTENING" : "STANDBY"}</b>
+              <span>TRUNG TÂM ĐIỀU HÀNH</span>
+              <b>{activity === "speaking" ? "ĐANG PHẢN HỒI" : activity === "thinking" ? "ĐANG PHÂN TÍCH" : activity === "listening" ? "ĐANG LẮNG NGHE" : "SẴN SÀNG"}</b>
             </div>
             <div className="panel-actions hub-actions">
-              <button type="button" aria-label="Minimize hub" onClick={() => setHubMinimized(true)}><Icon name="minimize" /></button>
-              <button type="button" aria-label="Close hub" onClick={() => setHubOpen(false)}><Icon name="close" /></button>
+              <button type="button" aria-label="Thu nhỏ trung tâm điều hành" onClick={() => setHubMinimized(true)}><Icon name="minimize" /></button>
+              <button type="button" aria-label="Đóng trung tâm điều hành" onClick={() => setHubOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
           <div className="hub-orbit-map" aria-hidden="true">
@@ -1315,7 +1347,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       {settingsOpen && !settingsMinimized && (
         <aside ref={settingsDrag.panelRef} className={`settings-panel draggable-panel ${settingsMinimized ? "is-minimized" : ""} ${activeWindow === "settings" ? "is-active" : ""}`} style={{ transform: `translate3d(${settingsDrag.offset.x}px, ${settingsDrag.offset.y}px, 0)` }} aria-label="Cài đặt" onPointerDown={() => setActiveWindow("settings")}>
           <div className="settings-hero panel-drag-handle" {...settingsDrag.dragHandleProps} onDoubleClick={settingsDrag.resetPosition} onWheel={(event) => minimizeFromWheel(event, () => setSettingsMinimized(true))}>
-            <div><span>HỆ THỐNG</span><b>{connections.gateway ? "GATEWAY ONLINE" : "GATEWAY OFFLINE"}</b></div>
+            <div><span>CỔNG KẾT NỐI</span><b>{connections.gateway ? "GATEWAY TRỰC TUYẾN" : "GATEWAY NGOẠI TUYẾN"}</b></div>
             <div className="panel-actions settings-window-actions">
               <button type="button" aria-label="Thu nhỏ cài đặt" onClick={() => setSettingsMinimized(true)}><Icon name="minimize" /></button>
               <button type="button" aria-label="Đóng cài đặt" onClick={() => setSettingsOpen(false)}><Icon name="close" /></button>
@@ -1337,7 +1369,13 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               <span>Gateway URL</span>
               <input
                 type="url"
+                name="jcore-gateway-url"
                 value={gatewayDraft}
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                data-1p-ignore="true"
+                data-lpignore="true"
                 onChange={(event) => {
                   setGatewayDraft(event.target.value);
                   setGatewayTest("idle");
@@ -1352,6 +1390,10 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                   value={gatewayTokenDraft}
                   placeholder="Chỉ nhập chuỗi token, không cần Bearer"
                   autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  data-1p-ignore="true"
+                  data-lpignore="true"
                   onChange={(event) => {
                     setGatewayTokenDraft(event.target.value);
                     setGatewayTest("idle");
@@ -1418,7 +1460,24 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             <p>Model được gửi trực tiếp tới 9Router cho mọi cửa sổ chat. Mặc định: {DEFAULT_NINEROUTER_MODEL}.</p>
           </section>
           <section className="settings-block">
-            <div className="settings-block-head"><span>Voice link</span><button className={voiceMode ? "danger" : "primary"} type="button" onClick={toggleVoiceMode}>{voiceMode ? "Tắt" : "Bật"}</button></div>
+            <div className="settings-block-head"><span>Kênh giọng nói tiếng Việt</span><button className={voiceMode ? "danger" : "primary"} type="button" onClick={toggleVoiceMode}>{voiceMode ? "Tắt" : "Bật"}</button></div>
+            <div className="voice-style-grid" role="group" aria-label="Chọn chất giọng tiếng Việt">
+              {(Object.keys(VOICE_STYLE_LABELS) as VoiceStyle[]).map((style) => (
+                <button
+                  className={voiceStyle === style ? "active" : ""}
+                  type="button"
+                  aria-pressed={voiceStyle === style}
+                  key={style}
+                  onClick={() => {
+                    setVoiceStyle(style);
+                    setToast(`Đã chọn giọng ${VOICE_STYLE_LABELS[style].toLowerCase()}.`);
+                  }}
+                >
+                  <b>{VOICE_STYLE_LABELS[style]}</b>
+                  <small>{style === "female" ? "Rõ, tự nhiên, tốc độ chuẩn" : "Thấp, chậm và chắc"}</small>
+                </button>
+              ))}
+            </div>
             <label className="toggle-row"><span>Chế độ cố vấn</span><input checked={advisorMode} type="checkbox" onChange={(event) => setAdvisorMode(event.target.checked)} /></label>
             <label className="toggle-row"><span>Tự nghe tiếp</span><input checked={handsFree} type="checkbox" onChange={(event) => setHandsFree(event.target.checked)} /></label>
             <label className="toggle-row"><span>Đọc phản hồi</span><input checked={voiceReply} type="checkbox" onChange={(event) => setVoiceReply(event.target.checked)} /></label>
@@ -1439,7 +1498,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
       {workspaceOpen && (
         <OsWindow
-          title="Universal Workspace"
+          title="Không gian làm việc đa năng"
           code="JARVIS://HUB-RUNTIME"
           drag={workspaceDrag}
           minimized={workspaceMinimized}
@@ -1461,8 +1520,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
       {terminalOpen && (
         <OsWindow
-          title="Restricted Terminal"
-          code="SYS://TERMINAL"
+          title="Ubuntu Terminal"
+          code="SYS://UBUNTU-RO"
           drag={terminalDrag}
           minimized={terminalMinimized}
           active={activeWindow === "terminal"}
@@ -1479,11 +1538,14 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             <input
               value={terminalInput}
               onChange={(event) => setTerminalInput(event.target.value)}
-              aria-label="Terminal command"
+              aria-label="Lệnh Ubuntu"
               autoComplete="off"
               spellCheck={false}
+              disabled={terminalBusy}
             />
-            <button type="submit" aria-label="Chạy lệnh Terminal">RUN</button>
+            <button type="submit" aria-label="Chạy lệnh Ubuntu" disabled={terminalBusy || !terminalInput.trim()}>
+              {terminalBusy ? "RUNNING" : "RUN"}
+            </button>
           </form>
         </OsWindow>
       )}
@@ -1614,8 +1676,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             prompt={servicePanels.hermes.prompt}
             reply={servicePanels.hermes.reply}
             sending={servicePanels.hermes.sending}
-            selectedProfileId={hermesProfileId}
-            onProfileSelect={handleHermesProfileSelect}
+            selectedProfileId={DEFAULT_HERMES_PROFILE_ID}
             onPromptChange={(prompt) => updateServicePanel("hermes", { prompt })}
             onRefresh={() => void refreshServicePanel("hermes")}
             onSubmit={() => void testServicePanel("hermes")}
@@ -1688,6 +1749,26 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 >
                   <Icon name="document" /><span>Tài liệu</span>
                 </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-label="Ubuntu Files"
+                  aria-selected={intelMode === "files"}
+                  className={intelMode === "files" ? "active" : ""}
+                  onClick={() => setIntelMode("files")}
+                >
+                  <Icon name="terminal" /><span>Ubuntu Files</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-label="Obsidian Vault"
+                  aria-selected={intelMode === "obsidian"}
+                  className={intelMode === "obsidian" ? "active" : ""}
+                  onClick={() => setIntelMode("obsidian")}
+                >
+                  <Icon name="document" /><span>Obsidian</span>
+                </button>
               </div>
               <div className="intel-secure-status"><i /><span>ISOLATED VIEWER</span></div>
             </header>
@@ -1744,7 +1825,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                   ))}
                 </div>
               </section>
-            ) : (
+            ) : intelMode === "docs" ? (
               <section className="intel-docs" role="tabpanel" aria-label="Tài liệu nội bộ">
                 <nav className="intel-doc-index" aria-label="Chỉ mục tài liệu">
                   <span>LOCAL ARCHIVE / {intelDocuments.length} FILES</span>
@@ -1779,6 +1860,10 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                   <footer>J-CORE KNOWLEDGE NODE // READ-ONLY // LOCAL CACHE</footer>
                 </article>
               </section>
+            ) : intelMode === "files" ? (
+              <UbuntuWorkspace data={data} />
+            ) : (
+              <ObsidianVaultPanel data={data} />
             )}
           </div>
         </OsWindow>
@@ -1799,7 +1884,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             </button>
           ))}
         </div>
-        <form className="prompt-shell prompt-shell-with-tools" onSubmit={submit}>
+        <form className="prompt-shell prompt-shell-with-tools" autoComplete="off" onSubmit={submit}>
           <button className={voiceMode || listening ? "listening" : ""} type="button" aria-label="Bật chế độ giọng nói" onClick={toggleVoiceMode}><Icon name="mic" /></button>
           <div className="legacy-chat-tools" aria-label="Công cụ chat">
             <button type="button" aria-label="Ghim một tệp hoặc hình ảnh" onClick={chooseAttachment}><Icon name="attach" /></button>
@@ -1807,7 +1892,20 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           </div>
           <input ref={attachmentInputRef} className="attachment-input" type="file" accept="image/*,.pdf,.txt,.md,.csv,.json,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" aria-label="Chọn tệp đính kèm" onChange={handleAttachmentChange} />
           <label className="sr-only" htmlFor="jcore-command">Nhập tin nhắn</label>
-          <input id="jcore-command" placeholder="Nói hoặc nhập lệnh..." value={input} onChange={(event) => setInput(event.target.value)} />
+          <input
+            id="jcore-command"
+            name="jcore-command"
+            placeholder="Nói hoặc nhập lệnh..."
+            value={input}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="sentences"
+            spellCheck={false}
+            aria-autocomplete="none"
+            data-1p-ignore="true"
+            data-lpignore="true"
+            onChange={(event) => setInput(event.target.value)}
+          />
           <button type="submit" aria-label="Gửi tin nhắn" disabled={isSending || (!input.trim() && !pendingAttachment)}><Icon name="send" /></button>
         </form>
         <p aria-live="polite">{toast}</p>

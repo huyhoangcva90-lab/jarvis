@@ -1,4 +1,5 @@
 export type HermesProfileId = "jarvis" | "cadence-content" | "code-architect" | "security-auditor";
+export const DEFAULT_HERMES_PROFILE_ID: HermesProfileId = "jarvis";
 
 export interface HermesProfile {
   id: HermesProfileId;
@@ -53,13 +54,13 @@ export const HERMES_PROFILES: HermesProfile[] = [
 export const HERMES_STORAGE_KEY = "jarvis.hermes.profile.v2";
 
 export function loadStoredHermesProfileId(): HermesProfileId {
-  if (typeof window === "undefined") return "jarvis";
+  if (typeof window === "undefined") return DEFAULT_HERMES_PROFILE_ID;
   try {
     const stored = window.localStorage.getItem(HERMES_STORAGE_KEY);
-    if (stored === "jarvis-core") return "jarvis";
-    return HERMES_PROFILES.some((profile) => profile.id === stored) ? stored as HermesProfileId : "jarvis";
+    if (stored === "jarvis-core") return DEFAULT_HERMES_PROFILE_ID;
+    return HERMES_PROFILES.some((profile) => profile.id === stored) ? stored as HermesProfileId : DEFAULT_HERMES_PROFILE_ID;
   } catch {
-    return "jarvis";
+    return DEFAULT_HERMES_PROFILE_ID;
   }
 }
 
