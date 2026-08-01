@@ -1,690 +1,254 @@
-import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
-import { AiActivity } from '../../App';
+import { useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import * as THREE from "three";
+import type { AiActivity } from "../../App";
+import { activityEnergy, activityPulse, activitySpeed, pathGeometry, seededRandom } from "../shared/coreMotion";
 
-// ==========================================
-// SHADERS
-// ==========================================
+const VIOLET = "#8b3dff";
+const MAGENTA = "#e14cff";
+const ICE = "#eef1ff";
 
-const NOISE_GLSL = `
-// Simplex 3D Noise 
-// by Ian McEwan, Ashima Arts
-vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
-vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
-float snoise(vec3 v){ 
-  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
-  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
-  vec3 i  = floor(v + dot(v, C.yyy) );
-  vec3 x0 = v - i + dot(i, C.xxx) ;
-  vec3 g = step(x0.yzx, x0.xyz);
-  vec3 l = 1.0 - g;
-  vec3 i1 = min( g.xyz, l.zxy );
-  vec3 i2 = max( g.xyz, l.zxy );
-  vec3 x1 = x0 - i1 + 1.0 * C.xxx;
-  vec3 x2 = x0 - i2 + 2.0 * C.xxx;
-  vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
-  i = mod(i, 289.0 ); 
-  vec4 p = permute( permute( permute( 
-             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-           + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
-           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
-  float n_ = 1.0/7.0;
-  vec3  ns = n_ * D.wyz - D.xzx;
-  vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
-  vec4 x_ = floor(j * ns.z);
-  vec4 y_ = floor(j - 7.0 * x_ );
-  vec4 x = x_ *ns.x + ns.yyyy;
-  vec4 y = y_ *ns.x + ns.yyyy;
-  vec4 h = 1.0 - abs(x) - abs(y);
-  vec4 b0 = vec4( x.xy, y.xy );
-  vec4 b1 = vec4( x.zw, y.zw );
-  vec4 s0 = floor(b0)*2.0 + 1.0;
-  vec4 s1 = floor(b1)*2.0 + 1.0;
-  vec4 sh = -step(h, vec4(0.0));
-  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
-  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
-  vec3 p0 = vec3(a0.xy,h.x);
-  vec3 p1 = vec3(a0.zw,h.y);
-  vec3 p2 = vec3(a1.xy,h.z);
-  vec3 p3 = vec3(a1.zw,h.w);
-  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-  p0 *= norm.x;
-  p1 *= norm.y;
-  p2 *= norm.z;
-  p3 *= norm.w;
-  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-  m = m * m;
-  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
-                                dot(p2,x2), dot(p3,x3) ) );
-}
-`;
-
-const coreVertexShader = `
-varying vec2 vUv;
-varying vec3 vPosition;
-varying vec3 vNormal;
-uniform float uTime;
-uniform float uActivityPulse;
-
-${NOISE_GLSL}
-
-void main() {
-  vUv = uv;
-  vNormal = normal;
-  
-  float n = snoise(position * 5.0 + uTime * 2.0);
-  vec3 pos = position + normal * n * 0.03 * uActivityPulse;
-  vPosition = pos;
-  
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-}
-`;
-
-const coreFragmentShader = `
-varying vec2 vUv;
-varying vec3 vPosition;
-varying vec3 vNormal;
-uniform float uTime;
-uniform vec3 uColor;
-
-${NOISE_GLSL}
-
-void main() {
-  float n = snoise(vPosition * 8.0 - uTime * 3.0);
-  float intensity = pow(0.6 + 0.4 * n, 2.0);
-  
-  vec3 glow = uColor * intensity * 2.5;
-  
-  // Core center white-hot
-  float center = 1.0 - length(vPosition) * 4.0;
-  center = clamp(center, 0.0, 1.0);
-  glow += vec3(1.0) * pow(center, 3.0);
-
-  gl_FragColor = vec4(glow, 1.0);
-}
-`;
-
-const ringVertexShader = `
-varying vec2 vUv;
-varying vec3 vPosition;
-void main() {
-  vUv = uv;
-  vPosition = position;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
-`;
-
-const ringFragmentShader = `
-varying vec2 vUv;
-varying vec3 vPosition;
-uniform float uTime;
-uniform vec3 uColor;
-uniform float uSpeed;
-
-${NOISE_GLSL}
-
-void main() {
-  float flow = fract(vUv.x * 3.0 - uTime * uSpeed);
-  float noiseFlow = snoise(vec3(vUv.x * 10.0, vUv.y * 2.0, uTime));
-  
-  float glow = smoothstep(0.4, 0.5, flow) * smoothstep(0.6, 0.5, flow);
-  glow += pow(max(0.0, noiseFlow), 2.0) * 0.8;
-  
-  // Edge fading on the torus
-  float edge = smoothstep(0.0, 0.2, vUv.y) * smoothstep(1.0, 0.8, vUv.y);
-  
-  vec3 finalColor = uColor * glow * edge * 2.0;
-  gl_FragColor = vec4(finalColor, glow * edge);
-}
-`;
-
-const diskVertexShader = `
-attribute float aAngle;
-attribute float aRadius;
-attribute float aSpeed;
-attribute float aSize;
-attribute vec3 aColor;
-
-varying vec3 vColor;
-varying float vAlpha;
-
-uniform float uTime;
-uniform float uExpansion;
-
-void main() {
-  vColor = aColor;
-  
-  // Spiral motion
-  float currentAngle = aAngle - uTime * aSpeed;
-  float currentRadius = mod(aRadius - uTime * aSpeed * 0.5, 3.0);
-  currentRadius = mix(currentRadius, currentRadius * uExpansion, 0.5);
-  
-  if(currentRadius < 0.2) currentRadius += 2.8; // Respawn
-
-  float x = cos(currentAngle) * currentRadius;
-  float z = sin(currentAngle) * currentRadius;
-  float y = sin(currentAngle * 5.0 + uTime) * 0.05 * currentRadius; // Slight vertical wave
-  
-  vec3 pos = vec3(x, y, z);
-  
-  vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-  gl_Position = projectionMatrix * mvPosition;
-  
-  // Size attenuation
-  gl_PointSize = aSize * (10.0 / -mvPosition.z);
-  
-  // Fade out at edges and center
-  vAlpha = smoothstep(0.0, 0.5, currentRadius) * smoothstep(3.0, 1.5, currentRadius);
-}
-`;
-
-const diskFragmentShader = `
-varying vec3 vColor;
-varying float vAlpha;
-
-void main() {
-  float dist = length(gl_PointCoord - vec2(0.5));
-  if (dist > 0.5) discard;
-  
-  float glow = pow(1.0 - (dist * 2.0), 1.5);
-  gl_FragColor = vec4(vColor * glow * 1.5, vAlpha * glow);
-}
-`;
-
-const lensingVertexShader = `
-varying vec3 vNormal;
-varying vec3 vViewPosition;
-void main() {
-  vNormal = normalize(normalMatrix * normal);
-  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-  vViewPosition = -mvPosition.xyz;
-  gl_Position = projectionMatrix * mvPosition;
-}
-`;
-
-const lensingFragmentShader = `
-varying vec3 vNormal;
-varying vec3 vViewPosition;
-uniform vec3 uColor;
-
-void main() {
-  vec3 normal = normalize(vNormal);
-  vec3 viewDir = normalize(vViewPosition);
-  
-  float rim = 1.0 - max(dot(viewDir, normal), 0.0);
-  float rimPower = pow(rim, 6.0); // Sharp edge
-  float innerGlow = pow(rim, 2.0) * 0.1;
-  
-  vec3 color = uColor * (rimPower * 3.0 + innerGlow);
-  float alpha = rimPower * 0.8 + innerGlow * 0.2;
-  
-  gl_FragColor = vec4(color, alpha);
-}
-`;
-
-// ==========================================
-// COMPONENTS
-// ==========================================
-
-const SingularityCore = ({ activity }: { activity: AiActivity }) => {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const haloRef = useRef<THREE.Mesh>(null);
-  
-  const uniforms = useMemo(() => ({
-    uTime: { value: 0 },
-    uColor: { value: new THREE.Color('#ffffff') },
-    uActivityPulse: { value: 1.0 }
-  }), []);
-
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    uniforms.uTime.value = t;
-    
-    let targetScale = 1.0;
-    let targetPulse = 1.0;
-    
-    switch (activity) {
-      case 'listening':
-        targetScale = 0.9;
-        targetPulse = 0.5;
-        break;
-      case 'thinking':
-        // Contract sharply then release (thought burst pattern)
-        targetScale = 0.8 + Math.sin(t * 8) * 0.1;
-        targetPulse = 2.0;
-        break;
-      case 'speaking':
-        targetScale = 1.2 + Math.sin(t * 7) * 0.15;
-        targetPulse = 3.0;
-        break;
-      case 'idle':
-      default:
-        targetScale = 1.0 + Math.sin(t * 2) * 0.05;
-        targetPulse = 1.0;
-        break;
+function Singularity({ activity }: { activity: AiActivity }) {
+  const root = useRef<THREE.Group>(null);
+  const horizon = useRef<THREE.ShaderMaterial>(null);
+  useFrame(({ clock }, delta) => {
+    const time = clock.elapsedTime;
+    if (root.current) {
+      root.current.rotation.z += delta * 0.08 * activitySpeed(activity);
+      root.current.scale.setScalar(activityPulse(activity, time, 1.6));
     }
-    
-    if (meshRef.current) {
-      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
+    if (horizon.current) {
+      horizon.current.uniforms.uTime.value = time;
+      horizon.current.uniforms.uEnergy.value = activityEnergy(activity);
     }
-    if (haloRef.current) {
-      haloRef.current.scale.lerp(new THREE.Vector3(targetScale * 1.5, targetScale * 1.5, targetScale * 1.5), 0.1);
-      const haloMat = haloRef.current.material as THREE.MeshBasicMaterial;
-      haloMat.opacity = THREE.MathUtils.lerp(haloMat.opacity, activity === 'speaking' ? 0.5 : 0.25, 0.1);
-    }
-    
-    uniforms.uActivityPulse.value = THREE.MathUtils.lerp(uniforms.uActivityPulse.value, targetPulse, 0.1);
   });
-
   return (
-    <group>
-      <mesh ref={meshRef}>
-        <sphereGeometry args={[0.105, 64, 64]} />
+    <group ref={root}>
+      <mesh position={[0, 0, 0.28]}>
+        <circleGeometry args={[0.34, 96]} />
+        <meshBasicMaterial color="#000000" depthWrite toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 0, 0.2]} scale={1.5}>
+        <planeGeometry args={[1, 1]} />
         <shaderMaterial
-          vertexShader={coreVertexShader}
-          fragmentShader={coreFragmentShader}
-          uniforms={uniforms}
-          transparent
+          ref={horizon}
+          vertexShader={`varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`}
+          fragmentShader={`
+            uniform float uTime; uniform float uEnergy; varying vec2 vUv;
+            void main(){
+              vec2 p=vUv-.5; float r=length(p); float a=atan(p.y,p.x);
+              float ring=smoothstep(.035,.0,abs(r-.265));
+              float plasma=pow(abs(sin(a*7.0-r*38.0-uTime*2.4)),8.0)*smoothstep(.42,.2,r)*smoothstep(.14,.22,r);
+              float alpha=(ring+plasma*.65)*uEnergy;
+              vec3 color=mix(vec3(.22,.02,.9),vec3(1.0,.55,1.0),plasma+ring);
+              gl_FragColor=vec4(color*alpha,alpha);
+            }
+          `}
+          uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 } }}
+          blending={THREE.AdditiveBlending}
           depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </mesh>
-      {/* Halo */}
-      <mesh ref={haloRef}>
-        <sphereGeometry args={[0.15, 32, 32]} />
-        <meshBasicMaterial 
-          color="#d8b4fe" 
-          transparent 
-          opacity={0.25} 
-          depthWrite={false} 
-          blending={THREE.AdditiveBlending}
+          transparent
         />
       </mesh>
     </group>
   );
-};
+}
 
-const GravitationalRings = ({ activity }: { activity: AiActivity }) => {
-  const groupRef = useRef<THREE.Group>(null);
-  
-  const ringsData = useMemo(() => [
-    { radius: 0.6, tube: 0.015, color: '#a855f7', tilt: [Math.PI/3, Math.PI/4, 0], speed: 1.0 },
-    { radius: 1.2, tube: 0.02, color: '#7c3aed', tilt: [-Math.PI/4, Math.PI/3, Math.PI/6], speed: -0.7 },
-    { radius: 1.8, tube: 0.03, color: '#6d28d9', tilt: [Math.PI/2.5, -Math.PI/6, Math.PI/2], speed: 0.5 }
-  ], []);
-
-  const uniformsArray = useMemo(() => ringsData.map(r => ({
-    uTime: { value: 0 },
-    uColor: { value: new THREE.Color(r.color) },
-    uSpeed: { value: r.speed }
-  })), [ringsData]);
-
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    
-    let speedMult = 1.0;
-    if (activity === 'speaking') speedMult = 2.0;
-    else if (activity === 'listening') speedMult = 0.5;
-    else if (activity === 'thinking') speedMult = -1.5; // reverse briefly
-    
-    uniformsArray.forEach((u, i) => {
-      u.uTime.value += state.clock.getDelta() * speedMult;
-      // Also slowly rotate the entire rings for extra dynamics
-      if (groupRef.current) {
-        const mesh = groupRef.current.children[i] as THREE.Mesh;
-        mesh.rotation.y += state.clock.getDelta() * 0.1 * (i % 2 === 0 ? 1 : -1) * speedMult;
-      }
-    });
-  });
-
-  return (
-    <group ref={groupRef}>
-      {ringsData.map((ring, i) => (
-        <mesh key={i} rotation={new THREE.Euler(...ring.tilt)}>
-          <torusGeometry args={[ring.radius, ring.tube, 32, 100]} />
-          <shaderMaterial
-            vertexShader={ringVertexShader}
-            fragmentShader={ringFragmentShader}
-            uniforms={uniformsArray[i]}
-            transparent
-            depthWrite={false}
-            blending={THREE.AdditiveBlending}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-};
-
-const AccretionDisk = ({ activity }: { activity: AiActivity }) => {
-  const pointsRef = useRef<THREE.Points>(null);
-  const count = 800;
-
-  const uniforms = useMemo(() => ({
-    uTime: { value: 0 },
-    uExpansion: { value: 1.0 }
-  }), []);
-
-  const { positions, angles, radii, speeds, sizes, colors } = useMemo(() => {
-    const pos = new Float32Array(count * 3);
-    const ang = new Float32Array(count);
-    const rad = new Float32Array(count);
-    const spd = new Float32Array(count);
-    const sz = new Float32Array(count);
-    const col = new Float32Array(count * 3);
-
-    const colorOuter = new THREE.Color('#4c1d95');
-    const colorMid = new THREE.Color('#9333ea');
-    const colorInner = new THREE.Color('#f3e8ff');
-
-    for (let i = 0; i < count; i++) {
-      ang[i] = Math.random() * Math.PI * 2;
-      const r = 0.2 + Math.pow(Math.random(), 1.5) * 2.8;
-      rad[i] = r;
-      spd[i] = (1.0 / (r + 0.5)) * (0.5 + Math.random() * 0.5);
-      sz[i] = Math.random() * 8.0 + 2.0;
-
-      const c = new THREE.Color();
-      if (r < 1.0) c.lerpColors(colorInner, colorMid, r);
-      else c.lerpColors(colorMid, colorOuter, (r - 1.0) / 1.8);
-
-      col[i*3] = c.r;
-      col[i*3+1] = c.g;
-      col[i*3+2] = c.b;
-      
-      // Init positions at 0, shader handles placement
-      pos[i*3] = 0; pos[i*3+1] = 0; pos[i*3+2] = 0;
+function AccretionDisk({ activity }: { activity: AiActivity }) {
+  const points = useRef<THREE.Points>(null);
+  const material = useRef<THREE.ShaderMaterial>(null);
+  const { positions, seeds } = useMemo(() => {
+    const random = seededRandom(7719);
+    const count = 1800;
+    const positionData = new Float32Array(count * 3);
+    const seedData = new Float32Array(count);
+    for (let index = 0; index < count; index += 1) {
+      const radius = 0.52 + Math.pow(random(), 1.65) * 2.15;
+      const angle = random() * Math.PI * 2;
+      positionData[index * 3] = Math.cos(angle) * radius;
+      positionData[index * 3 + 1] = Math.sin(angle) * radius;
+      positionData[index * 3 + 2] = (random() - 0.5) * (0.035 + radius * 0.075);
+      seedData[index] = random();
     }
+    return { positions: positionData, seeds: seedData };
+  }, []);
 
-    return { positions: pos, angles: ang, radii: rad, speeds: spd, sizes: sz, colors: col };
-  }, [count]);
-
-  useFrame((state) => {
-    const dt = state.clock.getDelta();
-    uniforms.uTime.value += dt * (activity === 'speaking' ? 2.5 : activity === 'thinking' ? 1.5 : 1.0);
-    
-    let targetExp = 1.0;
-    if (activity === 'speaking') targetExp = 1.3;
-    if (activity === 'listening') targetExp = 0.8;
-    
-    uniforms.uExpansion.value = THREE.MathUtils.lerp(uniforms.uExpansion.value, targetExp, 0.05);
+  useFrame(({ clock }) => {
+    if (material.current) {
+      material.current.uniforms.uTime.value = clock.elapsedTime;
+      material.current.uniforms.uSpeed.value = activitySpeed(activity);
+      material.current.uniforms.uEnergy.value = activityEnergy(activity);
+    }
   });
 
   return (
-    <points ref={pointsRef}>
+    <points ref={points} rotation={[1.14, 0.18, -0.28]}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
-        <bufferAttribute attach="attributes-aAngle" count={count} array={angles} itemSize={1} />
-        <bufferAttribute attach="attributes-aRadius" count={count} array={radii} itemSize={1} />
-        <bufferAttribute attach="attributes-aSpeed" count={count} array={speeds} itemSize={1} />
-        <bufferAttribute attach="attributes-aSize" count={count} array={sizes} itemSize={1} />
-        <bufferAttribute attach="attributes-aColor" count={count} array={colors} itemSize={3} />
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-aSeed" args={[seeds, 1]} />
       </bufferGeometry>
       <shaderMaterial
-        vertexShader={diskVertexShader}
-        fragmentShader={diskFragmentShader}
-        uniforms={uniforms}
-        transparent
-        depthWrite={false}
+        ref={material}
+        vertexShader={`
+          uniform float uTime; uniform float uSpeed; attribute float aSeed; varying float vSeed;
+          void main(){
+            vSeed=aSeed; float r=length(position.xy); float a=atan(position.y,position.x)+uTime*(.12+.34/(r*r))*uSpeed;
+            vec3 p=vec3(cos(a)*r,sin(a)*r,position.z+sin(uTime*2.0+aSeed*12.0)*.018);
+            vec4 mv=modelViewMatrix*vec4(p,1.0); gl_PointSize=(2.0+aSeed*2.8)*(7.0/-mv.z); gl_Position=projectionMatrix*mv;
+          }
+        `}
+        fragmentShader={`
+          uniform float uEnergy; varying float vSeed;
+          void main(){float d=length(gl_PointCoord-.5); float a=smoothstep(.5,.0,d); vec3 c=mix(vec3(.18,.02,.95),vec3(1.0,.7,1.0),vSeed); gl_FragColor=vec4(c*uEnergy,a*(.28+vSeed*.65));}
+        `}
+        uniforms={{ uTime: { value: 0 }, uSpeed: { value: 1 }, uEnergy: { value: 1 } }}
         blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        transparent
       />
     </points>
   );
-};
+}
 
-const CosmicConstellation = () => {
-  const groupRef = useRef<THREE.Group>(null);
-  const count = 250;
-  
-  const { positions, linesPos } = useMemo(() => {
-    const pos = new Float32Array(count * 3);
-    const pts: THREE.Vector3[] = [];
-    
-    for (let i = 0; i < count; i++) {
-      // Spherical shell 3.5 - 5.0
-      const r = 3.5 + Math.random() * 1.5;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(Math.random() * 2 - 1);
-      
-      const x = r * Math.sin(phi) * Math.cos(theta);
-      const y = r * Math.sin(phi) * Math.sin(theta);
-      const z = r * Math.cos(phi);
-      
-      pos[i*3] = x; pos[i*3+1] = y; pos[i*3+2] = z;
-      pts.push(new THREE.Vector3(x, y, z));
-    }
-
-    // Connect nearby stars
-    const lp: number[] = [];
-    for (let i = 0; i < count; i++) {
-      for (let j = i + 1; j < count; j++) {
-        if (pts[i].distanceTo(pts[j]) < 1.2) {
-          lp.push(pts[i].x, pts[i].y, pts[i].z);
-          lp.push(pts[j].x, pts[j].y, pts[j].z);
-        }
+function QuantumBranches({ activity }: { activity: AiActivity }) {
+  const root = useRef<THREE.Group>(null);
+  const geometry = useMemo(() => {
+    const random = seededRandom(818);
+    const paths: THREE.Vector3[][] = [];
+    for (let branch = 0; branch < 16; branch += 1) {
+      const baseAngle = branch / 16 * Math.PI * 2;
+      const points: THREE.Vector3[] = [];
+      for (let index = 0; index <= 42; index += 1) {
+        const t = index / 42;
+        const split = t > 0.55 ? (branch % 3 - 1) * (t - 0.55) * 0.72 : 0;
+        const radius = 0.48 + t * (1.8 + random() * 0.35);
+        points.push(new THREE.Vector3(
+          Math.cos(baseAngle + split) * radius,
+          Math.sin(baseAngle + split) * radius * 0.82,
+          -0.4 - t * 0.95 + Math.sin(t * Math.PI * 2 + branch) * 0.16,
+        ));
       }
+      paths.push(points);
     }
-    
-    return { positions: pos, linesPos: new Float32Array(lp) };
-  }, [count]);
-
-  useFrame((_, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.01;
-      groupRef.current.rotation.x += delta * 0.005;
-    }
+    return pathGeometry(paths);
+  }, []);
+  useFrame(({ clock }, delta) => {
+    if (!root.current) return;
+    root.current.rotation.z -= delta * 0.025 * activitySpeed(activity);
+    root.current.scale.setScalar(0.94 + activityEnergy(activity) * 0.08 + Math.sin(clock.elapsedTime * 0.7) * 0.015);
   });
-
   return (
-    <group ref={groupRef}>
-      <points>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
-        </bufferGeometry>
-        <pointsMaterial size={0.03} color="#e9d5ff" transparent opacity={0.5} depthWrite={false} blending={THREE.AdditiveBlending} />
-      </points>
-      <lineSegments>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={linesPos.length / 3} array={linesPos} itemSize={3} />
-        </bufferGeometry>
-        <lineBasicMaterial color="#a855f7" transparent opacity={0.15} depthWrite={false} blending={THREE.AdditiveBlending} />
+    <group ref={root} rotation={[0.14, -0.2, 0]}>
+      <lineSegments geometry={geometry}>
+        <lineBasicMaterial color={MAGENTA} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.3} toneMapped={false} transparent />
       </lineSegments>
     </group>
   );
-};
+}
 
-const GammaRayJets = ({ activity }: { activity: AiActivity }) => {
-  const instancedMeshRef = useRef<THREE.InstancedMesh>(null);
-  const count = 160; // 80 per jet (up/down)
-
+function CrystalProbabilityField({ activity }: { activity: AiActivity }) {
+  const mesh = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const particles = useMemo(() => {
-    return Array.from({ length: count }, (_, i) => {
-      const isUp = i < count / 2;
+  const shards = useMemo(() => {
+    const random = seededRandom(514);
+    return Array.from({ length: 46 }, (_, index) => {
+      const angle = index / 46 * Math.PI * 2 + random() * 0.28;
+      const radius = 1.1 + random() * 2.05;
       return {
-        y: isUp ? Math.random() * 4 : -Math.random() * 4,
-        speed: 1.0 + Math.random() * 2.0,
-        x: (Math.random() - 0.5) * 0.1,
-        z: (Math.random() - 0.5) * 0.1,
-        isUp,
-        scale: Math.random() * 0.5 + 0.5,
+        angle,
+        radius,
+        yScale: 0.11 + random() * 0.36,
+        phase: random() * Math.PI * 2,
+        z: -0.35 + (random() - 0.5) * 2.4,
       };
     });
-  }, [count]);
+  }, []);
 
-  useFrame((state, delta) => {
-    if (!instancedMeshRef.current) return;
-    
-    const time = state.clock.elapsedTime;
-    let speedMult = 1.0;
-    if (activity === 'speaking') speedMult = 3.0;
-    if (activity === 'thinking') speedMult = 1.5;
-
-    particles.forEach((p, i) => {
-      // Move outwards
-      p.y += (p.isUp ? 1 : -1) * p.speed * speedMult * delta;
-      
-      // Wiggle
-      const wiggleX = Math.sin(time * 5 + i) * 0.05 * (Math.abs(p.y) / 2);
-      const wiggleZ = Math.cos(time * 5 + i) * 0.05 * (Math.abs(p.y) / 2);
-      
-      // Respawn
-      if (Math.abs(p.y) > 4.0) {
-        p.y = p.isUp ? 0.1 : -0.1;
-      }
-
-      dummy.position.set(p.x + wiggleX, p.y, p.z + wiggleZ);
-      
-      // Scale based on distance (taper off)
-      const distScale = Math.max(0, 1 - Math.abs(p.y) / 4);
-      const finalScale = p.scale * distScale * (activity === 'speaking' ? 2 : 1);
-      
-      dummy.scale.set(finalScale, finalScale * 4, finalScale); // stretch along Y
+  useFrame(({ clock }) => {
+    if (!mesh.current) return;
+    const time = clock.elapsedTime;
+    const collapse = activity === "thinking" ? 0.82 + Math.pow(Math.abs(Math.sin(time * 0.72)), 8) * 0.3 : 1;
+    shards.forEach((shard, index) => {
+      const angle = shard.angle + time * 0.035 * activitySpeed(activity) * (index % 2 ? 1 : -1);
+      const radius = shard.radius * collapse;
+      dummy.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.72, shard.z + Math.sin(time * 0.6 + shard.phase) * 0.12);
+      dummy.rotation.set(shard.phase + time * 0.18, angle, time * 0.24 + shard.phase);
+      dummy.scale.set(0.075, shard.yScale, 0.075);
       dummy.updateMatrix();
-      instancedMeshRef.current!.setMatrixAt(i, dummy.matrix);
+      mesh.current?.setMatrixAt(index, dummy.matrix);
     });
-    
-    instancedMeshRef.current.instanceMatrix.needsUpdate = true;
+    mesh.current.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <instancedMesh ref={instancedMeshRef} args={[undefined, undefined, count]} blending={THREE.AdditiveBlending} depthWrite={false}>
-      <sphereGeometry args={[0.02, 8, 8]} />
-      <meshBasicMaterial color="#f3e8ff" transparent opacity={0.6} toneMapped={false} />
+    <instancedMesh ref={mesh} args={[undefined, undefined, shards.length]}>
+      <tetrahedronGeometry args={[1, 0]} />
+      <meshPhysicalMaterial color="#7a42ff" emissive={VIOLET} emissiveIntensity={0.72} metalness={0.08} roughness={0.08} transmission={0.38} transparent opacity={0.76} />
     </instancedMesh>
   );
-};
+}
 
-const GravitationalLensing = () => {
-  const uniforms = useMemo(() => ({
-    uColor: { value: new THREE.Color('#4c1d95') }
-  }), []);
-
+function GravitationalLensing({ activity }: { activity: AiActivity }) {
+  const material = useRef<THREE.ShaderMaterial>(null);
+  useFrame(({ clock }) => {
+    if (!material.current) return;
+    material.current.uniforms.uTime.value = clock.elapsedTime;
+    material.current.uniforms.uEnergy.value = activityEnergy(activity);
+  });
   return (
-    <mesh>
-      <sphereGeometry args={[2.5, 64, 64]} />
+    <mesh position={[0, 0, -1.55]} scale={[5.1, 4.0, 1]}>
+      <planeGeometry args={[1, 1]} />
       <shaderMaterial
-        vertexShader={lensingVertexShader}
-        fragmentShader={lensingFragmentShader}
-        uniforms={uniforms}
-        transparent
-        depthWrite={false}
-        side={THREE.BackSide}
+        ref={material}
+        vertexShader={`varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`}
+        fragmentShader={`
+          uniform float uTime; uniform float uEnergy; varying vec2 vUv;
+          void main(){
+            vec2 p=(vUv-.5)*2.0; p.x*=1.18; float r=length(p); float a=atan(p.y,p.x);
+            float lens=smoothstep(.018,.0,abs(r-(.28+.025*sin(a*5.0+uTime*.35))));
+            float prism=smoothstep(.025,.0,abs(r-(.48+.035*sin(a*3.0-uTime*.22))));
+            vec3 color=vec3(lens*.2+prism*.55,lens*.05+prism*.12,lens+prism);
+            gl_FragColor=vec4(color*uEnergy,(lens+prism)*.3*uEnergy);
+          }
+        `}
+        uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 } }}
         blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        transparent
       />
     </mesh>
   );
-};
+}
 
-const EnergyLightning = ({ activity }: { activity: AiActivity }) => {
-  const groupRef = useRef<THREE.Group>(null);
-  
-  // Create a pool of lines
-  const linesCount = 8;
-  const segments = 10;
-  
-  const arcs = useMemo(() => {
-    return Array.from({ length: linesCount }, () => ({
-      active: false,
-      timer: 0,
-      duration: 0,
-      target: new THREE.Vector3(),
-      positions: new Float32Array((segments + 1) * 3)
-    }));
-  }, [linesCount, segments]);
-
-  const geometries = useMemo(() => {
-    return arcs.map(() => new THREE.BufferGeometry());
-  }, [arcs]);
-
-  useFrame((state, delta) => {
-    const t = state.clock.elapsedTime;
-    
-    let prob = 0.01;
-    if (activity === 'thinking') prob = 0.08;
-    if (activity === 'speaking') prob = 0.05;
-
-    arcs.forEach((arc, i) => {
-      if (!arc.active) {
-        if (Math.random() < prob) {
-          arc.active = true;
-          arc.timer = 0;
-          arc.duration = 0.1 + Math.random() * 0.2; // short flashes
-          // Random outer point
-          const theta = Math.random() * Math.PI * 2;
-          const phi = Math.acos(Math.random() * 2 - 1);
-          const r = 1.0 + Math.random() * 1.5;
-          arc.target.set(
-            r * Math.sin(phi) * Math.cos(theta),
-            r * Math.sin(phi) * Math.sin(theta),
-            r * Math.cos(phi)
-          );
-        }
-      } else {
-        arc.timer += delta;
-        if (arc.timer > arc.duration) {
-          arc.active = false;
-          // Clear geometry
-          geometries[i].setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3));
-        } else {
-          // Update points with noise
-          for (let j = 0; j <= segments; j++) {
-            const pct = j / segments;
-            const basePos = new THREE.Vector3().lerpVectors(new THREE.Vector3(0,0,0), arc.target, pct);
-            
-            if (j > 0 && j < segments) {
-              const noiseX = (Math.random() - 0.5) * 0.3;
-              const noiseY = (Math.random() - 0.5) * 0.3;
-              const noiseZ = (Math.random() - 0.5) * 0.3;
-              basePos.add(new THREE.Vector3(noiseX, noiseY, noiseZ));
-            }
-            
-            arc.positions[j*3] = basePos.x;
-            arc.positions[j*3+1] = basePos.y;
-            arc.positions[j*3+2] = basePos.z;
-          }
-          geometries[i].setAttribute('position', new THREE.BufferAttribute(arc.positions, 3));
-        }
-      }
-    });
+function PolarJets({ activity }: { activity: AiActivity }) {
+  const group = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (!group.current) return;
+    group.current.scale.y = 0.82 + activityEnergy(activity) * 0.28 + Math.sin(clock.elapsedTime * 4) * 0.04;
   });
-
   return (
-    <group ref={groupRef}>
-      {geometries.map((geo, i) => (
-        <line key={i} geometry={geo}>
-          <lineBasicMaterial color="#e9d5ff" transparent opacity={0.8} depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
-        </line>
-      ))}
+    <group ref={group} rotation={[0.12, 0.18, -0.28]}>
+      <mesh position={[0, 1.72, -0.2]}>
+        <coneGeometry args={[0.08, 2.8, 18, 1, true]} />
+        <meshBasicMaterial color={ICE} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.16} side={THREE.DoubleSide} toneMapped={false} transparent />
+      </mesh>
+      <mesh position={[0, -1.72, -0.2]} rotation={[0, 0, Math.PI]}>
+        <coneGeometry args={[0.08, 2.8, 18, 1, true]} />
+        <meshBasicMaterial color={MAGENTA} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.12} side={THREE.DoubleSide} toneMapped={false} transparent />
+      </mesh>
     </group>
   );
-};
+}
 
-// ==========================================
-// MAIN SCENE
-// ==========================================
-
-export function PowerScene({ activity = 'idle' }: { activity?: AiActivity }) {
+export function PowerScene({ activity = "idle" }: { activity?: AiActivity }) {
   return (
-    <group>
-      {/* Lighting */}
-      <ambientLight color="#2e1065" intensity={0.15} />
-      <pointLight position={[0, 0, 2]} color="#a855f7" intensity={2.5} distance={8} />
-      
-      {/* Fog handled via R3F parent typically, but we can add it local to scene if context allows.
-          Since fog is usually applied to the Canvas, doing it via a mesh in the background is an alternative,
-          but the instructions specify fog: [#0a0015, 7, 20]. We can attach it to the scene graph. */}
-      <fog attach="fog" args={['#0a0015', 7, 20]} />
-
-      <SingularityCore activity={activity} />
-      <GravitationalRings activity={activity} />
+    <group name="quantum-singularity-intelligence" scale={0.94}>
+      <GravitationalLensing activity={activity} />
+      <QuantumBranches activity={activity} />
+      <CrystalProbabilityField activity={activity} />
+      <PolarJets activity={activity} />
       <AccretionDisk activity={activity} />
-      <CosmicConstellation />
-      <GammaRayJets activity={activity} />
-      <GravitationalLensing />
-      <EnergyLightning activity={activity} />
+      <Singularity activity={activity} />
     </group>
   );
 }

@@ -82,12 +82,12 @@ const QUICK_COMMANDS = [
 
 const paletteLabels: Record<Palette, string> = {
   gold: "Gold Core",
-  blue: "Stark Tech",
-  green: "Agamotto Time",
-  red: "Reality Legacy",
-  violet: "Quantum Core",
-  orange: "Cosmic Soul",
-  spider: "Spider Neural"
+  blue: "Spatial Tesseract",
+  green: "Agamotto Oracle",
+  red: "Aether Reality",
+  violet: "Quantum Singularity",
+  orange: "Stark / Jarvis",
+  spider: "Spider 2099"
 };
 
 const activityLabels: Record<AiActivity, string> = {

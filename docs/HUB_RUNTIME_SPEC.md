@@ -40,8 +40,11 @@ Frontend chỉ chấp nhận `kind` có trong `HUB_TEMPLATES`. Trường lạ b�
 - Intelligence: Web, Newsroom, YouTube, Shopping.
 - World & Space: Map, Places, Travel, Weather.
 - Planning: Mission Board, Calendar, Timeline.
-- Data Systems: Dashboard, Chart, Data Grid, Compare.
+- Work Suite: File Deck, Documents, PDF Reader, Notes, Inbox.
+- Data Systems: Dashboard, Chart, Data Grid, Compare, Finance.
+- Media Deck: Audio Deck, Podcast, Content Feed.
 - Creation Lab: Images, Mind Map, Diagram, Code Lab, Brief.
+- System Core: Automation, System Monitor, Terminal.
 
 ## Hướng tích hợp tool
 

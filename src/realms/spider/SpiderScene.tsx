@@ -1,496 +1,235 @@
-import React, { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
-import * as THREE from 'three';
-import { AiActivity } from '../../App';
-import { OrbEnergyField } from '../shared/OrbEnergyField';
+import { useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import * as THREE from "three";
+import type { AiActivity } from "../../App";
+import { activityEnergy, activityPulse, activitySpeed, seededRandom, segmentGeometry } from "../shared/coreMotion";
 
-const COLORS = {
-  red: new THREE.Color('#ff1744'),
-  white: new THREE.Color('#ffffff'),
-  darkRed: new THREE.Color('#8b0000'),
-  dark: new THREE.Color('#1a1a2e'),
-  core: new THREE.Color('#ffffff'),
-  hotRed: new THREE.Color('#ff6b6b')
-};
+const RED = "#ff183b";
+const HOT_RED = "#ff5870";
+const WHITE = "#ffffff";
 
-// Cyber Spider Eye Core
-function CyberSpiderEye({ activity }: { activity: AiActivity }) {
-  const coreRef = useRef<THREE.Mesh>(null);
-  const outerFrameRef = useRef<THREE.LineSegments>(null);
-  const innerFrameRef = useRef<THREE.LineSegments>(null);
-  
-  const outerPoints = useMemo(() => {
-    // Angular spider eye shape
-    const pts = [
-      new THREE.Vector3(0, 0.4, 0),
-      new THREE.Vector3(0.5, 0.1, 0),
-      new THREE.Vector3(0.3, -0.4, 0),
-      new THREE.Vector3(0, -0.1, 0),
-      new THREE.Vector3(-0.3, -0.4, 0),
-      new THREE.Vector3(-0.5, 0.1, 0),
-      new THREE.Vector3(0, 0.4, 0),
-    ];
-    return pts;
-  }, []);
+function eyeShape(mirror = 1) {
+  const shape = new THREE.Shape();
+  shape.moveTo(0.06 * mirror, 0.62);
+  shape.bezierCurveTo(0.5 * mirror, 0.48, 0.72 * mirror, 0.08, 0.58 * mirror, -0.58);
+  shape.bezierCurveTo(0.22 * mirror, -0.4, 0.04 * mirror, -0.08, 0.06 * mirror, 0.62);
+  shape.closePath();
+  return shape;
+}
 
-  const innerPoints = useMemo(() => {
-    return outerPoints.map(p => p.clone().multiplyScalar(0.7));
-  }, [outerPoints]);
-  
-  const outerGeo = useMemo(() => new THREE.BufferGeometry().setFromPoints(outerPoints), [outerPoints]);
-  const innerGeo = useMemo(() => new THREE.BufferGeometry().setFromPoints(innerPoints), [innerPoints]);
-
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    let pulse = 1.0;
-    
-    if (activity === 'speaking') {
-      pulse = 1.0 + Math.sin(t * 15) * 0.3 + Math.random() * 0.2;
-    } else if (activity === 'idle') {
-      pulse = 1.0 + Math.sin(t * 2) * 0.05;
-    } else if (activity === 'thinking') {
-      pulse = 1.0 + Math.sin(t * 8) * 0.1;
-    } else if (activity === 'listening') {
-      pulse = 0.9 + Math.sin(t) * 0.02;
+function PredatorEyes({ activity }: { activity: AiActivity }) {
+  const root = useRef<THREE.Group>(null);
+  const left = useRef<THREE.Mesh>(null);
+  const right = useRef<THREE.Mesh>(null);
+  const leftShape = useMemo(() => eyeShape(-1), []);
+  const rightShape = useMemo(() => eyeShape(1), []);
+  const leftGeometry = useMemo(() => new THREE.ShapeGeometry(leftShape, 12), [leftShape]);
+  const rightGeometry = useMemo(() => new THREE.ShapeGeometry(rightShape, 12), [rightShape]);
+  useFrame(({ clock }) => {
+    const time = clock.elapsedTime;
+    if (root.current) root.current.scale.setScalar(activityPulse(activity, time, 0.4));
+    const aperture = activity === "listening" ? 0.68 : activity === "thinking" ? 0.84 : 1;
+    if (left.current) {
+      left.current.scale.y = aperture + Math.sin(time * 2.1) * 0.025;
+      left.current.position.x = -0.42 - (activity === "thinking" ? Math.sin(time * 4.1) * 0.025 : 0);
     }
-    
-    if (coreRef.current) {
-      coreRef.current.scale.setScalar(pulse);
-    }
-    if (outerFrameRef.current) {
-      outerFrameRef.current.scale.setScalar(pulse);
-      outerFrameRef.current.rotation.z = Math.sin(t * 0.5) * 0.1;
-    }
-    if (innerFrameRef.current) {
-      innerFrameRef.current.scale.setScalar(pulse);
-      innerFrameRef.current.rotation.z = Math.sin(t * 0.5) * 0.1;
+    if (right.current) {
+      right.current.scale.y = aperture + Math.cos(time * 2.1) * 0.025;
+      right.current.position.x = 0.42 + (activity === "thinking" ? Math.sin(time * 4.1) * 0.025 : 0);
     }
   });
-
   return (
-    <group>
-      <mesh ref={coreRef}>
-        <sphereGeometry args={[0.1, 16, 16]} />
-        <meshBasicMaterial color={COLORS.core} toneMapped={false} />
+    <group ref={root} position={[0, 0.12, 0.42]}>
+      <mesh ref={left} geometry={leftGeometry}>
+        <meshBasicMaterial color={WHITE} toneMapped={false} />
       </mesh>
-      
-      <line ref={outerFrameRef} geometry={outerGeo}>
-        <lineBasicMaterial color={COLORS.red} linewidth={2} toneMapped={false} transparent depthWrite={false} />
-      </line>
-      
-      <line ref={innerFrameRef} geometry={innerGeo}>
-        <lineBasicMaterial color={COLORS.white} linewidth={1} toneMapped={false} transparent depthWrite={false} />
-      </line>
-
-      <mesh scale={[1.2, 1.2, 1.2]}>
-        <shapeGeometry args={[new THREE.Shape(outerPoints.map(p => new THREE.Vector2(p.x, p.y)))]} />
-        <meshBasicMaterial color={new THREE.Color('#000000')} opacity={0.8} transparent depthWrite={false} />
+      <mesh ref={right} geometry={rightGeometry}>
+        <meshBasicMaterial color={WHITE} toneMapped={false} />
+      </mesh>
+      <mesh position={[-0.43, 0.12, -0.04]} scale={[1.16, 1.16, 1]} geometry={leftGeometry}>
+        <meshBasicMaterial color={RED} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.42} toneMapped={false} transparent />
+      </mesh>
+      <mesh position={[0.43, 0.12, -0.04]} scale={[1.16, 1.16, 1]} geometry={rightGeometry}>
+        <meshBasicMaterial color={RED} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.42} toneMapped={false} transparent />
       </mesh>
     </group>
   );
 }
 
-// Nano-Web Grid
-function NanoWebGrid({ activity }: { activity: AiActivity }) {
-  const groupRef = useRef<THREE.Group>(null);
-  
-  const { redLines, whiteLines } = useMemo(() => {
-    const redPts: THREE.Vector3[] = [];
-    const whitePts: THREE.Vector3[] = [];
-    
-    const spokes = 10;
-    const rings = 8;
-    const maxRadius = 1.8;
-    
-    for (let i = 0; i < spokes; i++) {
-      const angle = (i / spokes) * Math.PI * 2;
-      const isWhite = i % 4 === 0;
-      const pts = isWhite ? whitePts : redPts;
-      
-      pts.push(new THREE.Vector3(0, 0, 0));
-      pts.push(new THREE.Vector3(Math.cos(angle) * maxRadius, Math.sin(angle) * maxRadius, 0));
-      
-      // Add ring segments
-      for (let j = 1; j <= rings; j++) {
-        const r = (j / rings) * maxRadius;
-        const nextAngle = ((i + 1) / spokes) * Math.PI * 2;
-        
-        // slight distortion
-        const distortR = r + (Math.sin(angle * 3) * 0.05);
-        const distortNextR = r + (Math.sin(nextAngle * 3) * 0.05);
-        
-        const p1 = new THREE.Vector3(Math.cos(angle) * distortR, Math.sin(angle) * distortR, 0);
-        const p2 = new THREE.Vector3(Math.cos(nextAngle) * distortNextR, Math.sin(nextAngle) * distortNextR, 0);
-        
-        pts.push(p1);
-        pts.push(p2);
+function CyberCranium({ activity }: { activity: AiActivity }) {
+  const shell = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }, delta) => {
+    if (!shell.current) return;
+    shell.current.rotation.y = Math.sin(clock.elapsedTime * 0.34) * 0.12;
+    shell.current.rotation.x = Math.sin(clock.elapsedTime * 0.19) * 0.055;
+    shell.current.rotation.z += delta * 0.012 * activitySpeed(activity);
+  });
+  return (
+    <group position={[0, 0.03, -0.18]}>
+      <mesh scale={[1.16, 1.42, 0.72]}>
+        <dodecahedronGeometry args={[1.02, 1]} />
+        <meshStandardMaterial color="#030305" emissive="#120006" emissiveIntensity={0.35} metalness={0.86} roughness={0.28} />
+      </mesh>
+      <mesh ref={shell} scale={[1.22, 1.5, 0.78]}>
+        <dodecahedronGeometry args={[1.02, 1]} />
+        <meshBasicMaterial color={RED} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.26} toneMapped={false} transparent wireframe />
+      </mesh>
+      <mesh position={[0, -0.56, 0.34]} scale={[0.72, 0.38, 0.28]} rotation={[0.08, 0, 0]}>
+        <octahedronGeometry args={[1, 0]} />
+        <meshStandardMaterial color="#080204" emissive={RED} emissiveIntensity={0.28} metalness={0.9} roughness={0.25} />
+      </mesh>
+    </group>
+  );
+}
+
+function SensorLegs({ activity }: { activity: AiActivity }) {
+  const root = useRef<THREE.Group>(null);
+  const geometry = useMemo(() => {
+    const segments: Array<[THREE.Vector3, THREE.Vector3]> = [];
+    for (let index = 0; index < 8; index += 1) {
+      const side = index < 4 ? -1 : 1;
+      const lane = index % 4;
+      const start = new THREE.Vector3(side * (0.74 + lane * 0.08), 0.62 - lane * 0.39, -0.18);
+      const jointA = new THREE.Vector3(side * (1.34 + lane * 0.18), 0.92 - lane * 0.58, -0.36 - lane * 0.08);
+      const jointB = new THREE.Vector3(side * (1.92 + lane * 0.27), 0.6 - lane * 0.72, -0.7 - lane * 0.18);
+      const tip = new THREE.Vector3(side * (2.58 + lane * 0.2), 0.28 - lane * 0.82, -0.9 - lane * 0.2);
+      segments.push([start, jointA], [jointA, jointB], [jointB, tip]);
+    }
+    return segmentGeometry(segments);
+  }, []);
+  useFrame(({ clock }) => {
+    if (!root.current) return;
+    const time = clock.elapsedTime;
+    root.current.scale.x = 0.96 + activityEnergy(activity) * 0.06;
+    root.current.rotation.z = (activity === "thinking" ? Math.sin(time * 2.8) : Math.sin(time * 0.4)) * 0.035;
+  });
+  return (
+    <group ref={root}>
+      <lineSegments geometry={geometry}>
+        <lineBasicMaterial color={RED} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.78} toneMapped={false} transparent />
+      </lineSegments>
+      <lineSegments geometry={geometry} scale={1.035}>
+        <lineBasicMaterial color="#35000a" depthWrite={false} opacity={0.72} transparent />
+      </lineSegments>
+    </group>
+  );
+}
+
+function TacticalWeb({ activity }: { activity: AiActivity }) {
+  const root = useRef<THREE.Group>(null);
+  const { geometry, nodes } = useMemo(() => {
+    const random = seededRandom(2099);
+    const nodeList = Array.from({ length: 74 }, () => new THREE.Vector3(
+      (random() - 0.5) * 5.4,
+      (random() - 0.5) * 4.1,
+      -0.85 - random() * 1.55,
+    ));
+    const segments: Array<[THREE.Vector3, THREE.Vector3]> = [];
+    nodeList.forEach((node, index) => {
+      let nearest = -1;
+      let nearestDistance = Number.POSITIVE_INFINITY;
+      for (let other = 0; other < nodeList.length; other += 1) {
+        if (other === index) continue;
+        const distance = node.distanceToSquared(nodeList[other]);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearest = other;
+        }
       }
-    }
-    
-    const redLines = new THREE.BufferGeometry().setFromPoints(redPts);
-    const whiteLines = new THREE.BufferGeometry().setFromPoints(whitePts);
-    
-    return { redLines, whiteLines };
+      if (nearest >= 0 && index < nearest) segments.push([node, nodeList[nearest]]);
+      if (index % 5 === 0) segments.push([node, new THREE.Vector3(node.x * 0.46, node.y * 0.46, -0.62)]);
+    });
+    const values = new Float32Array(nodeList.length * 3);
+    nodeList.forEach((node, index) => {
+      values[index * 3] = node.x;
+      values[index * 3 + 1] = node.y;
+      values[index * 3 + 2] = node.z;
+    });
+    return { geometry: segmentGeometry(segments), nodes: values };
   }, []);
-
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    if (groupRef.current) {
-      let speed = 0.1;
-      let targetScale = 1.0;
-      
-      if (activity === 'thinking') { speed = 0.5; targetScale = 1.0; }
-      else if (activity === 'speaking') { speed = 0.3; targetScale = 1.05; }
-      else if (activity === 'listening') { speed = 0.05; targetScale = 0.95; }
-      
-      groupRef.current.rotation.y += speed * 0.01;
-      groupRef.current.rotation.z += speed * 0.005;
-      
-      const breath = Math.sin(t * 2) * 0.02;
-      const curScale = groupRef.current.scale.x;
-      const newScale = THREE.MathUtils.lerp(curScale, targetScale + breath, 0.05);
-      groupRef.current.scale.setScalar(newScale);
-    }
+  useFrame(({ clock }) => {
+    if (!root.current) return;
+    root.current.rotation.y = Math.sin(clock.elapsedTime * 0.18) * 0.08;
+    root.current.scale.setScalar(0.98 + activityEnergy(activity) * 0.028);
   });
-
   return (
-    <group ref={groupRef}>
-      <group rotation={[0, 0, 0]}>
-        <lineSegments geometry={redLines}>
-          <lineBasicMaterial color={COLORS.red} transparent opacity={0.6} depthWrite={false} toneMapped={false} />
-        </lineSegments>
-        <lineSegments geometry={whiteLines}>
-          <lineBasicMaterial color={COLORS.white} transparent opacity={0.8} depthWrite={false} toneMapped={false} />
-        </lineSegments>
-      </group>
-      
-      <group rotation={[Math.PI / 2, 0, 0]}>
-        <lineSegments geometry={redLines}>
-          <lineBasicMaterial color={COLORS.red} transparent opacity={0.3} depthWrite={false} toneMapped={false} />
-        </lineSegments>
-      </group>
-      
-      <group rotation={[0, Math.PI / 2, 0]}>
-        <lineSegments geometry={redLines}>
-          <lineBasicMaterial color={COLORS.red} transparent opacity={0.3} depthWrite={false} toneMapped={false} />
-        </lineSegments>
-      </group>
+    <group ref={root}>
+      <lineSegments geometry={geometry}>
+        <lineBasicMaterial color={RED} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.22} toneMapped={false} transparent />
+      </lineSegments>
+      <points>
+        <bufferGeometry><bufferAttribute attach="attributes-position" args={[nodes, 3]} /></bufferGeometry>
+        <pointsMaterial color={WHITE} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.58} size={0.03} sizeAttenuation toneMapped={false} transparent />
+      </points>
     </group>
   );
 }
 
-// Holographic Laser Grid
-const HologramMaterial = new THREE.ShaderMaterial({
-  uniforms: {
-    time: { value: 0 },
-    color: { value: COLORS.red }
-  },
-  vertexShader: `
-    varying vec2 vUv;
-    varying vec3 vPos;
-    void main() {
-      vUv = uv;
-      vPos = position;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: `
-    uniform float time;
-    uniform vec3 color;
-    varying vec2 vUv;
-    varying vec3 vPos;
-    void main() {
-      float scan = sin(vPos.y * 15.0 - time * 3.0) * 0.5 + 0.5;
-      float gridX = abs(fract(vUv.x * 20.0) - 0.5) * 2.0;
-      float gridY = abs(fract(vUv.y * 20.0) - 0.5) * 2.0;
-      float lineX = smoothstep(0.85, 1.0, gridX);
-      float lineY = smoothstep(0.85, 1.0, gridY);
-      float alpha = (lineX + lineY) * scan * 0.15;
-      gl_FragColor = vec4(color, alpha);
-    }
-  `,
-  transparent: true,
-  depthWrite: false,
-  blending: THREE.AdditiveBlending,
-  side: THREE.DoubleSide
-});
-
-function HologramGrid() {
-  const meshRef = useRef<THREE.Mesh>(null);
-  
-  useFrame((state) => {
-    if (meshRef.current) {
-      (meshRef.current.material as THREE.ShaderMaterial).uniforms.time.value = state.clock.getElapsedTime();
-      meshRef.current.rotation.y = state.clock.getElapsedTime() * 0.05;
-    }
+function LaserGrid({ activity }: { activity: AiActivity }) {
+  const material = useRef<THREE.ShaderMaterial>(null);
+  useFrame(({ clock }) => {
+    if (!material.current) return;
+    material.current.uniforms.uTime.value = clock.elapsedTime;
+    material.current.uniforms.uEnergy.value = activityEnergy(activity);
   });
-
   return (
-    <mesh ref={meshRef}>
-      <sphereGeometry args={[2.0, 32, 32]} />
-      <primitive object={HologramMaterial} attach="material" />
+    <mesh position={[0, -1.55, -0.4]} rotation={[-Math.PI / 2.7, 0, 0]} scale={[6.2, 5.6, 1]}>
+      <planeGeometry args={[1, 1]} />
+      <shaderMaterial
+        ref={material}
+        vertexShader={`varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`}
+        fragmentShader={`
+          uniform float uTime; uniform float uEnergy; varying vec2 vUv;
+          void main(){
+            vec2 p=vUv; float gx=smoothstep(.035,.0,abs(fract(p.x*18.0)-.5));
+            float gy=smoothstep(.035,.0,abs(fract((p.y+uTime*.04)*14.0)-.5));
+            float fade=smoothstep(0.0,.25,p.y)*(1.0-smoothstep(.72,1.0,p.y));
+            float scan=smoothstep(.045,.0,abs(p.y-fract(uTime*.16)));
+            float alpha=(gx+gy)*.12*fade+scan*.3;
+            gl_FragColor=vec4(vec3(1.0,.01,.06)*uEnergy,alpha*uEnergy);
+          }
+        `}
+        uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 } }}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        transparent
+      />
     </mesh>
   );
 }
 
-// Signal Packets
-function SignalPackets({ activity }: { activity: AiActivity }) {
-  const count = 40;
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  
-  const packetData = useMemo(() => {
-    return Array.from({ length: count }, (_, i) => ({
-      angle: Math.random() * Math.PI * 2,
-      radius: Math.random() * 1.5 + 0.2,
-      speed: (Math.random() * 0.5 + 0.5) * (Math.random() > 0.5 ? 1 : -1),
-      plane: Math.floor(Math.random() * 3), // 0: XY, 1: XZ, 2: YZ
-      isLarge: i % 7 === 0,
-      isWhite: Math.random() > 0.7
-    }));
-  }, [count]);
-
-  const colors = useMemo(() => {
-    const cols = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const color = packetData[i].isWhite ? COLORS.white : COLORS.red;
-      color.toArray(cols, i * 3);
-    }
-    return cols;
-  }, [count, packetData]);
-
-  useFrame((state) => {
-    if (!meshRef.current) return;
-    
-    let speedMult = 1.0;
-    if (activity === 'thinking') speedMult = 3.0;
-    if (activity === 'speaking') speedMult = 2.0;
-    if (activity === 'listening') speedMult = 0.3;
-    
-    packetData.forEach((data, i) => {
-      data.angle += data.speed * speedMult * 0.02;
-      
-      let x = Math.cos(data.angle) * data.radius;
-      let y = Math.sin(data.angle) * data.radius;
-      let z = 0;
-      
-      if (data.plane === 1) { z = y; y = 0; }
-      else if (data.plane === 2) { z = x; x = 0; }
-      
-      dummy.position.set(x, y, z);
-      const scale = data.isLarge ? 1.5 : 0.8;
-      dummy.scale.setScalar(scale);
-      dummy.updateMatrix();
-      meshRef.current!.setMatrixAt(i, dummy.matrix);
-    });
-    
-    meshRef.current.instanceMatrix.needsUpdate = true;
+function TargetingReticles({ activity }: { activity: AiActivity }) {
+  const root = useRef<THREE.Group>(null);
+  const geometry = useMemo(() => segmentGeometry([
+    [new THREE.Vector3(-2.55, 1.25, -0.2), new THREE.Vector3(-2.05, 1.25, -0.2)],
+    [new THREE.Vector3(-2.3, 1, -0.2), new THREE.Vector3(-2.3, 1.5, -0.2)],
+    [new THREE.Vector3(1.85, -0.85, -0.1), new THREE.Vector3(2.45, -0.85, -0.1)],
+    [new THREE.Vector3(2.15, -1.15, -0.1), new THREE.Vector3(2.15, -0.55, -0.1)],
+  ]), []);
+  useFrame(({ clock }) => {
+    if (!root.current) return;
+    root.current.position.x = activity === "thinking" ? Math.sin(clock.elapsedTime * 3.4) * 0.18 : 0;
+    root.current.scale.setScalar(0.94 + activityEnergy(activity) * 0.06);
   });
-
   return (
-    <instancedMesh ref={meshRef} args={[new THREE.SphereGeometry(0.015, 8, 8), undefined, count]}>
-      <meshBasicMaterial toneMapped={false} transparent opacity={0.9} depthWrite={false} blending={THREE.AdditiveBlending} />
-      <instancedBufferAttribute attach="geometry-attributes-color" args={[colors, 3]} />
-    </instancedMesh>
-  );
-}
-
-// Spider Legs
-function SpiderLegs({ activity }: { activity: AiActivity }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const count = 8;
-  
-  const curves = useMemo(() => {
-    const arr = [];
-    for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2;
-      const pts = [];
-      for (let j = 0; j <= 10; j++) {
-        const t = j / 10;
-        const r = t * 1.5 + 0.1;
-        const bend = Math.sin(t * Math.PI) * 0.4;
-        pts.push(new THREE.Vector3(
-          Math.cos(angle) * r,
-          Math.sin(angle) * r,
-          -bend
-        ));
-      }
-      arr.push(new THREE.CatmullRomCurve3(pts));
-    }
-    return arr;
-  }, []);
-
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    if (groupRef.current) {
-      groupRef.current.rotation.z = t * 0.05;
-      
-      if (activity === 'speaking') {
-        const pulse = 1.0 + Math.sin(t * 10) * 0.05;
-        groupRef.current.scale.setScalar(pulse);
-      } else {
-        groupRef.current.scale.setScalar(THREE.MathUtils.lerp(groupRef.current.scale.x, 1.0, 0.1));
-      }
-    }
-  });
-
-  return (
-    <group ref={groupRef}>
-      {curves.map((curve, i) => (
-        <mesh key={i}>
-          <tubeGeometry args={[curve, 20, 0.02, 8, false]} />
-          <meshBasicMaterial 
-            color={i % 2 === 0 ? COLORS.red : COLORS.dark} 
-            toneMapped={false}
-            transparent
-            opacity={0.8}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-// Multiverse Matrix Nodes
-function MatrixNodes({ activity }: { activity: AiActivity }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const count = 12;
-  const nodes = useMemo(() => {
-    return Array.from({ length: count }, () => {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const radius = 1.4 + Math.random() * 0.4;
-      return {
-        pos: new THREE.Vector3(
-          radius * Math.sin(phi) * Math.cos(theta),
-          radius * Math.sin(phi) * Math.sin(theta),
-          radius * Math.cos(phi)
-        ),
-        phase: Math.random() * Math.PI * 2,
-        isRed: Math.random() > 0.5
-      };
-    });
-  }, []);
-
-  const lines = useMemo(() => {
-    const pts: THREE.Vector3[] = [];
-    nodes.forEach(node => {
-      pts.push(new THREE.Vector3(0, 0, 0));
-      pts.push(node.pos);
-    });
-    return new THREE.BufferGeometry().setFromPoints(pts);
-  }, [nodes]);
-
-  const materials = useRef<THREE.MeshBasicMaterial[]>([]);
-
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    
-    materials.current.forEach((mat, i) => {
-      let intensity = 0.5 + Math.sin(t * 2 + nodes[i].phase) * 0.3;
-      if (activity === 'thinking') {
-        intensity = 0.5 + Math.sin(t * 10 + i * 0.5) * 0.5; // sequential bright
-      }
-      mat.opacity = intensity;
-    });
-
-    if (groupRef.current) {
-      groupRef.current.children.forEach(child => {
-        child.rotation.x += 0.01;
-        child.rotation.y += 0.02;
-      });
-    }
-  });
-
-  return (
-    <group>
-      <lineSegments geometry={lines}>
-        <lineBasicMaterial color={COLORS.red} transparent opacity={0.15} depthWrite={false} toneMapped={false} />
+    <group ref={root}>
+      <lineSegments geometry={geometry}>
+        <lineBasicMaterial color={WHITE} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.62} toneMapped={false} transparent />
       </lineSegments>
-      <group ref={groupRef}>
-        {nodes.map((node, i) => (
-          <mesh key={i} position={node.pos}>
-            <octahedronGeometry args={[0.04, 0]} />
-            <meshBasicMaterial 
-              ref={(el) => { if(el) materials.current[i] = el; }}
-              color={node.isRed ? COLORS.red : COLORS.white}
-              toneMapped={false}
-              transparent
-              depthWrite={false}
-              blending={THREE.AdditiveBlending}
-            />
-          </mesh>
-        ))}
-      </group>
     </group>
   );
 }
 
-// Ambient Dark Particles
-function DarkParticles() {
-  const count = 200;
-  const geometry = useMemo(() => {
-    const geo = new THREE.BufferGeometry();
-    const positions = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = 1.0 + Math.random() * 1.5;
-      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      positions[i * 3 + 2] = r * Math.cos(phi);
-    }
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return geo;
-  }, []);
-
-  const pointsRef = useRef<THREE.Points>(null);
-
-  useFrame((state) => {
-    if (pointsRef.current) {
-      pointsRef.current.rotation.y = state.clock.getElapsedTime() * 0.02;
-      pointsRef.current.rotation.x = state.clock.getElapsedTime() * 0.01;
-    }
-  });
-
+export function SpiderScene({ activity = "idle" }: { activity?: AiActivity }) {
   return (
-    <points ref={pointsRef} geometry={geometry}>
-      <pointsMaterial 
-        size={0.02} 
-        color={COLORS.darkRed} 
-        transparent 
-        opacity={0.4} 
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
-  );
-}
-
-export function SpiderScene({ activity = 'idle' }: { activity?: AiActivity }) {
-  return (
-    <>
-      <color attach="background" args={['#020000']} />
-      <fog attach="fog" args={['#050000', 7, 19]} />
-      
-      <ambientLight color="#1a0000" intensity={0.1} />
-      <pointLight position={[0, 0, 2.1]} color="#ff1744" intensity={2.0} distance={7} />
-
-      <CyberSpiderEye activity={activity} />
-      <NanoWebGrid activity={activity} />
-      <HologramGrid />
-      <SignalPackets activity={activity} />
-      <SpiderLegs activity={activity} />
-      <MatrixNodes activity={activity} />
-      <DarkParticles />
-      
-      <OrbEnergyField 
-        color="#8b0000"
-        hotColor="#ff6b6b"
-        radius={2.3}
-        particleCount={280}
-        opacity={0.28}
-      />
-    </>
+    <group name="spider-tactical-neural-core" scale={0.92}>
+      <LaserGrid activity={activity} />
+      <TacticalWeb activity={activity} />
+      <TargetingReticles activity={activity} />
+      <SensorLegs activity={activity} />
+      <CyberCranium activity={activity} />
+      <PredatorEyes activity={activity} />
+      <pointLight color={HOT_RED} intensity={0.72} distance={4.8} decay={2} position={[0, 0.2, 1.2]} />
+    </group>
   );
 }

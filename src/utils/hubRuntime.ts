@@ -18,7 +18,19 @@ export type HubKind =
   | "travel"
   | "shopping"
   | "news"
-  | "code";
+  | "code"
+  | "files"
+  | "document"
+  | "pdf"
+  | "notes"
+  | "inbox"
+  | "audio"
+  | "podcast"
+  | "feed"
+  | "finance"
+  | "automation"
+  | "monitor"
+  | "terminal";
 
 export type HubStatus = "loading" | "ready" | "error";
 
@@ -48,7 +60,7 @@ export const HUB_TEMPLATES: Array<{
   label: string;
   code: string;
   description: string;
-  group: "intel" | "spatial" | "planning" | "data" | "creation";
+  group: "intel" | "spatial" | "planning" | "workspace" | "data" | "media" | "creation" | "system";
 }> = [
   { kind: "web", label: "Web Intel", code: "NET", description: "Tra cứu mạng và tổng hợp nguồn", group: "intel" },
   { kind: "news", label: "Newsroom", code: "NWS", description: "Tin mới, diễn biến và nguồn", group: "intel" },
@@ -61,18 +73,42 @@ export const HUB_TEMPLATES: Array<{
   { kind: "tasks", label: "Mission Board", code: "TSK", description: "Checklist và tiến độ nhiệm vụ", group: "planning" },
   { kind: "calendar", label: "Calendar", code: "CAL", description: "Lịch, cuộc hẹn và agenda", group: "planning" },
   { kind: "timeline", label: "Timeline", code: "TML", description: "Mốc thời gian và diễn biến", group: "planning" },
+  { kind: "files", label: "File Deck", code: "FIL", description: "Tệp, thư mục và tài nguyên", group: "workspace" },
+  { kind: "document", label: "Documents", code: "DOC", description: "Tài liệu và nội dung dài", group: "workspace" },
+  { kind: "pdf", label: "PDF Reader", code: "PDF", description: "Đọc, tóm tắt và trích dẫn PDF", group: "workspace" },
+  { kind: "notes", label: "Notes", code: "NTE", description: "Ghi chú, ý tưởng và memory", group: "workspace" },
+  { kind: "inbox", label: "Inbox", code: "INB", description: "Tin nhắn, email và ưu tiên", group: "workspace" },
   { kind: "dashboard", label: "Dashboard", code: "DSH", description: "KPI và trạng thái tổng quan", group: "data" },
   { kind: "chart", label: "Chart", code: "CHT", description: "Xu hướng và dữ liệu trực quan", group: "data" },
   { kind: "table", label: "Data Grid", code: "TBL", description: "Bảng dữ liệu có cấu trúc", group: "data" },
   { kind: "compare", label: "Compare", code: "CMP", description: "So sánh lựa chọn cạnh nhau", group: "data" },
+  { kind: "finance", label: "Finance", code: "FIN", description: "Giá, ngân sách và biến động", group: "data" },
+  { kind: "audio", label: "Audio Deck", code: "AUD", description: "Âm thanh, nhạc và voice", group: "media" },
+  { kind: "podcast", label: "Podcast", code: "POD", description: "Tập podcast và transcript", group: "media" },
+  { kind: "feed", label: "Content Feed", code: "FED", description: "Dòng nội dung số được tuyển chọn", group: "media" },
   { kind: "images", label: "Images", code: "IMG", description: "Gallery và hình tham khảo", group: "creation" },
   { kind: "mindmap", label: "Mind Map", code: "MND", description: "Bản đồ ý tưởng tương tác", group: "creation" },
   { kind: "diagram", label: "Diagram", code: "DGM", description: "Luồng, hệ thống và kiến trúc", group: "creation" },
   { kind: "code", label: "Code Lab", code: "COD", description: "Mã nguồn, giải thích và patch", group: "creation" },
   { kind: "text", label: "Brief", code: "TXT", description: "Tóm tắt và nội dung chuyên sâu", group: "creation" },
+  { kind: "automation", label: "Automation", code: "AUT", description: "Trigger, workflow và hành động", group: "system" },
+  { kind: "monitor", label: "System Monitor", code: "SYS", description: "Tài nguyên, dịch vụ và telemetry", group: "system" },
+  { kind: "terminal", label: "Terminal", code: "TRM", description: "Lệnh, log và phiên thực thi", group: "system" },
 ];
 
 const KIND_RULES: Array<[HubKind, RegExp]> = [
+  ["terminal", /\b(terminal|command line|dong lenh|shell|powershell|bash|log he thong)\b/],
+  ["automation", /\b(automation|tu dong hoa|workflow|trigger|webhook|quy trinh tu dong)\b/],
+  ["monitor", /\b(system monitor|tai nguyen he thong|cpu|ram|telemetry|health check|process)\b/],
+  ["inbox", /\b(inbox|email|hop thu|thu moi|tin nhan|mail)\b/],
+  ["pdf", /\b(pdf|file pdf|tai lieu pdf|doc pdf)\b/],
+  ["document", /\b(document|tai lieu|van ban|docx|word|bao cao dai)\b/],
+  ["notes", /\b(note|notes|ghi chu|so tay|memory note)\b/],
+  ["files", /\b(file|folder|tep|thu muc|file manager|quan ly tep)\b/],
+  ["podcast", /\b(podcast|transcript podcast|tap moi|chuong trinh noi)\b/],
+  ["audio", /\b(audio|am thanh|nhac|music|voice note|ghi am)\b/],
+  ["feed", /\b(content feed|bang tin|dong noi dung|rss|feed|noi dung so)\b/],
+  ["finance", /\b(tai chinh|finance|co phieu|chung khoan|ngan sach|chi tieu|doanh thu|gia vang|crypto)\b/],
   ["weather", /\b(thoi tiet|du bao|nhiet do|mua|nang|bao|weather|forecast)\b/],
   ["calendar", /\b(lich|cuoc hen|hen lich|agenda|calendar|schedule|meeting)\b/],
   ["tasks", /\b(todo|checklist|cong viec|nhiem vu|mission|task|viec can lam)\b/],
@@ -165,7 +201,11 @@ function asHubItems(value: unknown): HubItem[] {
 }
 
 function deriveHubItems(kind: HubKind, reply: string): HubItem[] {
-  const derivable = ["dashboard", "chart", "table", "compare", "timeline", "tasks", "calendar", "travel"];
+  const derivable = [
+    "dashboard", "chart", "table", "compare", "timeline", "tasks", "calendar", "travel",
+    "files", "document", "pdf", "notes", "inbox", "audio", "podcast", "feed", "finance",
+    "automation", "monitor", "terminal",
+  ];
   if (!derivable.includes(kind)) return [];
   return extractOutline(reply, kind === "compare" ? 4 : 8).map((line, index) => {
     const numeric = line.match(/-?\d+(?:[.,]\d+)?\s*(?:%|ms|°|k|m|b)?/i)?.[0]?.replace(/\s+/g, "");
@@ -178,7 +218,15 @@ function deriveHubItems(kind: HubKind, reply: string): HubItem[] {
       meta:
         time ??
         numeric ??
-        (kind === "tasks" ? "Queued" : kind === "timeline" || kind === "travel" ? `T+${index + 1}` : undefined),
+        (kind === "tasks" || kind === "automation"
+          ? "Queued"
+          : kind === "timeline" || kind === "travel"
+            ? `T+${index + 1}`
+            : kind === "files"
+              ? "LOCAL"
+              : kind === "inbox"
+                ? "Unread"
+                : undefined),
     };
   });
 }
@@ -219,7 +267,10 @@ export function failHubArtifact(artifact: HubArtifact, error: string): HubArtifa
 }
 
 export function recoverHubArtifact(artifact: HubArtifact, error: string): HubArtifact {
-  const canDegrade = ["web", "video", "map", "places", "images", "news", "shopping", "travel", "weather"].includes(artifact.kind);
+  const canDegrade = [
+    "web", "video", "map", "places", "images", "news", "shopping", "travel", "weather",
+    "audio", "podcast", "feed", "finance",
+  ].includes(artifact.kind);
   if (!canDegrade) return failHubArtifact(artifact, error);
   return {
     ...artifact,
@@ -260,6 +311,10 @@ export function hubSearchQuery(artifact: Pick<HubArtifact, "kind" | "query">) {
     shopping: [/^(hãy\s+|giúp\s+)?(tìm|so\s+sánh)?\s*(mua\s+sắm|sản\s+phẩm|giá)(\s+về)?\s*/i],
     travel: [/^(hãy\s+|giúp\s+)?(lên|tạo|gợi\s+ý)?\s*(lịch\s+trình|chuyến\s+đi|du\s+lịch)(\s+đến)?\s*/i],
     weather: [/^(hãy\s+|giúp\s+)?(xem|kiểm\s+tra|dự\s+báo)?\s*(thời\s+tiết)(\s+tại|\s+ở)?\s*/i],
+    audio: [/^(hãy\s+|giúp\s+)?(tìm|mở|nghe)?\s*(audio|âm\s+thanh|nhạc)(\s+về)?\s*/i],
+    podcast: [/^(hãy\s+|giúp\s+)?(tìm|mở|nghe)?\s*(podcast)(\s+về)?\s*/i],
+    feed: [/^(hãy\s+|giúp\s+)?(tạo|xem|tổng\s+hợp)?\s*(content\s+feed|feed|bảng\s+tin)(\s+về)?\s*/i],
+    finance: [/^(hãy\s+|giúp\s+)?(xem|phân\s+tích|theo\s+dõi)?\s*(tài\s+chính|finance|giá)(\s+của)?\s*/i],
   };
   for (const cleaner of cleaners[artifact.kind] ?? []) query = query.replace(cleaner, " ");
   return query.replace(/\s+/g, " ").trim() || artifact.query;
@@ -330,6 +385,71 @@ export function hubDemoItems(kind: HubKind): HubItem[] {
     code: [
       { id: "code-1", title: "Implementation", description: "Primary code path", meta: "TSX" },
       { id: "code-2", title: "Validation", description: "Type and runtime checks", meta: "TEST" },
+    ],
+    files: [
+      { id: "file-1", title: "Mission Assets", description: "/workspace/mission-assets", meta: "12 files" },
+      { id: "file-2", title: "Research Archive", description: "/knowledge/research", meta: "2.4 GB" },
+      { id: "file-3", title: "Generated Media", description: "/outputs/media", meta: "38 items" },
+      { id: "file-4", title: "System Logs", description: "/runtime/logs", meta: "Live" },
+    ],
+    document: [
+      { id: "doc-1", title: "Executive summary", description: "Decision-ready overview and key outcome", meta: "01" },
+      { id: "doc-2", title: "Evidence", description: "Sources, observations and supporting details", meta: "02" },
+      { id: "doc-3", title: "Recommendations", description: "Prioritized next actions with owners", meta: "03" },
+    ],
+    pdf: [
+      { id: "pdf-1", title: "Page 01", description: "Cover, abstract and document metadata", meta: "1/12" },
+      { id: "pdf-2", title: "Key findings", description: "Highlighted passages and extracted claims", meta: "4/12" },
+      { id: "pdf-3", title: "References", description: "Linked citations and source appendix", meta: "12/12" },
+    ],
+    notes: [
+      { id: "note-1", title: "Capture", description: "Fast ideas waiting to be organized", meta: "Pinned" },
+      { id: "note-2", title: "Project memory", description: "Decisions, preferences and constraints", meta: "Linked" },
+      { id: "note-3", title: "Next questions", description: "Unknowns worth investigating", meta: "Open" },
+    ],
+    inbox: [
+      { id: "mail-1", title: "Mission update", description: "New evidence is ready for review", meta: "Now" },
+      { id: "mail-2", title: "Approval requested", description: "Workflow is waiting at a safe checkpoint", meta: "Priority" },
+      { id: "mail-3", title: "Daily digest", description: "7 signals summarized by Jarvis", meta: "08:30" },
+    ],
+    audio: [
+      { id: "audio-1", title: "Focus Protocol", description: "Ambient command-center soundscape", meta: "04:18" },
+      { id: "audio-2", title: "Voice Memo 07", description: "Captured idea with auto transcript", meta: "01:42" },
+      { id: "audio-3", title: "System Theme", description: "J-Core interface audio profile", meta: "02:56" },
+    ],
+    podcast: [
+      { id: "pod-1", title: "Agentic systems", description: "How AI workspaces become durable operating systems", meta: "28 min" },
+      { id: "pod-2", title: "Interface intelligence", description: "Designing calm, high-density command centers", meta: "41 min" },
+      { id: "pod-3", title: "Local-first future", description: "Ownership, memory and resilient tools", meta: "35 min" },
+    ],
+    feed: [
+      { id: "feed-1", title: "Signals worth knowing", description: "Five verified developments selected for relevance", meta: "Briefing" },
+      { id: "feed-2", title: "Creative radar", description: "Interfaces, media and ideas gaining momentum", meta: "Culture" },
+      { id: "feed-3", title: "Deep read", description: "One long-form source with Jarvis annotations", meta: "12 min" },
+      { id: "feed-4", title: "Watch queue", description: "Three videos grouped into a single learning path", meta: "Playlist" },
+    ],
+    finance: [
+      { id: "fin-1", title: "Available budget", description: "Current operating envelope", meta: "72%" },
+      { id: "fin-2", title: "Monthly spend", description: "Tools, APIs and subscriptions", meta: "18.4M" },
+      { id: "fin-3", title: "Market watch", description: "Tracked instruments with notable movement", meta: "+3.8%" },
+      { id: "fin-4", title: "Forecast", description: "Projected runway at current velocity", meta: "9 mo" },
+    ],
+    automation: [
+      { id: "auto-1", title: "Signal detected", description: "A scheduled or external event starts the run", meta: "TRIGGER" },
+      { id: "auto-2", title: "Jarvis reasons", description: "Context is enriched and a route is selected", meta: "AGENT" },
+      { id: "auto-3", title: "Tools execute", description: "Approved actions run with observable state", meta: "ACTION" },
+      { id: "auto-4", title: "Human checkpoint", description: "High-impact output waits for confirmation", meta: "REVIEW" },
+    ],
+    monitor: [
+      { id: "sys-1", title: "CPU load", description: "8 logical processors", meta: "34%" },
+      { id: "sys-2", title: "Memory", description: "Working set across active modules", meta: "61%" },
+      { id: "sys-3", title: "Network", description: "Gateway round-trip latency", meta: "142ms" },
+      { id: "sys-4", title: "Services", description: "7 of 8 modules responding", meta: "87%" },
+    ],
+    terminal: [
+      { id: "term-1", title: "jcore status --all", description: "Inspect core services and active routes", meta: "READY" },
+      { id: "term-2", title: "hub list --running", description: "Show live workspace surfaces", meta: "02" },
+      { id: "term-3", title: "agent trace --latest", description: "Read the newest execution trace", meta: "LOG" },
     ],
   };
   return demos[kind] ?? [];

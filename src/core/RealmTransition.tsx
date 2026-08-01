@@ -10,28 +10,28 @@ type RealmTransitionProps = {
 export default function RealmTransition({ palette, children }: RealmTransitionProps) {
   const groupRef = useRef<THREE.Group>(null);
   const [activePalette, setActivePalette] = useState(palette);
-  const [transitionState, setTransitionState] = useState<"idle" | "out" | "in">("idle");
+  const transitionState = useRef<"idle" | "out" | "in">("idle");
   const transitionProgress = useRef(1); // 0 = fully collapsed/hidden, 1 = fully expanded/visible
 
   useEffect(() => {
-    if (palette !== activePalette) {
-      setTransitionState("out");
-    }
+    if (palette === activePalette) return undefined;
+    transitionState.current = "out";
+    const timer = window.setTimeout(() => {
+      transitionProgress.current = 0;
+      setActivePalette(palette);
+      transitionState.current = "in";
+    }, 150);
+    return () => window.clearTimeout(timer);
   }, [palette, activePalette]);
 
   useFrame((_, delta) => {
-    if (transitionState === "out") {
+    if (transitionState.current === "out") {
       transitionProgress.current = THREE.MathUtils.lerp(transitionProgress.current, 0, delta * 12);
-      if (transitionProgress.current < 0.05) {
-        transitionProgress.current = 0;
-        setActivePalette(palette);
-        setTransitionState("in");
-      }
-    } else if (transitionState === "in") {
+    } else if (transitionState.current === "in") {
       transitionProgress.current = THREE.MathUtils.lerp(transitionProgress.current, 1, delta * 8);
       if (transitionProgress.current > 0.95) {
         transitionProgress.current = 1;
-        setTransitionState("idle");
+        transitionState.current = "idle";
       }
     }
 

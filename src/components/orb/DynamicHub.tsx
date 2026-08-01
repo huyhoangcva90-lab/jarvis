@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   HUB_TEMPLATES,
   extractOutline,
@@ -38,6 +38,18 @@ function HubGlyph({ kind }: { kind: HubKind }) {
     shopping: <><path d="M6 7h15l-2 8H8L6 3H3M9 20h.01M18 20h.01" /></>,
     news: <><path d="M5 4h14v16H5Z" /><path d="M8 8h8M8 12h8M8 16h5" /></>,
     code: <><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14" /></>,
+    files: <><path d="M3 6h7l2 2h9v11H3Z" /><path d="M3 6V4h7l2 2" /></>,
+    document: <><path d="M6 3h8l4 4v14H6Z" /><path d="M14 3v5h5M9 12h6M9 16h6" /></>,
+    pdf: <><path d="M6 3h8l4 4v14H6Z" /><path d="M14 3v5h5M8.5 16v-4h2a1.5 1.5 0 0 1 0 3h-2m5 1v-4h1.5a2 2 0 0 1 0 4Z" /></>,
+    notes: <><path d="M5 4h14v16H5Z" /><path d="M8 8h8M8 12h8M8 16h5M15 18l5-5" /></>,
+    inbox: <><path d="M4 5h16v14H4Z" /><path d="m4 7 8 6 8-6M4 15h5l2 2h2l2-2h5" /></>,
+    audio: <><path d="M9 18V5l10-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="16" cy="16" r="3" /></>,
+    podcast: <><circle cx="12" cy="9" r="3" /><path d="M7 9a5 5 0 0 1 10 0M4 9a8 8 0 0 1 16 0M10 13l-1 8h6l-1-8" /></>,
+    feed: <><path d="M5 4h14v16H5Z" /><path d="M8 8h8M8 12h5M8 16h7" /><circle cx="17" cy="12" r="1" /></>,
+    finance: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /><path d="m3 8 6-4 6 5 6-6" /></>,
+    automation: <><circle cx="6" cy="6" r="3" /><circle cx="18" cy="18" r="3" /><path d="M9 6h5a4 4 0 0 1 4 4v5M15 18h-5a4 4 0 0 1-4-4V9" /></>,
+    monitor: <><rect x="3" y="4" width="18" height="14" rx="2" /><path d="M8 21h8M12 18v3M6 12h3l2-5 3 9 2-4h2" /></>,
+    terminal: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="m7 9 3 3-3 3M12 16h5" /></>,
   };
   return <svg viewBox="0 0 24 24" aria-hidden="true">{paths[kind]}</svg>;
 }
@@ -105,6 +117,26 @@ function SearchLaunchers({ artifact }: { artifact: HubArtifact }) {
                   ["Google Travel", `https://www.google.com/travel/search?q=${query}`],
                   ["Google Maps", `https://www.google.com/maps/search/${query}`],
                 ]
+              : artifact.kind === "audio"
+                ? [
+                    ["YouTube Music", `https://music.youtube.com/search?q=${query}`],
+                    ["SoundCloud", `https://soundcloud.com/search?q=${query}`],
+                  ]
+                : artifact.kind === "podcast"
+                  ? [
+                      ["Spotify Podcasts", `https://open.spotify.com/search/${query}/podcastsAndEpisodes`],
+                      ["YouTube", `https://www.youtube.com/results?search_query=${query}+podcast`],
+                    ]
+                  : artifact.kind === "feed"
+                    ? [
+                        ["Google News", `https://news.google.com/search?q=${query}`],
+                        ["Bing", `https://www.bing.com/search?q=${query}`],
+                      ]
+                    : artifact.kind === "finance"
+                      ? [
+                          ["Google Finance", `https://www.google.com/finance/beta?q=${query}`],
+                          ["Market Search", `https://www.google.com/search?q=${query}+market`],
+                        ]
         : [
             ["Google", `https://www.google.com/search?q=${query}`],
             ["Bing", `https://www.bing.com/search?q=${query}`],
@@ -374,6 +406,166 @@ function CodeView({ artifact }: { artifact: HubArtifact }) {
   );
 }
 
+function FileDeckView({ artifact }: { artifact: HubArtifact }) {
+  return (
+    <div className="hub-files-view">
+      <header><span>LOCAL://WORKSPACE</span><b>{artifact.items.length} MOUNTS</b></header>
+      <div className="hub-file-layout">
+        <aside aria-label="Vị trí nhanh">
+          <button type="button" className="active">Workspace</button>
+          <button type="button">Recent</button>
+          <button type="button">Shared</button>
+          <button type="button">Archive</button>
+        </aside>
+        <div className="hub-file-list">
+          {artifact.items.map((item, index) => (
+            <button type="button" key={item.id}>
+              <i><HubGlyph kind={index % 3 === 0 ? "files" : index % 3 === 1 ? "document" : "images"} /></i>
+              <span><b>{item.title}</b><small>{item.description}</small></span>
+              <em>{item.meta || "LOCAL"}</em>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="hub-storage-meter"><span>LOCAL STORAGE</span><i><b /></i><em>68% FREE</em></div>
+      <Summary artifact={artifact} />
+    </div>
+  );
+}
+
+function DocumentView({ artifact }: { artifact: HubArtifact }) {
+  const [section, setSection] = useState(artifact.items[0]?.id || "");
+  const activeSection = artifact.items.find((item) => item.id === section) ?? artifact.items[0];
+  return (
+    <div className={`hub-document-view ${artifact.kind}`}>
+      <aside aria-label="Mục lục tài liệu">
+        <span>{artifact.kind === "pdf" ? "PAGE INDEX" : artifact.kind === "notes" ? "NOTE STACK" : "DOCUMENT MAP"}</span>
+        {artifact.items.map((item, index) => (
+          <button type="button" className={item.id === activeSection?.id ? "active" : ""} onClick={() => setSection(item.id)} key={item.id}>
+            <i>{String(index + 1).padStart(2, "0")}</i><span>{item.title}</span>
+          </button>
+        ))}
+      </aside>
+      <article>
+        <header><span>{artifact.kind.toUpperCase()}://READ MODE</span><b>{activeSection?.meta || "READY"}</b></header>
+        <h2>{activeSection?.title || artifact.title}</h2>
+        <p>{activeSection?.description || artifact.summary}</p>
+        <div className="hub-document-lines" aria-hidden="true"><i /><i /><i /><i /><i /></div>
+        <blockquote>{artifact.summary || "Jarvis sẽ đặt nội dung, trích dẫn và ghi chú ngữ cảnh tại bề mặt đọc này."}</blockquote>
+      </article>
+    </div>
+  );
+}
+
+function InboxView({ artifact }: { artifact: HubArtifact }) {
+  const [selected, setSelected] = useState(artifact.items[0]?.id || "");
+  const current = artifact.items.find((item) => item.id === selected) ?? artifact.items[0];
+  return (
+    <div className="hub-inbox-view">
+      <div className="hub-message-list">
+        <header><span>PRIORITY INBOX</span><b>{artifact.items.length}</b></header>
+        {artifact.items.map((item) => (
+          <button type="button" className={item.id === current?.id ? "active" : ""} onClick={() => setSelected(item.id)} key={item.id}>
+            <i>{item.title.slice(0, 1)}</i><span><b>{item.title}</b><small>{item.description}</small></span><em>{item.meta}</em>
+          </button>
+        ))}
+      </div>
+      <article className="hub-message-reader">
+        <span>MESSAGE://{current?.meta?.toUpperCase() || "OPEN"}</span>
+        <h2>{current?.title || artifact.title}</h2>
+        <p>{current?.description}</p>
+        <div>{artifact.summary || "Jarvis đã phân loại nội dung này theo độ khẩn cấp và mức liên quan với nhiệm vụ hiện tại."}</div>
+        <button type="button">Đánh dấu đã xử lý</button>
+      </article>
+    </div>
+  );
+}
+
+function MediaDeckView({ artifact }: { artifact: HubArtifact }) {
+  const [playing, setPlaying] = useState(artifact.items[0]?.id || "");
+  const current = artifact.items.find((item) => item.id === playing) ?? artifact.items[0];
+  return (
+    <div className={`hub-media-view ${artifact.kind}`}>
+      <section className="hub-now-playing">
+        <div className="hub-media-disc"><i /><b>{artifact.kind === "podcast" ? "POD" : "J"}</b></div>
+        <span>NOW PLAYING</span>
+        <h2>{current?.title || artifact.title}</h2>
+        <p>{current?.description}</p>
+        <div className="hub-waveform" aria-label="Dạng sóng âm thanh">{Array.from({ length: 36 }, (_, index) => <i style={{ height: `${20 + ((index * 17) % 75)}%` }} key={index} />)}</div>
+        <footer><button type="button" aria-label="Lùi 15 giây">−15</button><button type="button" className="primary" aria-label="Phát hoặc tạm dừng">{playing ? "PAUSE" : "PLAY"}</button><button type="button" aria-label="Tiến 15 giây">+15</button></footer>
+      </section>
+      <aside className="hub-media-queue">
+        <header><span>UP NEXT</span><b>{artifact.items.length}</b></header>
+        {artifact.items.map((item, index) => (
+          <button type="button" className={item.id === current?.id ? "active" : ""} onClick={() => setPlaying(item.id)} key={item.id}>
+            <i>{String(index + 1).padStart(2, "0")}</i><span><b>{item.title}</b><small>{item.description}</small></span><em>{item.meta}</em>
+          </button>
+        ))}
+      </aside>
+    </div>
+  );
+}
+
+function FeedView({ artifact }: { artifact: HubArtifact }) {
+  return (
+    <div className="hub-feed-view">
+      <header><span>PERSONAL SIGNAL FEED</span><b>CURATED BY JARVIS</b></header>
+      <div>
+        {artifact.items.map((item, index) => (
+          <article className={index === 0 ? "featured" : ""} key={item.id}>
+            <span>{item.meta || `SIGNAL ${index + 1}`}</span><h3>{item.title}</h3><p>{item.description}</p>
+            <footer><i>{String(index + 1).padStart(2, "0")}</i><button type="button">Mở nội dung</button></footer>
+          </article>
+        ))}
+      </div>
+      <Summary artifact={artifact} />
+    </div>
+  );
+}
+
+function AutomationView({ artifact }: { artifact: HubArtifact }) {
+  return (
+    <div className="hub-automation-view">
+      <header><span>WORKFLOW://LIVE BLUEPRINT</span><b>{artifact.items.length} NODES</b></header>
+      <div className="hub-workflow-track">
+        {artifact.items.map((item, index) => (
+          <article key={item.id}>
+            <i><HubGlyph kind={index === 0 ? "automation" : index === artifact.items.length - 1 ? "tasks" : "diagram"} /></i>
+            <span>{item.meta || `NODE ${index + 1}`}</span><h3>{item.title}</h3><p>{item.description}</p>
+            {index < artifact.items.length - 1 && <b aria-hidden="true">→</b>}
+          </article>
+        ))}
+      </div>
+      <Summary artifact={artifact} />
+    </div>
+  );
+}
+
+function FinanceView({ artifact }: { artifact: HubArtifact }) {
+  return (
+    <div className="hub-finance-view">
+      <header><span>FINANCIAL OPERATING PICTURE</span><b>LIVE MODEL</b></header>
+      <div className="hub-finance-grid">
+        {artifact.items.map((item, index) => (
+          <article key={item.id}><span>{item.title}</span><b>{item.meta}</b><p>{item.description}</p><i className={index % 3 === 1 ? "down" : "up"}>{index % 3 === 1 ? "−1.2%" : `+${2 + index}.4%`}</i></article>
+        ))}
+      </div>
+      <div className="hub-finance-chart" role="img" aria-label="Biểu đồ xu hướng tài chính"><svg viewBox="0 0 100 28" preserveAspectRatio="none"><polyline points="0,23 12,19 25,21 38,12 50,15 62,7 75,10 88,4 100,6" /></svg></div>
+      <Summary artifact={artifact} />
+    </div>
+  );
+}
+
+function TerminalView({ artifact }: { artifact: HubArtifact }) {
+  return (
+    <div className="hub-terminal-view">
+      <header><span>J-CORE TERMINAL</span><b>SESSION 01</b></header>
+      <pre><code><i>jarvis@core:~$</i> {artifact.query || "jcore status --all"}{"\n"}{artifact.items.map((item) => `[${item.meta || "OK"}] ${item.title}\n    ${item.description || "ready"}`).join("\n")}{"\n"}<i>jarvis@core:~$</i> <b aria-hidden="true">▋</b></code></pre>
+      <Summary artifact={artifact} />
+    </div>
+  );
+}
+
 function HubContent({ artifact }: { artifact: HubArtifact }) {
   if (artifact.status === "loading") return <LoadingView artifact={artifact} />;
   if (artifact.status === "error") {
@@ -391,6 +583,15 @@ function HubContent({ artifact }: { artifact: HubArtifact }) {
   if (artifact.kind === "calendar") return <CalendarView artifact={artifact} />;
   if (artifact.kind === "weather") return <WeatherView artifact={artifact} />;
   if (artifact.kind === "code") return <CodeView artifact={artifact} />;
+  if (artifact.kind === "files") return <FileDeckView artifact={artifact} />;
+  if (artifact.kind === "document" || artifact.kind === "pdf" || artifact.kind === "notes") return <DocumentView artifact={artifact} />;
+  if (artifact.kind === "inbox") return <InboxView artifact={artifact} />;
+  if (artifact.kind === "audio" || artifact.kind === "podcast") return <MediaDeckView artifact={artifact} />;
+  if (artifact.kind === "feed") return <FeedView artifact={artifact} />;
+  if (artifact.kind === "automation") return <AutomationView artifact={artifact} />;
+  if (artifact.kind === "monitor") return <DashboardView artifact={artifact} />;
+  if (artifact.kind === "finance") return <FinanceView artifact={artifact} />;
+  if (artifact.kind === "terminal") return <TerminalView artifact={artifact} />;
   return (
     <div className="dynamic-hub-result">
       <Summary artifact={artifact} />
@@ -403,13 +604,46 @@ const HUB_GROUPS = [
   ["intel", "INTELLIGENCE"],
   ["spatial", "WORLD & SPACE"],
   ["planning", "PLANNING"],
+  ["workspace", "WORK SUITE"],
   ["data", "DATA SYSTEMS"],
+  ["media", "MEDIA DECK"],
   ["creation", "CREATION LAB"],
+  ["system", "SYSTEM CORE"],
 ] as const;
+
+const QUICK_HUBS: HubKind[] = ["web", "files", "tasks", "feed", "audio", "automation"];
 
 export default function DynamicHub({ artifacts, activeId, onSelect, onCreateDemo, onRemove }: DynamicHubProps) {
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const catalogSearchRef = useRef<HTMLInputElement>(null);
   const active = artifacts.find((artifact) => artifact.id === activeId) ?? artifacts[0] ?? null;
+  const filteredTemplates = useMemo(() => {
+    const query = catalogQuery.trim().toLocaleLowerCase("vi-VN");
+    if (!query) return HUB_TEMPLATES;
+    return HUB_TEMPLATES.filter((template) => `${template.label} ${template.description} ${template.code}`.toLocaleLowerCase("vi-VN").includes(query));
+  }, [catalogQuery]);
+  const launchHub = (kind: HubKind) => {
+    onCreateDemo(kind);
+    setCatalogOpen(false);
+    setCatalogQuery("");
+  };
+
+  useEffect(() => {
+    if (catalogOpen) window.setTimeout(() => catalogSearchRef.current?.focus(), 80);
+  }, [catalogOpen]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (event.key === "/" && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) {
+        event.preventDefault();
+        setCatalogOpen(true);
+      }
+      if (event.key === "Escape" && catalogOpen) setCatalogOpen(false);
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, [catalogOpen]);
   return (
     <div className="dynamic-hub-shell">
       <header className="dynamic-hub-toolbar">
@@ -449,12 +683,32 @@ export default function DynamicHub({ artifacts, activeId, onSelect, onCreateDemo
 
       {catalogOpen && (
         <div className="hub-template-catalog">
-          {HUB_GROUPS.map(([group, label]) => (
-            <section key={group}>
-              <h3>{label}<span>{String(HUB_TEMPLATES.filter((template) => template.group === group).length).padStart(2, "0")}</span></h3>
+          <header className="hub-catalog-command">
+            <div><span>J-CORE APP LAUNCHER</span><b>{filteredTemplates.length}/{HUB_TEMPLATES.length} SURFACES</b></div>
+            <label>
+              <span className="sr-only">Tìm Hub</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m16 16 5 5" /></svg>
+              <input ref={catalogSearchRef} value={catalogQuery} onChange={(event) => setCatalogQuery(event.target.value)} placeholder="Tìm app, nội dung hoặc chức năng…" />
+              <kbd>/</kbd>
+            </label>
+          </header>
+          {!catalogQuery && (
+            <section className="hub-quick-lane">
+              <h3>QUICK LANE<span>06</span></h3>
               <div>
-                {HUB_TEMPLATES.filter((template) => template.group === group).map((template) => (
-                  <button type="button" onClick={() => { onCreateDemo(template.kind); setCatalogOpen(false); }} key={template.kind}>
+                {QUICK_HUBS.map((kind) => {
+                  const template = hubTemplate(kind);
+                  return <button type="button" onClick={() => launchHub(kind)} key={kind}><HubGlyph kind={kind} /><span><b>{template.label}</b><small>{template.code}</small></span></button>;
+                })}
+              </div>
+            </section>
+          )}
+          {HUB_GROUPS.map(([group, label]) => (
+            filteredTemplates.some((template) => template.group === group) && <section key={group}>
+              <h3>{label}<span>{String(filteredTemplates.filter((template) => template.group === group).length).padStart(2, "0")}</span></h3>
+              <div>
+                {filteredTemplates.filter((template) => template.group === group).map((template) => (
+                  <button type="button" onClick={() => launchHub(template.kind)} key={template.kind}>
                     <HubGlyph kind={template.kind} />
                     <span><b>{template.label}</b><small>{template.description}</small></span>
                     <i>{template.code}</i>
@@ -463,6 +717,7 @@ export default function DynamicHub({ artifacts, activeId, onSelect, onCreateDemo
               </div>
             </section>
           ))}
+          {!filteredTemplates.length && <div className="hub-catalog-empty"><b>Không tìm thấy surface phù hợp</b><span>Thử “audio”, “file”, “workflow”, “PDF” hoặc “dashboard”.</span></div>}
         </div>
       )}
 
@@ -479,10 +734,13 @@ export default function DynamicHub({ artifacts, activeId, onSelect, onCreateDemo
         ) : (
           <section className="dynamic-hub-empty">
             <div className="hub-empty-radar"><i /><i /><b>J</b></div>
-            <span>UNIVERSAL HUB RUNTIME</span>
-            <h2>Jarvis đang quan sát toàn hệ thống</h2>
-            <p>Ra lệnh tra cứu, xem bản đồ, lập kế hoạch, so sánh, dựng dashboard, biểu đồ, timeline, code hoặc nội dung sáng tạo. Giao diện phù hợp sẽ tự xuất hiện tại đây.</p>
-            <button type="button" onClick={() => setCatalogOpen(true)}>Xem các Hub đã nạp</button>
+            <span>J-CORE UNIVERSAL WORKSPACE</span>
+            <h2>Một hệ điều hành cho mọi dạng công việc số</h2>
+            <p>Jarvis có thể dựng không gian đọc, file, media, inbox, dữ liệu, workflow, terminal hoặc nghiên cứu theo đúng ngữ cảnh. Bấm một surface hoặc chỉ cần ra lệnh tự nhiên.</p>
+            <div className="hub-empty-quick">
+              {QUICK_HUBS.slice(0, 4).map((kind) => <button type="button" onClick={() => onCreateDemo(kind)} key={kind}><HubGlyph kind={kind} /><span>{hubTemplate(kind).label}</span></button>)}
+            </div>
+            <button type="button" onClick={() => setCatalogOpen(true)}>Mở App Launcher · {HUB_TEMPLATES.length} surfaces</button>
           </section>
         )}
       </main>

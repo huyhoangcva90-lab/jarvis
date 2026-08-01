@@ -31,6 +31,15 @@ const CLEAR_COLORS: Record<string, string> = {
   spider: "#000408",
 };
 
+const EXPOSURE: Record<string, number> = {
+  blue: 0.9,
+  green: 0.94,
+  red: 0.88,
+  violet: 0.86,
+  orange: 0.92,
+  spider: 0.78,
+};
+
 
 function getClearColor(palette: string) {
   return CLEAR_COLORS[palette] || CLEAR_COLORS.gold;
@@ -51,6 +60,7 @@ function CanvasPaletteBackground({ palette }: { palette: string }) {
   useEffect(() => {
     const clearColor = getClearColor(palette);
     gl.setClearColor(clearColor, 1);
+    gl.toneMappingExposure = EXPOSURE[palette] ?? 0.94;
   }, [gl, palette]);
 
   return null;
@@ -118,13 +128,9 @@ function isInteractiveTarget(target: EventTarget | null) {
 }
 
 function SceneRig({
-  activity,
-  palette,
   resetSignal = 0,
   children,
 }: {
-  activity: AiActivity;
-  palette: string;
   resetSignal?: number;
   children: React.ReactNode;
 }) {
@@ -198,22 +204,14 @@ function SceneRig({
   }, [resetSignal]);
 
   useFrame(({ clock }) => {
-    const t = clock.elapsedTime;
     const narrow = size.width / size.height < 0.72;
     if (root.current) {
       drag.current.x = THREE.MathUtils.lerp(drag.current.x, drag.current.targetX, 0.09);
       drag.current.y = THREE.MathUtils.lerp(drag.current.y, drag.current.targetY, 0.09);
-      const energy = activity === "speaking" ? 1.52 : activity === "thinking" ? 1.28 : activity === "listening" ? 0.82 : 1;
-      const breath =
-        1 +
-        Math.sin(t * (activity === "speaking" ? 5.8 : 0.88)) *
-          (activity === "speaking" ? 0.026 : 0.009) *
-          energy;
-      root.current.scale.setScalar(breath);
       const hoverLean = narrow || !hovered.current || document.body.classList.contains("hud-dragging") ? 0 : 0.08;
       root.current.rotation.x = THREE.MathUtils.lerp(root.current.rotation.x, drag.current.x - pointer.y * hoverLean, 0.045);
       root.current.rotation.y = THREE.MathUtils.lerp(root.current.rotation.y, drag.current.y + pointer.x * hoverLean, 0.045);
-      root.current.rotation.z = Math.sin(t * 0.12) * 0.016;
+      root.current.rotation.z = 0;
     }
   });
 
@@ -221,21 +219,26 @@ function SceneRig({
 }
 
 function PostFX({ activity, palette }: { activity: AiActivity; palette: string }) {
-  const bloomIntensity = useMemo(() => {
-    const base = activity === "speaking" ? 2.55 : activity === "thinking" ? 2.08 : 1.84;
-    // Tinh chinh bloom cho tung Realm
-    if (palette === "green") return base * 1.04;
-    if (palette === "blue") return base * 0.96;
-    if (palette === "spider") return base * 1.08;
-    return base;
+  const profile = useMemo(() => {
+    const activityBoost = activity === "speaking" ? 1.18 : activity === "thinking" ? 1.08 : 1;
+    const profiles: Record<string, { intensity: number; threshold: number; smoothing: number }> = {
+      blue: { intensity: 1.08, threshold: 0.34, smoothing: 0.52 },
+      green: { intensity: 1.16, threshold: 0.3, smoothing: 0.58 },
+      red: { intensity: 0.96, threshold: 0.38, smoothing: 0.46 },
+      violet: { intensity: 1.22, threshold: 0.32, smoothing: 0.5 },
+      orange: { intensity: 0.92, threshold: 0.42, smoothing: 0.42 },
+      spider: { intensity: 0.74, threshold: 0.5, smoothing: 0.36 },
+    };
+    const selected = profiles[palette] ?? profiles.blue;
+    return { ...selected, intensity: selected.intensity * activityBoost };
   }, [activity, palette]);
 
   return (
     <EffectComposer multisampling={0}>
       <Bloom
-        intensity={bloomIntensity}
-        luminanceSmoothing={0.64}
-        luminanceThreshold={0.22}
+        intensity={profile.intensity}
+        luminanceSmoothing={profile.smoothing}
+        luminanceThreshold={profile.threshold}
         mipmapBlur
       />
     </EffectComposer>
@@ -265,7 +268,7 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: Jar
       >
         <CanvasPaletteBackground palette={palette} />
         <CameraOrbitController resetSignal={resetSignal} />
-        <SceneRig activity={activity} palette={palette} resetSignal={resetSignal}>
+        <SceneRig resetSignal={resetSignal}>
           <RealmTransition palette={palette}>
             {(activePalette) => {
               if (activePalette === "gold") {

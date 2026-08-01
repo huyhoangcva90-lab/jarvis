@@ -1,589 +1,295 @@
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-
 import type { AiActivity } from "../../App";
+import { activityEnergy, activityPulse, activitySpeed, pathGeometry, seededRandom, segmentGeometry } from "../shared/coreMotion";
 
-/* ── Color Palette ─────────────────────────────────────── */
-const CRIMSON = new THREE.Color("#ef2b2d");
-const GOLD_BRONZE = new THREE.Color("#fbbf24");
-const BLOOD = new THREE.Color("#991b1b");
-const PARCHMENT = new THREE.Color("#ffd4a3");
-const WHITE_FIRE = new THREE.Color("#fff2e0");
+const CRIMSON = "#ff203c";
+const AETHER = "#ff4b56";
+const GOLD = "#ffc35a";
+const ASH = "#ffd6bd";
 
-const TAU = Math.PI * 2;
+const aetherVertexShader = `
+  uniform float uTime;
+  uniform float uEnergy;
+  varying vec3 vNormal;
+  varying vec3 vPosition;
+  float noise3(vec3 p){return sin(p.x*4.2+uTime)*sin(p.y*3.7-uTime*.8)*sin(p.z*5.1+uTime*.55);}
+  void main(){
+    vNormal=normalize(normalMatrix*normal);
+    float n=noise3(position*1.8);
+    vec3 displaced=position+normal*n*.13*uEnergy;
+    vPosition=displaced;
+    gl_Position=projectionMatrix*modelViewMatrix*vec4(displaced,1.0);
+  }
+`;
 
-function seeded(i: number, salt: number) {
-  return Math.abs(Math.sin(i * 91.733 + salt * 37.19) * 43758.5453) % 1;
-}
+const aetherFragmentShader = `
+  uniform float uTime;
+  uniform float uEnergy;
+  varying vec3 vNormal;
+  varying vec3 vPosition;
+  void main(){
+    float veins=pow(abs(sin(vPosition.x*14.0+sin(vPosition.y*8.0)-uTime*2.2)),12.0);
+    float fresnel=pow(1.0-abs(vNormal.z),2.2);
+    float heat=.55+.45*sin(length(vPosition)*11.0-uTime*2.6);
+    vec3 color=mix(vec3(.18,.0,.015),vec3(1.0,.025,.055),heat);
+    color=mix(color,vec3(1.0,.65,.34),veins);
+    float alpha=clamp(.42+fresnel*.42+veins*.5,0.0,1.0)*uEnergy;
+    gl_FragColor=vec4(color*(.72+uEnergy*.32),alpha);
+  }
+`;
 
-function activitySpeed(a: AiActivity) {
-  if (a === "speaking") return 1.8;
-  if (a === "thinking") return 2.4;
-  if (a === "listening") return 0.55;
-  return 1;
-}
+function AetherOrganism({ activity }: { activity: AiActivity }) {
+  const root = useRef<THREE.Group>(null);
+  const core = useRef<THREE.Mesh>(null);
+  const shader = useRef<THREE.ShaderMaterial>(null);
+  const lobes = useMemo(() => [
+    { base: [-0.64, 0.22, -0.08] as [number, number, number], scale: [0.58, 0.42, 0.48] as [number, number, number], phase: 0.3 },
+    { base: [0.58, -0.12, 0.02] as [number, number, number], scale: [0.46, 0.62, 0.42] as [number, number, number], phase: 1.5 },
+    { base: [0.08, 0.66, -0.16] as [number, number, number], scale: [0.38, 0.5, 0.34] as [number, number, number], phase: 2.7 },
+    { base: [-0.16, -0.7, -0.1] as [number, number, number], scale: [0.44, 0.48, 0.38] as [number, number, number], phase: 4.1 },
+    { base: [0.72, 0.48, -0.28] as [number, number, number], scale: [0.3, 0.34, 0.28] as [number, number, number], phase: 5.2 },
+  ], []);
 
-function activityEnergy(a: AiActivity) {
-  if (a === "speaking") return 1.5;
-  if (a === "thinking") return 1.3;
-  if (a === "listening") return 0.7;
-  return 1;
-}
-
-function polar(radius: number, angle: number, z = 0) {
-  return new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, z);
-}
-
-/* ── 1. Aether Reality Core ────────────────────────────── */
-function AetherCore({ activity }: { activity: AiActivity }) {
-  const coreRef = useRef<THREE.Mesh>(null);
-  const haloRef = useRef<THREE.Mesh>(null);
-  const innerRef = useRef<THREE.Mesh>(null);
-
-  const coreShader = useMemo(() => ({
-    uniforms: {
-      uTime: { value: 0 },
-      uEnergy: { value: 1.0 },
-    },
-    vertexShader: `
-      uniform float uTime;
-      uniform float uEnergy;
-      varying vec3 vPosition;
-      varying vec3 vNormal;
-      void main() {
-        vPosition = position;
-        vNormal = normal;
-        vec3 p = position;
-        float distortion = sin(p.x * 8.0 + uTime * 2.0) * sin(p.y * 6.0 - uTime * 1.5) * sin(p.z * 7.0 + uTime * 1.2);
-        p += normal * distortion * 0.06 * uEnergy;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float uTime;
-      uniform float uEnergy;
-      varying vec3 vPosition;
-      varying vec3 vNormal;
-      void main() {
-        float flow = sin(vPosition.x * 12.0 + uTime * 3.0) * sin(vPosition.y * 10.0 - uTime * 2.2) * 0.5 + 0.5;
-        float pulse = 0.6 + 0.4 * sin(uTime * 4.0 + length(vPosition) * 6.0);
-        vec3 blood = vec3(0.93, 0.17, 0.18);
-        vec3 fire = vec3(1.0, 0.85, 0.5);
-        vec3 color = mix(blood, fire, flow * pulse * 0.6);
-        float alpha = (0.35 + flow * 0.4) * uEnergy;
-        gl_FragColor = vec4(color, alpha);
-      }
-    `,
-  }), []);
-
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime;
+  useFrame(({ clock }, delta) => {
+    const time = clock.elapsedTime;
     const energy = activityEnergy(activity);
-    if (coreRef.current) {
-      const voicePulse = activity === "speaking"
-        ? 1 + Math.sin(t * 7.5) * 0.18 + Math.sin(t * 12) * 0.06
-        : activity === "thinking"
-          ? 0.75 + Math.pow(Math.max(0, Math.sin(t * 2.5)), 10) * 0.8
-          : 1 + Math.sin(t * 1.3) * 0.06;
-      coreRef.current.scale.setScalar(voicePulse);
-      const mat = coreRef.current.material as THREE.ShaderMaterial;
-      if (mat.uniforms) {
-        mat.uniforms.uTime.value = t;
-        mat.uniforms.uEnergy.value = energy;
-      }
+    if (root.current) {
+      root.current.rotation.y += delta * 0.08 * activitySpeed(activity);
+      root.current.rotation.z = Math.sin(time * 0.21) * 0.12;
+      root.current.children.forEach((child, index) => {
+        if (index === 0) return;
+        const lobe = lobes[index - 1];
+        if (!lobe) return;
+        child.position.set(
+          lobe.base[0] + Math.sin(time * 0.72 + lobe.phase) * 0.08,
+          lobe.base[1] + Math.cos(time * 0.58 + lobe.phase) * 0.07,
+          lobe.base[2] + Math.sin(time * 0.43 + lobe.phase) * 0.12,
+        );
+        const pulse = 1 + Math.sin(time * 2.4 + lobe.phase) * 0.08 * energy;
+        child.scale.set(lobe.scale[0] * pulse, lobe.scale[1] / pulse, lobe.scale[2] * pulse);
+      });
     }
-    if (haloRef.current) {
-      const haloScale = activity === "speaking" ? 1.4 + Math.sin(t * 5.8) * 0.12 : 1.15;
-      haloRef.current.scale.setScalar(haloScale);
-    }
-    if (innerRef.current) {
-      innerRef.current.rotation.y = t * 0.4;
-      innerRef.current.rotation.x = Math.sin(t * 0.3) * 0.2;
+    if (core.current) core.current.scale.setScalar(activityPulse(activity, time, 0.8));
+    if (shader.current) {
+      shader.current.uniforms.uTime.value = time;
+      shader.current.uniforms.uEnergy.value = energy;
     }
   });
 
   return (
-    <group>
-      {/* White hot nucleus */}
-      <mesh>
-        <sphereGeometry args={[0.09, 20, 20]} />
-        <meshBasicMaterial color="#fff8e0" toneMapped={false} />
-      </mesh>
-
-      {/* Aether blob with distortion shader */}
-      <mesh ref={coreRef}>
-        <icosahedronGeometry args={[0.42, 4]} />
+    <group ref={root} rotation={[0.08, 0.18, -0.05]}>
+      <mesh ref={core}>
+        <icosahedronGeometry args={[0.72, 5]} />
         <shaderMaterial
-          args={[coreShader]}
+          ref={shader}
+          vertexShader={aetherVertexShader}
+          fragmentShader={aetherFragmentShader}
+          uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 } }}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
-          toneMapped={false}
           transparent
         />
       </mesh>
-
-      {/* Outer halo glow */}
-      <mesh ref={haloRef}>
-        <sphereGeometry args={[0.58, 24, 24]} />
-        <meshBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color="#ef2b2d"
-          depthWrite={false}
-          opacity={0.1}
-          toneMapped={false}
-          transparent
-        />
-      </mesh>
-
-      {/* Inner rotating tetrahedron */}
-      <mesh ref={innerRef}>
-        <tetrahedronGeometry args={[0.22, 0]} />
-        <meshBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color="#fbbf24"
-          depthWrite={false}
-          opacity={0.5}
-          toneMapped={false}
-          transparent
-          wireframe
-        />
-      </mesh>
+      {lobes.map((lobe, index) => (
+        <mesh key={index} position={lobe.base} scale={lobe.scale}>
+          <icosahedronGeometry args={[1, 3]} />
+          <meshStandardMaterial color="#370008" emissive={index % 2 ? CRIMSON : AETHER} emissiveIntensity={1.35} metalness={0.06} roughness={0.35} transparent opacity={0.76} />
+        </mesh>
+      ))}
+      <pointLight color={CRIMSON} intensity={1.25} distance={4.4} decay={2} />
     </group>
   );
 }
 
-/* ── 2. Norse/Greek Runic Circles ──────────────────────── */
-function RunicCircles({ activity }: { activity: AiActivity }) {
-  const innerRing = useRef<THREE.Group>(null);
-  const middleRing = useRef<THREE.Group>(null);
-  const outerRing = useRef<THREE.Group>(null);
-
-  // Inner runic circle with rune marks
-  const innerGeo = useMemo(() => {
-    const pts: number[] = [];
-    // Circle
-    for (let i = 0; i < 128; i++) {
-      const a1 = (i / 128) * TAU;
-      const a2 = ((i + 1) / 128) * TAU;
-      pts.push(Math.cos(a1) * 1.2, Math.sin(a1) * 1.2, 0);
-      pts.push(Math.cos(a2) * 1.2, Math.sin(a2) * 1.2, 0);
-    }
-    // Outer boundary
-    for (let i = 0; i < 128; i++) {
-      const a1 = (i / 128) * TAU;
-      const a2 = ((i + 1) / 128) * TAU;
-      pts.push(Math.cos(a1) * 1.42, Math.sin(a1) * 1.42, 0);
-      pts.push(Math.cos(a2) * 1.42, Math.sin(a2) * 1.42, 0);
-    }
-    // Rune tick marks (24 divisions = Elder Futhark count)
-    for (let i = 0; i < 24; i++) {
-      const angle = (i / 24) * TAU;
-      const inner = i % 3 === 0 ? 1.12 : 1.18;
-      pts.push(Math.cos(angle) * inner, Math.sin(angle) * inner, 0);
-      pts.push(Math.cos(angle) * 1.44, Math.sin(angle) * 1.44, 0);
-      // Mini rune strokes
-      const c = polar(1.31, angle);
-      const t = new THREE.Vector3(-Math.sin(angle), Math.cos(angle), 0).multiplyScalar(0.04);
-      const r = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0).multiplyScalar(i % 2 ? 0.035 : -0.035);
-      pts.push(c.x - t.x + r.x, c.y - t.y + r.y, 0);
-      pts.push(c.x + t.x - r.x, c.y + t.y - r.y, 0);
-      if (i % 4 === 0) {
-        pts.push(c.x - t.x, c.y - t.y, 0);
-        pts.push(c.x + t.x * 0.5 + r.x, c.y + t.y * 0.5 + r.y, 0);
+function AetherVeins({ activity }: { activity: AiActivity }) {
+  const root = useRef<THREE.Group>(null);
+  const geometry = useMemo(() => {
+    const random = seededRandom(616);
+    const paths: THREE.Vector3[][] = [];
+    for (let strand = 0; strand < 18; strand += 1) {
+      const angle = strand * Math.PI * 2 / 18 + random() * 0.3;
+      const length = 1.3 + random() * 1.65;
+      const points: THREE.Vector3[] = [];
+      for (let index = 0; index <= 34; index += 1) {
+        const t = index / 34;
+        points.push(new THREE.Vector3(
+          Math.cos(angle + Math.sin(t * Math.PI * 2) * 0.22) * length * t,
+          Math.sin(angle) * length * t * 0.72 + Math.sin(t * Math.PI * 3 + strand) * 0.14,
+          -0.15 - t * 0.72 + Math.sin(t * Math.PI * 2 + strand) * 0.18,
+        ));
       }
+      paths.push(points);
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
-    return geo;
-  }, []);
-
-  // Middle sacred geometry (Star of David + polygon)
-  const middleGeo = useMemo(() => {
-    const pts: number[] = [];
-    // Triangle up
-    for (let i = 0; i < 3; i++) {
-      const a1 = (i / 3) * TAU + Math.PI / 2;
-      const a2 = ((i + 1) / 3) * TAU + Math.PI / 2;
-      pts.push(Math.cos(a1) * 1.85, Math.sin(a1) * 1.85, 0);
-      pts.push(Math.cos(a2) * 1.85, Math.sin(a2) * 1.85, 0);
-    }
-    // Triangle down
-    for (let i = 0; i < 3; i++) {
-      const a1 = (i / 3) * TAU - Math.PI / 2;
-      const a2 = ((i + 1) / 3) * TAU - Math.PI / 2;
-      pts.push(Math.cos(a1) * 1.85, Math.sin(a1) * 1.85, 0);
-      pts.push(Math.cos(a2) * 1.85, Math.sin(a2) * 1.85, 0);
-    }
-    // Hexagon
-    for (let i = 0; i < 6; i++) {
-      const a1 = (i / 6) * TAU;
-      const a2 = ((i + 1) / 6) * TAU;
-      pts.push(Math.cos(a1) * 2.05, Math.sin(a1) * 2.05, 0);
-      pts.push(Math.cos(a2) * 2.05, Math.sin(a2) * 2.05, 0);
-    }
-    // Square
-    for (let i = 0; i < 4; i++) {
-      const a1 = (i / 4) * TAU + Math.PI / 4;
-      const a2 = ((i + 1) / 4) * TAU + Math.PI / 4;
-      pts.push(Math.cos(a1) * 1.92, Math.sin(a1) * 1.92, 0);
-      pts.push(Math.cos(a2) * 1.92, Math.sin(a2) * 1.92, 0);
-    }
-    // Circle
-    for (let i = 0; i < 96; i++) {
-      const a1 = (i / 96) * TAU;
-      const a2 = ((i + 1) / 96) * TAU;
-      pts.push(Math.cos(a1) * 2.12, Math.sin(a1) * 2.12, 0);
-      pts.push(Math.cos(a2) * 2.12, Math.sin(a2) * 2.12, 0);
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
-    return geo;
-  }, []);
-
-  // Outer Norse rune band with Elder Futhark glyphs
-  const outerGeo = useMemo(() => {
-    const pts: number[] = [];
-    // Double circle boundary
-    for (let i = 0; i < 128; i++) {
-      const a1 = (i / 128) * TAU;
-      const a2 = ((i + 1) / 128) * TAU;
-      pts.push(Math.cos(a1) * 2.52, Math.sin(a1) * 2.52, 0);
-      pts.push(Math.cos(a2) * 2.52, Math.sin(a2) * 2.52, 0);
-      pts.push(Math.cos(a1) * 2.78, Math.sin(a1) * 2.78, 0);
-      pts.push(Math.cos(a2) * 2.78, Math.sin(a2) * 2.78, 0);
-    }
-    // Norse rune strokes in the band
-    for (let i = 0; i < 24; i++) {
-      const angle = (i / 24) * TAU;
-      const center = polar(2.65, angle);
-      const tangent = new THREE.Vector3(-Math.sin(angle), Math.cos(angle), 0);
-      const radial = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
-      const w = 0.032 + (i % 4) * 0.008;
-      const h = 0.045 + (i % 3) * 0.015;
-      // Vertical stroke
-      pts.push(center.x - radial.x * h, center.y - radial.y * h, 0);
-      pts.push(center.x + radial.x * h, center.y + radial.y * h, 0);
-      // Cross stroke
-      if (i % 3 !== 1) {
-        pts.push(center.x - tangent.x * w - radial.x * h * 0.4, center.y - tangent.y * w - radial.y * h * 0.4, 0);
-        pts.push(center.x + tangent.x * w + radial.x * h * 0.4, center.y + tangent.y * w + radial.y * h * 0.4, 0);
-      }
-      // Branch stroke for some runes
-      if (i % 4 === 0) {
-        pts.push(center.x, center.y, 0);
-        pts.push(center.x + tangent.x * w * 1.5 + radial.x * h * 0.6, center.y + tangent.y * w * 1.5 + radial.y * h * 0.6, 0);
-      }
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
-    return geo;
+    return pathGeometry(paths);
   }, []);
 
   useFrame(({ clock }, delta) => {
-    const speed = activitySpeed(activity);
-    if (innerRing.current) innerRing.current.rotation.z += delta * 0.045 * speed;
-    if (middleRing.current) middleRing.current.rotation.z -= delta * 0.028 * speed;
-    if (outerRing.current) outerRing.current.rotation.z += delta * 0.018 * speed;
+    if (!root.current) return;
+    root.current.rotation.z -= delta * 0.026 * activitySpeed(activity);
+    root.current.scale.setScalar(0.96 + activityEnergy(activity) * 0.06 + Math.sin(clock.elapsedTime * 0.8) * 0.02);
   });
 
   return (
-    <group>
-      <group ref={innerRing}>
-        <lineSegments geometry={innerGeo}>
-          <lineBasicMaterial blending={THREE.AdditiveBlending} color="#fbbf24" depthWrite={false} opacity={0.72} toneMapped={false} transparent />
-        </lineSegments>
-      </group>
-      <group ref={middleRing}>
-        <lineSegments geometry={middleGeo}>
-          <lineBasicMaterial blending={THREE.AdditiveBlending} color="#ef2b2d" depthWrite={false} opacity={0.48} toneMapped={false} transparent />
-        </lineSegments>
-      </group>
-      <group ref={outerRing}>
-        <lineSegments geometry={outerGeo}>
-          <lineBasicMaterial blending={THREE.AdditiveBlending} color="#fbbf24" depthWrite={false} opacity={0.52} toneMapped={false} transparent />
-        </lineSegments>
-      </group>
+    <group ref={root}>
+      <lineSegments geometry={geometry}>
+        <lineBasicMaterial color={AETHER} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.54} toneMapped={false} transparent />
+      </lineSegments>
     </group>
   );
 }
 
-/* ── 3. Yggdrasil World Tree Constellation ─────────────── */
-function YggdrasilConstellation() {
-  const geoRef = useRef<THREE.LineSegments>(null);
-  const geometry = useMemo(() => {
-    const branches = [
-      [[0, -2.5, -3.4], [0, 3.8, -3.4]],       // Main trunk
-      [[0, 2.2, -3.4], [-2.5, 4.5, -3.7]],     // Upper left branch
-      [[0, 2.2, -3.4], [2.5, 4.5, -3.7]],      // Upper right branch
-      [[0, 1.2, -3.4], [-3.4, 2.7, -4]],        // Mid left
-      [[0, 1.2, -3.4], [3.4, 2.7, -4]],         // Mid right
-      [[0, -2.2, -3.4], [-2.6, -4.1, -3.8]],   // Root left
-      [[0, -2.2, -3.4], [2.6, -4.1, -3.8]],    // Root right
-      [[0, -1.5, -3.4], [-1.8, -3.2, -3.6]],   // Sub root
-      [[0, -1.5, -3.4], [1.8, -3.2, -3.6]],    // Sub root
-      [[0, 3.0, -3.4], [-1.2, 5.2, -3.8]],     // Crown branches
-      [[0, 3.0, -3.4], [1.2, 5.2, -3.8]],
-    ];
-    const points = branches.flatMap(b => b.map(([x, y, z]) => new THREE.Vector3(x, y, z)));
-    return new THREE.BufferGeometry().setFromPoints(points);
-  }, []);
-
-  return (
-    <lineSegments ref={geoRef} geometry={geometry}>
-      <lineBasicMaterial color="#ff6a1a" transparent opacity={0.14} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
-    </lineSegments>
-  );
-}
-
-/* ── 4. Cosmic Embers ──────────────────────────────────── */
-function CosmicEmbers({ activity }: { activity: AiActivity }) {
-  const pointsRef = useRef<THREE.Points>(null);
-  const positions = useMemo(() => {
-    const count = 420;
-    const data = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const radius = 3.5 + seeded(i, 1) * 8;
-      const theta = seeded(i, 2) * TAU;
-      const y = (seeded(i, 3) - 0.5) * 10;
-      data[i * 3] = Math.cos(theta) * radius;
-      data[i * 3 + 1] = y;
-      data[i * 3 + 2] = Math.sin(theta) * radius - 2;
-    }
-    return data;
+function RunicMonoliths({ activity }: { activity: AiActivity }) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const glyphRef = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const stones = useMemo(() => {
+    const random = seededRandom(2024);
+    return Array.from({ length: 22 }, (_, index) => {
+      const angle = index / 22 * Math.PI * 2;
+      const gap = index === 3 || index === 4 || index === 13;
+      return {
+        angle,
+        radius: 2.0 + (random() - 0.5) * 0.42,
+        yScale: gap ? 0.08 : 0.34 + random() * 0.5,
+        z: -0.7 + (random() - 0.5) * 0.8,
+        tilt: (random() - 0.5) * 0.42,
+        phase: random() * Math.PI * 2,
+      };
+    });
   }, []);
 
   useFrame(({ clock }) => {
-    if (!pointsRef.current) return;
-    const speed = activitySpeed(activity);
-    pointsRef.current.rotation.y = clock.elapsedTime * 0.018 * speed;
-    pointsRef.current.rotation.z = Math.sin(clock.elapsedTime * 0.08) * 0.025;
+    if (!meshRef.current || !glyphRef.current) return;
+    const time = clock.elapsedTime;
+    stones.forEach((stone, index) => {
+      const radius = stone.radius + (activity === "thinking" ? Math.sin(time * 1.4 + stone.phase) * 0.1 : 0);
+      const x = Math.cos(stone.angle) * radius;
+      const y = Math.sin(stone.angle) * radius * 0.7;
+      dummy.position.set(x, y, stone.z);
+      dummy.rotation.set(stone.tilt, -0.2, stone.angle + Math.PI / 2 + stone.tilt);
+      dummy.scale.set(0.18, stone.yScale, 0.11);
+      dummy.updateMatrix();
+      meshRef.current?.setMatrixAt(index, dummy.matrix);
+
+      dummy.position.set(x * 1.003, y * 1.003, stone.z + 0.13);
+      dummy.rotation.set(0, 0, stone.angle + Math.PI / 2 + stone.tilt);
+      dummy.scale.set(0.1, 0.025, 0.014);
+      dummy.updateMatrix();
+      glyphRef.current?.setMatrixAt(index, dummy.matrix);
+    });
+    meshRef.current.instanceMatrix.needsUpdate = true;
+    glyphRef.current.instanceMatrix.needsUpdate = true;
   });
 
   return (
-    <points ref={pointsRef}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <pointsMaterial
-        color="#ff3b18"
-        size={0.04}
-        transparent
-        opacity={0.52}
-        depthWrite={false}
-        blending={THREE.AdditiveBlending}
-        toneMapped={false}
-        sizeAttenuation
-      />
-    </points>
-  );
-}
-
-/* ── 5. Celestial Armillary Rings ──────────────────────── */
-function CelestialArmillary({ activity }: { activity: AiActivity }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const stormRef = useRef<THREE.Group>(null);
-
-  useFrame(({ clock }, delta) => {
-    const speed = activitySpeed(activity);
-    if (groupRef.current) {
-      groupRef.current.rotation.z += delta * 0.018 * speed;
-      groupRef.current.rotation.y = Math.sin(clock.elapsedTime * 0.12) * 0.08;
-    }
-    if (stormRef.current) {
-      const pulse = activity === "speaking" ? 1.18 + Math.sin(clock.elapsedTime * 6) * 0.12 : 1;
-      stormRef.current.scale.setScalar(pulse);
-      stormRef.current.rotation.y -= delta * 0.08 * speed;
-    }
-  });
-
-  return (
-    <group>
-      <group ref={groupRef} position={[0, 0.35, -1.1]}>
-        {[3.2, 3.75, 4.35].map((radius, i) => (
-          <mesh key={radius} rotation={[i * 0.72, i * 0.48, i * 0.31]}>
-            <torusGeometry args={[radius, i === 0 ? 0.028 : 0.014, 6, 96]} />
-            <meshBasicMaterial
-              color={i === 1 ? "#fbbf24" : "#ef2b2d"}
-              transparent
-              opacity={0.28 - i * 0.05}
-              depthWrite={false}
-              blending={THREE.AdditiveBlending}
-              toneMapped={false}
-            />
-          </mesh>
-        ))}
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[4.65, 4.72, 48]} />
-          <meshBasicMaterial color="#ff421d" transparent opacity={0.14} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
-        </mesh>
-      </group>
-
-      {/* Storm seal glyph */}
-      <group ref={stormRef} position={[0, -2.35, 0.35]} rotation={[-Math.PI / 2, 0, 0]}>
-        <mesh>
-          <ringGeometry args={[2.05, 2.12, 12]} />
-          <meshBasicMaterial color="#ff351e" transparent opacity={0.38} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
-        </mesh>
-        <mesh rotation={[0, 0, Math.PI / 12]}>
-          <ringGeometry args={[2.48, 2.54, 6]} />
-          <meshBasicMaterial color="#f59e0b" transparent opacity={0.18} side={THREE.DoubleSide} depthWrite={false} toneMapped={false} />
-        </mesh>
-      </group>
+    <group rotation={[0.18, -0.08, 0.12]}>
+      <instancedMesh ref={meshRef} args={[undefined, undefined, stones.length]}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#24090a" emissive="#5a080e" emissiveIntensity={0.5} metalness={0.2} roughness={0.82} />
+      </instancedMesh>
+      <instancedMesh ref={glyphRef} args={[undefined, undefined, stones.length]}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial color={GOLD} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+      </instancedMesh>
     </group>
   );
 }
 
-/* ── 6. Fire Rune Particles ────────────────────────────── */
-function FireRuneParticles({ activity }: { activity: AiActivity }) {
-  const pointsRef = useRef<THREE.Points>(null);
-  const matRef = useRef<THREE.ShaderMaterial>(null);
-
-  const geo = useMemo(() => {
-    const count = 320;
-    const positions = new Float32Array(count * 3);
-    const phases = new Float32Array(count);
-    const sizes = new Float32Array(count);
-    for (let i = 0; i < count; i++) {
-      const angle = seeded(i, 1) * TAU;
-      const radius = 0.6 + Math.pow(seeded(i, 2), 1.5) * 1.8;
-      positions[i * 3] = Math.cos(angle) * radius;
-      positions[i * 3 + 1] = (seeded(i, 3) - 0.5) * 0.08;
-      positions[i * 3 + 2] = Math.sin(angle) * radius * (0.8 + seeded(i, 4) * 0.2);
-      phases[i] = angle + seeded(i, 5) * 4;
-      sizes[i] = 1.5 + seeded(i, 6) * 3.5;
+function AncientRuneScript({ activity }: { activity: AiActivity }) {
+  const group = useRef<THREE.Group>(null);
+  const geometry = useMemo(() => {
+    const segments: Array<[THREE.Vector3, THREE.Vector3]> = [];
+    const random = seededRandom(991);
+    for (let index = 0; index < 48; index += 1) {
+      const x = (random() - 0.5) * 4.8;
+      const y = (random() - 0.5) * 3.7;
+      const z = -0.82 - random() * 0.8;
+      const height = 0.1 + random() * 0.18;
+      const lean = (random() - 0.5) * 0.14;
+      segments.push([new THREE.Vector3(x - lean, y - height, z), new THREE.Vector3(x + lean, y + height, z)]);
+      if (index % 2 === 0) segments.push([new THREE.Vector3(x - 0.1, y, z), new THREE.Vector3(x + 0.1, y + (index % 4 ? 0.08 : -0.08), z)]);
     }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    g.setAttribute("aPhase", new THREE.BufferAttribute(phases, 1));
-    g.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
-    return g;
+    return segmentGeometry(segments);
   }, []);
-
-  const shader = useMemo(() => ({
-    uniforms: {
-      uTime: { value: 0 },
-      uEnergy: { value: 1 },
-    },
-    vertexShader: `
-      attribute float aPhase;
-      attribute float aSize;
-      uniform float uTime;
-      uniform float uEnergy;
-      varying float vAlpha;
-      void main() {
-        vec3 p = position;
-        float spin = uTime * (0.2 + fract(aPhase) * 0.1) * uEnergy;
-        float c = cos(spin); float s = sin(spin);
-        p.xz = mat2(c, -s, s, c) * p.xz;
-        p.y += sin(uTime * 2.0 + aPhase * 2.5) * 0.02 * uEnergy;
-        vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        gl_Position = projectionMatrix * mv;
-        gl_PointSize = aSize * (22.0 / max(1.0, -mv.z));
-        vAlpha = (0.35 + 0.65 * pow(0.5 + 0.5 * sin(uTime * 2.5 + aPhase * 8.0), 4.0)) * uEnergy;
-      }
-    `,
-    fragmentShader: `
-      varying float vAlpha;
-      void main() {
-        float mask = smoothstep(0.5, 0.05, length(gl_PointCoord - 0.5));
-        vec3 color = mix(vec3(0.93, 0.17, 0.18), vec3(1.0, 0.82, 0.22), vAlpha * 0.5);
-        gl_FragColor = vec4(color, mask * vAlpha * 0.72);
-      }
-    `,
-  }), []);
-
-  useFrame(({ clock }, delta) => {
-    if (matRef.current) {
-      matRef.current.uniforms.uTime.value = clock.elapsedTime;
-      matRef.current.uniforms.uEnergy.value = activityEnergy(activity);
-    }
-    if (pointsRef.current) {
-      pointsRef.current.rotation.x = 0.55;
-      pointsRef.current.rotation.y += delta * 0.1 * activitySpeed(activity);
-    }
+  useFrame(({ clock }) => {
+    if (!group.current) return;
+    group.current.position.y = Math.sin(clock.elapsedTime * 0.34) * 0.06;
+    group.current.scale.setScalar(0.98 + activityEnergy(activity) * 0.025);
   });
-
   return (
-    <points ref={pointsRef} geometry={geo}>
-      <shaderMaterial
-        ref={matRef}
-        args={[shader]}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-        toneMapped={false}
-        transparent
-      />
-    </points>
+    <group ref={group}>
+      <lineSegments geometry={geometry}>
+        <lineBasicMaterial color={GOLD} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.36} toneMapped={false} transparent />
+      </lineSegments>
+    </group>
   );
 }
 
-/* ── 7. Fresnel Fire Shell ─────────────────────────────── */
-function FresnelFireShell({ activity }: { activity: AiActivity }) {
-  const matRef = useRef<THREE.ShaderMaterial>(null);
-  const shader = useMemo(() => ({
-    uniforms: {
-      uEnergy: { value: 1 },
-    },
-    vertexShader: `
-      varying vec3 vNormal;
-      varying vec3 vView;
-      void main() {
-        vec4 world = modelMatrix * vec4(position, 1.0);
-        vNormal = normalize(normalMatrix * normal);
-        vView = normalize(cameraPosition - world.xyz);
-        gl_Position = projectionMatrix * viewMatrix * world;
-      }
-    `,
-    fragmentShader: `
-      uniform float uEnergy;
-      varying vec3 vNormal;
-      varying vec3 vView;
-      void main() {
-        float fresnel = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), 4.2);
-        vec3 color = vec3(0.6, 0.1, 0.04);
-        gl_FragColor = vec4(color, fresnel * 0.003 * uEnergy);
-      }
-    `,
-  }), []);
-
-  useFrame(() => {
-    if (matRef.current) matRef.current.uniforms.uEnergy.value = activityEnergy(activity);
+function RealityFracture({ activity }: { activity: AiActivity }) {
+  const material = useRef<THREE.ShaderMaterial>(null);
+  useFrame(({ clock }) => {
+    if (!material.current) return;
+    material.current.uniforms.uTime.value = clock.elapsedTime;
+    material.current.uniforms.uEnergy.value = activityEnergy(activity);
   });
-
   return (
-    <mesh>
-      <sphereGeometry args={[2.6, 48, 48]} />
+    <mesh position={[0, 0, -1.6]} scale={[5.3, 4.1, 1]}>
+      <planeGeometry args={[1, 1]} />
       <shaderMaterial
-        ref={matRef}
-        args={[shader]}
+        ref={material}
+        vertexShader={`varying vec2 vUv; void main(){vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`}
+        fragmentShader={`
+          uniform float uTime; uniform float uEnergy; varying vec2 vUv;
+          float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+          void main(){
+            vec2 p=(vUv-.5)*8.0; vec2 id=floor(p); vec2 f=fract(p)-.5;
+            float n=hash(id); float crack=smoothstep(.055,.0,abs(f.x+f.y*(n-.5)*1.8));
+            float pulse=.35+.65*pow(abs(sin(uTime*.7+n*6.28)),8.0);
+            float alpha=crack*pulse*.16*uEnergy;
+            gl_FragColor=vec4(vec3(1.0,.035,.02)+vec3(.6,.28,.08)*pulse,alpha);
+          }
+        `}
+        uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 } }}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
-        side={THREE.BackSide}
-        toneMapped={false}
         transparent
       />
     </mesh>
   );
 }
 
-/* ── Main RealityScene Export ──────────────────────────── */
-export const RealityScene: React.FC<{ activity?: AiActivity }> = ({ activity = "idle" }) => {
+function RealityEmbers({ activity }: { activity: AiActivity }) {
+  const points = useRef<THREE.Points>(null);
+  const positions = useMemo(() => {
+    const random = seededRandom(4040);
+    const values = new Float32Array(380 * 3);
+    for (let index = 0; index < 380; index += 1) {
+      values[index * 3] = (random() - 0.5) * 5.2;
+      values[index * 3 + 1] = (random() - 0.5) * 4.2;
+      values[index * 3 + 2] = (random() - 0.5) * 3.4 - 0.4;
+    }
+    return values;
+  }, []);
+  useFrame((_, delta) => {
+    if (points.current) points.current.rotation.y += delta * 0.026 * activitySpeed(activity);
+  });
   return (
-    <group name="reality-runic-forge">
-      <ambientLight intensity={0.13} color="#9f1239" />
-      <directionalLight position={[4, 8, 5]} intensity={0.72} color="#ffd4a3" />
-      <pointLight position={[0, 2.2, 1.8]} intensity={2.8} color="#ff2400" distance={13} decay={2} />
-
-      <CosmicEmbers activity={activity} />
-      <YggdrasilConstellation />
-      <CelestialArmillary activity={activity} />
-      <RunicCircles activity={activity} />
-      <AetherCore activity={activity} />
-      <FireRuneParticles activity={activity} />
-      <FresnelFireShell activity={activity} />
-
-      <fog attach="fog" args={["#090001", 7.5, 22]} />
-    </group>
+    <points ref={points}>
+      <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /></bufferGeometry>
+      <pointsMaterial color={ASH} blending={THREE.AdditiveBlending} depthWrite={false} opacity={0.38} size={0.027} sizeAttenuation toneMapped={false} transparent />
+    </points>
   );
-};
+}
+
+export const RealityScene = ({ activity = "idle" }: { activity?: AiActivity }) => (
+  <group name="reality-aether-forge" scale={0.92}>
+    <RealityFracture activity={activity} />
+    <AncientRuneScript activity={activity} />
+    <RunicMonoliths activity={activity} />
+    <RealityEmbers activity={activity} />
+    <AetherVeins activity={activity} />
+    <AetherOrganism activity={activity} />
+  </group>
+);
