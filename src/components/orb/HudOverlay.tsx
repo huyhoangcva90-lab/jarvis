@@ -12,7 +12,7 @@ import {
 import DynamicHub from "./DynamicHub";
 import ServiceDashboard from "./ServiceDashboard";
 import ObsidianMindmap from "./ObsidianMindmap";
-import { HERMES_PROFILES, HermesProfileId, loadStoredHermesProfileId, saveStoredHermesProfileId } from "../../utils/hermesProfiles";
+import { HermesProfileId, loadStoredHermesProfileId, saveStoredHermesProfileId } from "../../utils/hermesProfiles";
 import {
   HUB_TEMPLATES,
   createHubArtifact,
@@ -603,13 +603,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     requestControllerRef.current = controller;
 
     try {
-      const targetUrl = connections.hermes
-        ? "/api/hermes/chat"
-        : connections.nineRouter
-        ? "/api/9router/chat"
-        : "/api/ai/chat";
-
-      const activeProfile = HERMES_PROFILES.find((p) => p.id === hermesProfileId) || HERMES_PROFILES[0];
+      const targetUrl = "/api/hermes/chat";
 
       const response: any = await gatewayFetch(
         data,
@@ -619,10 +613,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           timeoutMs: 60000,
           signal: controller.signal,
           body: JSON.stringify({
-            profile: hermesProfileId,
-            sessionId: "jarvis-default-session",
-            systemPrompt: activeProfile.systemPrompt,
-            model: nineRouterModel,
+            profile: "jarvis",
             message: messageText,
             messages: requestMessages.map((message) => ({ role: message.role, content: message.text })),
             operator: data?.username || "Operator",
@@ -930,6 +921,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           message: prompt,
           messages: [{ role: "user", content: prompt }],
           operator: data?.username || "Operator",
+          ...(service === "hermes" ? { profile: hermesProfileId } : {}),
         }),
       });
       updateServicePanel(service, {

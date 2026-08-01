@@ -73,9 +73,10 @@ export default function HermesChat({ data, addLog, onClose }) {
     if (addLog) addLog(`AI chat: "${text.substring(0, 30)}..."`);
 
     try {
-      const result = await gatewayFetch(data, "/api/ai/chat", {
+      const result = await gatewayFetch(data, "/api/hermes/chat", {
         method: "POST",
         body: JSON.stringify({
+          profile: "jarvis",
           message: text,
           messages: [...messages, { role: "user", content: text }],
           operator: data?.username || "Operator",

@@ -116,14 +116,17 @@ Mỗi response có header `x-request-id`; khi chat qua router thành công có t
 
 ## 8. Bật phản hồi AI thật
 
-J-Core gửi hội thoại tới `/api/ai/chat`. Gateway thử lần lượt:
+Cửa sổ chat chính gửi thẳng tới `/api/hermes/chat` và mặc định dùng Hermes
+profile `jarvis`. Endpoint tương thích cũ `/api/ai/chat` cũng thử Hermes trước,
+sau đó mới fallback theo thứ tự 9Router, OpenClaw và Claude bridge. Vì vậy một
+lỗi Hermes không bị che giấu trong cửa sổ chat chính, còn client cũ vẫn có đường
+phục hồi có kiểm soát.
 
-1. 9Router (`NINEROUTER_CHAT_URL`)
-2. Hermes (`HERMES_CHAT_URL`)
-3. OpenClaw (`OPENCLAW_CHAT_URL`)
-4. Claude bridge (`CLAUDE_CHAT_URL`)
+Để Hermes giữ phiên giống Telegram, `HERMES_API_KEY` phải khớp
+`API_SERVER_KEY` của Hermes. Chi tiết hai chế độ phiên web/Telegram và checklist
+profile `jarvis` nằm trong `docs/HERMES_FIRST_ARCHITECTURE.md`.
 
-Chỉ cần ít nhất một endpoint chat hoạt động là J-Core có thể trả lời. OpenClaw
+OpenClaw
 có endpoint tương thích OpenAI nhưng mặc định bị tắt. Bật bằng:
 
 ```bash

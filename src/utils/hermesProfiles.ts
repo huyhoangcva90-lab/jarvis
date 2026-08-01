@@ -1,4 +1,4 @@
-export type HermesProfileId = "jarvis-core" | "cadence-content" | "code-architect" | "security-auditor";
+export type HermesProfileId = "jarvis" | "cadence-content" | "code-architect" | "security-auditor";
 
 export interface HermesProfile {
   id: HermesProfileId;
@@ -13,10 +13,10 @@ export interface HermesProfile {
 
 export const HERMES_PROFILES: HermesProfile[] = [
   {
-    id: "jarvis-core",
-    name: "Jarvis Core Agent",
-    role: "Trợ lý tổng quan & Cố vấn chỉ huy J-Core",
-    description: "Profile mặc định duy trì phiên chat dài hạn, điều khiển hệ thống và hỗ trợ đa tác vụ.",
+    id: "jarvis",
+    name: "Jarvis Orchestrator",
+    role: "Trợ lý điều phối mặc định của J-Core",
+    description: "Profile Hermes mặc định cho web, có phiên hội thoại bền vững và cùng cơ chế session như Telegram.",
     icon: "terminal",
     tags: ["Default", "Memory", "Command"],
     systemPrompt: "Bạn là Jarvis Core Agent, hệ thống AI chỉ huy cao cấp của J-Core Console. Bạn trả lời ngắn gọn, chuyên nghiệp, chính xác và sử dụng tiếng Việt mượt mà.",
@@ -50,15 +50,16 @@ export const HERMES_PROFILES: HermesProfile[] = [
   },
 ];
 
-export const HERMES_STORAGE_KEY = "jarvis.hermes.profile.v1";
+export const HERMES_STORAGE_KEY = "jarvis.hermes.profile.v2";
 
 export function loadStoredHermesProfileId(): HermesProfileId {
-  if (typeof window === "undefined") return "jarvis-core";
+  if (typeof window === "undefined") return "jarvis";
   try {
     const stored = window.localStorage.getItem(HERMES_STORAGE_KEY);
-    return (stored as HermesProfileId) || "jarvis-core";
+    if (stored === "jarvis-core") return "jarvis";
+    return HERMES_PROFILES.some((profile) => profile.id === stored) ? stored as HermesProfileId : "jarvis";
   } catch {
-    return "jarvis-core";
+    return "jarvis";
   }
 }
 

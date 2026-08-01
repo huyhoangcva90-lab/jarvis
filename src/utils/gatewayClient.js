@@ -3,6 +3,8 @@ export const DEFAULT_GATEWAY_URL = "https://jarvisidhuykl.huykl.id.vn";
 const GATEWAY_ERROR_MESSAGES = {
   unauthorized: "Gateway token không hợp lệ.",
   hermes_not_configured: "Hermes chưa được cấu hình trên gateway.",
+  hermes_profile_not_allowed: "Hermes profile không nằm trong danh sách được phép.",
+  hermes_profile_multiplex_disabled: "Hermes profile phụ cần bật multiplex_profiles trên Ubuntu.",
   openclaw_not_configured: "OpenClaw task endpoint chưa được cấu hình trên gateway.",
   ninerouter_not_configured: "9Router chat endpoint chưa được cấu hình trên gateway.",
   claude_not_configured: "Claude bridge chưa được cấu hình trên gateway.",

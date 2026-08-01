@@ -5,6 +5,7 @@ import { once } from "node:events";
 const gatewayPort = 18787;
 const upstreamPort = 20129;
 const token = "jcore-smoke-token";
+const hermesRequests = [];
 
 const upstream = createServer(async (req, res) => {
   if (req.url === "/v1/models") {
@@ -30,8 +31,20 @@ const upstream = createServer(async (req, res) => {
     res.end(JSON.stringify({ requireLogin: false, nativeAdmin: true }));
     return;
   }
-  if (req.url === "/v1/chat/completions" && req.method === "POST") {
-    res.writeHead(200, { "content-type": "application/json" });
+  if ((req.url === "/v1/chat/completions" || req.url === "/p/cadence-content/v1/chat/completions") && req.method === "POST") {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
+    if (req.headers["x-hermes-session-id"]) {
+      hermesRequests.push({ url: req.url, headers: req.headers, body });
+    }
+    res.writeHead(200, {
+      "content-type": "application/json",
+      ...(req.headers["x-hermes-session-id"] ? {
+        "x-hermes-session-id": req.headers["x-hermes-session-id"],
+        "x-hermes-session-key": req.headers["x-hermes-session-key"],
+      } : {}),
+    });
     res.end(JSON.stringify({ choices: [{ message: { content: "smoke-ok" } }] }));
     return;
   }
@@ -55,6 +68,13 @@ const gateway = spawn(process.execPath, ["server/gateway.mjs"], {
     HERMES_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
     HERMES_HEALTH_URL: `http://127.0.0.1:${upstreamPort}/v1/models`,
     HERMES_CHAT_URL: `http://127.0.0.1:${upstreamPort}/v1/chat/completions`,
+    HERMES_API_KEY: "hermes-smoke-api-key",
+    HERMES_DEFAULT_PROFILE: "jarvis",
+    HERMES_ALLOWED_PROFILES: "jarvis,cadence-content",
+    HERMES_MULTIPLEX_PROFILES: "true",
+    HERMES_SESSION_MODE: "web",
+    HERMES_SESSION_ID: "jarvis-web-primary",
+    HERMES_SESSION_KEY: "agent:jarvis:web:dm:owner",
     OPENCLAW_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
     OPENCLAW_HEALTH_URL: `http://127.0.0.1:${upstreamPort}/v1/models`,
     OPENCLAW_CHAT_URL: `http://127.0.0.1:${upstreamPort}/v1/chat/completions`,
@@ -126,6 +146,48 @@ try {
   if (!hermesChat.ok || !claudeChat.ok) {
     throw new Error(`Service chat failed: Hermes ${hermesChat.status}, Claude ${claudeChat.status}`);
   }
+  const hermesChatBody = await hermesChat.json();
+  if (hermesChatBody.profile !== "jarvis" || !hermesChatBody.session?.continuity) {
+    throw new Error(`Hermes default profile/session failed: ${JSON.stringify(hermesChatBody)}`);
+  }
+  if (JSON.stringify(hermesChatBody).includes("jarvis-web-primary") || JSON.stringify(hermesChatBody).includes("agent:jarvis:web:dm:owner")) {
+    throw new Error("Hermes session identifiers leaked to the browser response");
+  }
+
+  const routedChat = await fetch(`${base}/api/ai/chat`, {
+    method: "POST",
+    headers: { ...authHeaders, "content-type": "application/json" },
+    body: JSON.stringify({ message: "router ping", messages: [{ role: "user", content: "router ping" }] }),
+  });
+  const routedChatBody = await routedChat.json();
+  if (!routedChat.ok || routedChatBody.source !== "hermes" || routedChatBody.profile !== "jarvis") {
+    throw new Error(`Hermes-first routing failed: ${JSON.stringify(routedChatBody)}`);
+  }
+
+  const cadenceChat = await fetch(`${base}/api/hermes/chat`, {
+    method: "POST",
+    headers: { ...authHeaders, "content-type": "application/json" },
+    body: JSON.stringify({ profile: "cadence-content", message: "cadence ping" }),
+  });
+  if (!cadenceChat.ok) throw new Error(`Hermes multiplex profile failed: ${await cadenceChat.text()}`);
+  const invalidProfile = await fetch(`${base}/api/hermes/chat`, {
+    method: "POST",
+    headers: { ...authHeaders, "content-type": "application/json" },
+    body: JSON.stringify({ profile: "../../outside", message: "reject me" }),
+  });
+  if (invalidProfile.status !== 400) {
+    throw new Error(`Hermes profile allowlist failed: ${invalidProfile.status} ${await invalidProfile.text()}`);
+  }
+  if (
+    hermesRequests.length !== 3 ||
+    hermesRequests[0].url !== "/v1/chat/completions" ||
+    hermesRequests[2].url !== "/p/cadence-content/v1/chat/completions" ||
+    hermesRequests.some((request) => request.headers["x-hermes-session-id"] !== "jarvis-web-primary") ||
+    hermesRequests.some((request) => request.headers["x-hermes-session-key"] !== "agent:jarvis:web:dm:owner") ||
+    hermesRequests.some((request) => "profile" in request.body || "session_id" in request.body)
+  ) {
+    throw new Error(`Hermes upstream contract failed: ${JSON.stringify(hermesRequests)}`);
+  }
 
   const session = await fetch(`${base}/api/session/9router`, {
     method: "POST",
@@ -158,7 +220,7 @@ try {
     throw new Error(`Native management API proxy failed: ${JSON.stringify(nativeSettingsBody)}`);
   }
 
-  console.log("Gateway smoke test passed: auth, health, service capabilities, credentialed session, dashboard and native management API.");
+  console.log("Gateway smoke test passed: auth, Hermes-first profile/session routing, capabilities, credentialed dashboard session and native management API.");
 } finally {
   gateway.kill();
   upstream.close();

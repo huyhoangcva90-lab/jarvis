@@ -5831,6 +5831,7 @@ body.hud-dragging {
 .profile-chip {
   display: grid;
   gap: 3px;
+  min-height: 48px;
   padding: 8px 10px;
   border: 1px solid rgba(var(--accent-rgb), 0.2);
   border-radius: 4px;
@@ -5840,7 +5841,7 @@ body.hud-dragging {
   transition: all 180ms ease;
 }
 
-.profile-chip:hover,
+.profile-chip:not(:disabled):hover,
 .profile-chip.active {
   border-color: var(--accent);
   background: rgba(var(--accent-rgb), 0.18);
@@ -6067,4 +6068,9 @@ body.hud-dragging {
   border: 1px solid var(--accent);
   cursor: pointer;
   font-weight: 700;
+}
+
+.profile-chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
 }

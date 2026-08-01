@@ -28,6 +28,19 @@ const STARTED_AT = Date.now();
 const CIRCUIT_FAILURE_THRESHOLD = Number(process.env.JCORE_CIRCUIT_FAILURE_THRESHOLD || 3);
 const CIRCUIT_OPEN_MS = Number(process.env.JCORE_CIRCUIT_OPEN_MS || 30000);
 const DASHBOARD_SESSION_TTL_MS = Number(process.env.JCORE_DASHBOARD_SESSION_TTL_MS || 30 * 60 * 1000);
+const HERMES_BASE_URL = process.env.HERMES_BASE_URL || "http://127.0.0.1:8642";
+const HERMES_DEFAULT_PROFILE = process.env.HERMES_DEFAULT_PROFILE || "jarvis";
+const HERMES_MULTIPLEX_PROFILES = /^(1|true|yes|on)$/i.test(process.env.HERMES_MULTIPLEX_PROFILES || "false");
+const HERMES_ALLOWED_PROFILES = new Set(
+  (process.env.HERMES_ALLOWED_PROFILES || "jarvis,cadence-content,code-architect,security-auditor")
+    .split(",")
+    .map((profile) => profile.trim())
+    .filter(Boolean),
+);
+HERMES_ALLOWED_PROFILES.add(HERMES_DEFAULT_PROFILE);
+const HERMES_SESSION_MODE = process.env.HERMES_SESSION_MODE === "telegram" ? "telegram" : "web";
+const HERMES_SESSION_ID = process.env.HERMES_SESSION_ID || "jarvis-web-primary";
+const HERMES_SESSION_KEY = process.env.HERMES_SESSION_KEY || "agent:jarvis:web:dm:owner";
 
 const gatewayStats = {
   requests: 0,
@@ -45,9 +58,9 @@ if (!TOKEN && !IS_LOOPBACK) {
 
 const services = {
   hermes: {
-    base: process.env.HERMES_BASE_URL || "http://127.0.0.1:8642",
-    health: process.env.HERMES_HEALTH_URL || "http://127.0.0.1:8642/v1/models",
-    chat: process.env.HERMES_CHAT_URL || "",
+    base: HERMES_BASE_URL,
+    health: process.env.HERMES_HEALTH_URL || `${HERMES_BASE_URL.replace(/\/+$/, "")}/v1/models`,
+    chat: process.env.HERMES_CHAT_URL || `${HERMES_BASE_URL.replace(/\/+$/, "")}/v1/chat/completions`,
     apiKey: process.env.HERMES_API_KEY || "",
     model: process.env.HERMES_MODEL || "hermes-agent",
   },
@@ -314,9 +327,9 @@ function normalizeReply(data) {
   );
 }
 
-async function proxyJson(url, payload, apiKey = "") {
+async function proxyJson(url, payload, apiKey = "", extraHeaders = {}) {
   const started = Date.now();
-  const headers = { "content-type": "application/json" };
+  const headers = { "content-type": "application/json", ...extraHeaders };
   if (apiKey) headers.authorization = `Bearer ${apiKey}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60000);
@@ -340,6 +353,12 @@ async function proxyJson(url, payload, apiKey = "") {
       data,
       latencyMs: Date.now() - started,
       error: response.ok ? null : normalizeReply(data) || data?.error || `upstream_${response.status}`,
+      upstreamHeaders: {
+        sessionId: response.headers.get("x-hermes-session-id") || "",
+        sessionKey: response.headers.get("x-hermes-session-key") || "",
+        completed: response.headers.get("x-hermes-completed") || "",
+        partial: response.headers.get("x-hermes-partial") || "",
+      },
     };
   } catch (error) {
     return {
@@ -352,6 +371,51 @@ async function proxyJson(url, payload, apiKey = "") {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function safeHermesIdentifier(value) {
+  const normalized = String(value || "").trim();
+  return /^[a-zA-Z0-9._:@-]{1,256}$/.test(normalized) ? normalized : "";
+}
+
+function normalizeHermesProfile(value) {
+  const profile = String(value || HERMES_DEFAULT_PROFILE).trim();
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(profile)) return "";
+  return HERMES_ALLOWED_PROFILES.has(profile) ? profile : "";
+}
+
+function hermesChatUrl(profile) {
+  if (profile === HERMES_DEFAULT_PROFILE) return services.hermes.chat;
+  if (!HERMES_MULTIPLEX_PROFILES) return "";
+  const target = new URL(services.hermes.chat);
+  const endpointPath = target.pathname.startsWith("/") ? target.pathname : `/${target.pathname}`;
+  target.pathname = `/p/${encodeURIComponent(profile)}${endpointPath}`;
+  return target.toString();
+}
+
+function hermesSessionHeaders() {
+  if (!services.hermes.apiKey) return {};
+  const sessionId = safeHermesIdentifier(HERMES_SESSION_ID);
+  const sessionKey = safeHermesIdentifier(HERMES_SESSION_KEY);
+  return {
+    ...(sessionId ? { "x-hermes-session-id": sessionId } : {}),
+    ...(sessionKey ? { "x-hermes-session-key": sessionKey } : {}),
+  };
+}
+
+async function proxyHermesChat(body, requestedProfile) {
+  const profile = normalizeHermesProfile(requestedProfile);
+  if (!profile) return { configError: "hermes_profile_not_allowed", status: 400 };
+  const endpoint = hermesChatUrl(profile);
+  if (!endpoint) return { configError: "hermes_profile_multiplex_disabled", status: 409, profile };
+
+  const sessionHeaders = hermesSessionHeaders();
+  const payload = toOpenAiPayload(body, services.hermes.model);
+  if (sessionHeaders["x-hermes-session-id"] && body.message) {
+    payload.messages = [{ role: "user", content: String(body.message) }];
+  }
+  const result = await proxyJson(endpoint, payload, services.hermes.apiKey, sessionHeaders);
+  return { result, profile };
 }
 
 function toOpenAiPayload(payload, model) {
@@ -449,6 +513,15 @@ const server = createServer(async (req, res) => {
         source: "hermes",
         configured: Boolean(services.hermes.chat),
         model: services.hermes.model,
+        defaultProfile: HERMES_DEFAULT_PROFILE,
+        profiles: [...HERMES_ALLOWED_PROFILES],
+        multiplexProfiles: HERMES_MULTIPLEX_PROFILES,
+        session: {
+          mode: HERMES_SESSION_MODE,
+          continuity: Boolean(services.hermes.apiKey && safeHermesIdentifier(HERMES_SESSION_ID)),
+          memoryScope: Boolean(services.hermes.apiKey && safeHermesIdentifier(HERMES_SESSION_KEY)),
+          transcriptSource: HERMES_SESSION_MODE === "telegram" ? "telegram" : "web",
+        },
         upstreamStatus: capabilities.ok ? capabilities.status : models.status,
         latencyMs: Math.max(capabilities.latencyMs, models.latencyMs),
         capabilities: capabilities.ok ? capabilities.data : {},
@@ -494,14 +567,48 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/ai/chat") {
       gatewayStats.aiRequests += 1;
       const body = await readJson(req);
+      const attempts = [];
+
+      if (services.hermes.chat && getCircuit("hermes").openUntil <= Date.now()) {
+        const hermes = await proxyHermesChat(body, HERMES_DEFAULT_PROFILE);
+        if (hermes.result) {
+          recordUpstreamResult("hermes", hermes.result);
+          attempts.push({
+            source: "hermes",
+            status: hermes.result.status,
+            latencyMs: hermes.result.latencyMs,
+            error: hermes.result.error,
+            circuit: circuitSnapshot("hermes").state,
+          });
+          if (hermes.result.ok) {
+            gatewayStats.successes += 1;
+            return sendJson(req, res, 200, {
+              reply: normalizeReply(hermes.result.data),
+              upstreamStatus: hermes.result.status,
+              raw: hermes.result.data,
+              source: "hermes",
+              profile: hermes.profile,
+              session: {
+                mode: HERMES_SESSION_MODE,
+                continuity: Boolean(hermes.result.upstreamHeaders?.sessionId),
+                memoryScope: Boolean(hermes.result.upstreamHeaders?.sessionKey),
+              },
+              attempts,
+            }, {
+              "x-jcore-upstream": "hermes",
+              "server-timing": `hermes;dur=${hermes.result.latencyMs}`,
+            });
+          }
+        }
+      }
+
       const configuredCandidates = [
         ["nineRouter", services.nineRouter.chat, services.nineRouter.apiKey, services.nineRouter.model],
-        ["hermes", services.hermes.chat, services.hermes.apiKey, services.hermes.model],
         ["openclaw", services.openclaw.chat, services.openclaw.apiKey, services.openclaw.model],
         ["claude", services.claude.chat, services.claude.apiKey, ""],
       ].filter(([, endpoint]) => Boolean(endpoint));
 
-      if (!configuredCandidates.length) {
+      if (!services.hermes.chat && !configuredCandidates.length) {
         gatewayStats.failures += 1;
         return sendJson(req, res, 503, { error: "ai_not_configured" });
       }
@@ -510,7 +617,6 @@ const server = createServer(async (req, res) => {
       const candidates = availableCandidates.length
         ? availableCandidates
         : [...configuredCandidates].sort(([a], [b]) => getCircuit(a).openUntil - getCircuit(b).openUntil).slice(0, 1);
-      const attempts = [];
       for (const [name, endpoint, apiKey, model] of candidates) {
         const result = await proxyJson(endpoint, toOpenAiPayload(body, model), apiKey);
         recordUpstreamResult(name, result);
@@ -546,13 +652,14 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/hermes/profiles") {
       return sendJson(req, res, 200, {
         source: "hermes",
-        defaultProfile: "jarvis-core",
+        defaultProfile: HERMES_DEFAULT_PROFILE,
+        multiplexProfiles: HERMES_MULTIPLEX_PROFILES,
         profiles: [
-          { id: "jarvis-core", name: "Jarvis Core Agent", role: "Trợ lý tổng quan & Cố vấn chỉ huy J-Core", icon: "terminal" },
+          { id: "jarvis", name: "Jarvis Orchestrator", role: "Trợ lý điều phối mặc định của J-Core", icon: "terminal" },
           { id: "cadence-content", name: "Cadence Content Studio", role: "Studio sáng tạo nội dung đa bước (Cadence)", icon: "media" },
           { id: "code-architect", name: "Code Architect", role: "Kiến trúc sư phần mềm & Reviewer", icon: "router" },
           { id: "security-auditor", name: "Security Auditor", role: "Kiểm thử an ninh & Quy tắc phòng thủ", icon: "shield" },
-        ],
+        ].filter((profile) => HERMES_ALLOWED_PROFILES.has(profile.id)),
       });
     }
 
@@ -562,32 +669,30 @@ const server = createServer(async (req, res) => {
         return sendJson(req, res, 503, { error: "hermes_not_configured" });
       }
 
-      const profile = body.profile || "jarvis-core";
-      const sessionId = body.sessionId || "jarvis-default-session";
-      const openAiPayload = toOpenAiPayload(body, services.hermes.model);
-
-      if (body.systemPrompt) {
-        openAiPayload.messages = [
-          { role: "system", content: body.systemPrompt },
-          ...(openAiPayload.messages || []),
-        ];
+      const proxied = await proxyHermesChat(body, body.profile || HERMES_DEFAULT_PROFILE);
+      if (proxied.configError) {
+        return sendJson(req, res, proxied.status || 400, {
+          error: proxied.configError,
+          profile: proxied.profile || String(body.profile || ""),
+        });
       }
-
-      const payloadWithProfile = {
-        ...openAiPayload,
-        profile,
-        session_id: sessionId,
-        user_id: body.operator || "Operator",
-      };
-
-      const result = await proxyJson(services.hermes.chat, payloadWithProfile, services.hermes.apiKey);
+      const { result, profile } = proxied;
+      recordUpstreamResult("hermes", result);
       return sendJson(req, res, result.ok ? 200 : 502, {
         reply: normalizeReply(result.data),
         upstreamStatus: result.status,
         raw: result.data,
         source: "hermes",
         profile,
-        sessionId,
+        session: {
+          mode: HERMES_SESSION_MODE,
+          continuity: Boolean(result.upstreamHeaders?.sessionId),
+          memoryScope: Boolean(result.upstreamHeaders?.sessionKey),
+          transcriptSource: HERMES_SESSION_MODE === "telegram" ? "telegram" : "web",
+        },
+      }, {
+        "x-jcore-upstream": "hermes",
+        "server-timing": `hermes;dur=${result.latencyMs}`,
       });
     }
 

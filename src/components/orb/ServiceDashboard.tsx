@@ -65,7 +65,7 @@ export default function ServiceDashboard({
   prompt,
   reply,
   sending,
-  selectedProfileId = "jarvis-core",
+  selectedProfileId = "jarvis",
   onProfileSelect,
   onPromptChange,
   onRefresh,
@@ -107,15 +107,17 @@ export default function ServiceDashboard({
           <div className="profile-chips">
             {HERMES_PROFILES.map((prof) => {
               const isSelected = selectedProfileId === prof.id;
+              const profileAvailable = prof.id === overview?.defaultProfile || overview?.multiplexProfiles !== false;
               return (
                 <button
                   type="button"
                   key={prof.id}
                   className={`profile-chip ${isSelected ? "active" : ""}`}
+                  disabled={!profileAvailable}
                   onClick={() => onProfileSelect && onProfileSelect(prof.id)}
                 >
                   <b>{prof.name}</b>
-                  <small>{prof.role}</small>
+                  <small>{profileAvailable ? prof.role : "Cần bật Hermes multiplex profiles"}</small>
                 </button>
               );
             })}
@@ -137,12 +139,12 @@ export default function ServiceDashboard({
         <article>
           <span>CHAT LINK</span>
           <b>{configured === false ? "NOT CONFIGURED" : configured ? "CONFIGURED" : "UNKNOWN"}</b>
-          <small>Jarvis protected route</small>
+          <small>{isHermes ? `${overview?.defaultProfile || "jarvis"} · ${overview?.session?.continuity ? "PERSISTENT" : "STATELESS"}` : "Jarvis protected route"}</small>
         </article>
         <article>
           <span>CIRCUIT</span>
           <b>{String(circuit).toUpperCase()}</b>
-          <small>Failure protection</small>
+          <small>{isHermes ? `${String(overview?.session?.mode || "web").toUpperCase()} transcript` : "Failure protection"}</small>
         </article>
       </section>
 
