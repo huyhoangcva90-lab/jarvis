@@ -1,16 +1,16 @@
-import { useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AiActivity } from "../../App";
 import { activityEnergy, activityPulse, activitySpeed, seededRandom } from "../shared/coreMotion";
 
 const BLUE = "#22b8ff";
-const ICE = "#dcfbff";
+const ICE  = "#dcfbff";
 const DEEP = "#0757ff";
 
-// --- GLSL SHADERS FOR VOLUMETRIC NEBULA, GLASS TENDRILLS & WORMHOLE ---
+/* ━━━ GLSL: Internal Crystal Circuit Pattern ━━━ */
 
-const nebulaVertexShader = `
+const crystalInternalVertex = `
   varying vec3 vPosition;
   varying vec3 vNormal;
   varying vec2 vUv;
@@ -22,104 +22,9 @@ const nebulaVertexShader = `
   }
 `;
 
-const nebulaFragmentShader = `
+const crystalInternalFragment = `
   uniform float uTime;
   uniform float uEnergy;
-  varying vec3 vPosition;
-  varying vec3 vNormal;
-
-  // 3D Simplex Noise generator
-  vec4 permute(vec4 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
-  vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }
-
-  float snoise(vec3 v){
-    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
-    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-    vec3 i  = floor(v + dot(v, C.yyy) );
-    vec3 x0 = v - i + dot(i, C.xxx) ;
-    vec3 g = step(x0.yzx, x0.xyz);
-    vec3 l = 1.0 - g;
-    vec3 i1 = min( g.xyz, l.zxy );
-    vec3 i2 = max( g.xyz, l.zxy );
-    vec3 x1 = x0 - i1 + C.xxx;
-    vec3 x2 = x0 - i2 + C.yyy;
-    vec3 x3 = x0 - D.yyy;
-    i = mod(i, 289.0 );
-    vec4 p = permute( permute( permute(
-               i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-             + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
-             + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
-    float n_ = 0.142857142857;
-    vec3  ns = n_ * D.wyz - D.xzx;
-    vec4 j = p - 49.0 * floor(p * ns.z);
-    vec4 x_ = floor(j * ns.z);
-    vec4 y_ = floor(j - 7.0 * x_ );
-    vec4 x = x_ *ns.x + ns.yyyy;
-    vec4 y = y_ *ns.x + ns.yyyy;
-    vec4 h = 1.0 - abs(x) - abs(y);
-    vec4 b0 = vec4( x.xy, y.xy );
-    vec4 b1 = vec4( x.zw, y.zw );
-    vec4 s0 = floor(b0)*2.0 + 1.0;
-    vec4 s1 = floor(b1)*2.0 + 1.0;
-    vec4 sh = -step(h, vec4(0.0));
-    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
-    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
-    vec3 p0 = vec3(a0.xy, h.x);
-    vec3 p1 = vec3(a0.zw, h.y);
-    vec3 p2 = vec3(a1.xy, h.z);
-    vec3 p3 = vec3(a1.zw, h.w);
-    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-    p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
-    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-    m = m * m;
-    return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
-  }
-
-  void main() {
-    vec3 p = vPosition * 2.4;
-    float time = uTime * 0.5;
-
-    // Multi-octave cosmic galaxy swirling noise
-    float n1 = snoise(p + vec3(0.0, 0.0, time));
-    float n2 = snoise(p * 2.2 - vec3(time * 0.7, 0.0, time * 0.5));
-    float n3 = snoise(p * 4.5 + vec3(time * 0.9, -time * 0.6, 0.0));
-
-    float nebula = n1 * 0.5 + n2 * 0.3 + n3 * 0.2;
-    float density = smoothstep(-0.15, 0.88, nebula);
-
-    // Fresnel rim glow
-    float viewAngle = abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)));
-    float fresnel = pow(1.0 - viewAngle, 2.4);
-
-    vec3 colDeep = vec3(0.027, 0.341, 1.0);  // DEEP SPACE #0757ff
-    vec3 colBlue = vec3(0.133, 0.722, 1.0);  // COSMIC BLUE #22b8ff
-    vec3 colIce  = vec3(0.863, 0.984, 1.0);  // ICE CYAN #dcfbff
-
-    vec3 color = mix(colDeep, colBlue, density);
-    color = mix(color, colIce, pow(density, 2.0) * 0.9);
-
-    float alpha = (density * 0.5 + fresnel * 0.4) * uEnergy;
-    gl_FragColor = vec4(color * (0.9 + uEnergy * 0.6), alpha);
-  }
-`;
-
-// Inner Glow & Electric Tendrils Shader (Edge Arc Lightning)
-const shellGlowVertexShader = `
-  varying vec3 vPosition;
-  varying vec3 vNormal;
-  varying vec2 vUv;
-  void main() {
-    vUv = uv;
-    vPosition = position;
-    vNormal = normalize(normalMatrix * normal);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-const shellGlowFragmentShader = `
-  uniform float uTime;
-  uniform float uEnergy;
-  uniform float uArcActivity;
   varying vec3 vPosition;
   varying vec3 vNormal;
   varying vec2 vUv;
@@ -129,166 +34,185 @@ const shellGlowFragmentShader = `
   }
 
   void main() {
-    // Edge proximity calculation for 12 edges on box UVs
+    // --- Internal laser grid circuit pattern ---
+    vec2 grid = fract(vUv * 8.0);
+    float lineX = smoothstep(0.0, 0.06, grid.x) * (1.0 - smoothstep(0.94, 1.0, grid.x));
+    float lineY = smoothstep(0.0, 0.06, grid.y) * (1.0 - smoothstep(0.94, 1.0, grid.y));
+    float gridLines = 1.0 - lineX * lineY;
+
+    // Traveling energy pulse along grid
+    float pulse1 = sin(vUv.x * 25.0 - uTime * 4.0) * 0.5 + 0.5;
+    float pulse2 = sin(vUv.y * 25.0 + uTime * 3.2) * 0.5 + 0.5;
+    float energyFlow = max(pulse1 * gridLines, pulse2 * gridLines);
+
+    // Fresnel rim for edge glow
+    float viewAngle = abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)));
+    float fresnel = pow(1.0 - viewAngle, 3.0);
+
+    // Electric arc flicker on high activity
+    float noise = hash(vUv * 80.0 + floor(uTime * 22.0));
+    float arc = step(0.72, noise) * gridLines * uEnergy * 0.5;
+
+    // Edge detection - bright edges of the box
     vec2 edgeDist = abs(vUv - 0.5) * 2.0;
     float edgeFactor = max(edgeDist.x, edgeDist.y);
-    float lineEdge = smoothstep(0.86, 0.98, edgeFactor);
+    float edgeBright = smoothstep(0.88, 0.99, edgeFactor);
 
-    // High frequency electric arc flickering
-    float noise = hash(vUv * 120.0 + floor(uTime * 30.0));
-    float electricArc = step(0.65, noise) * lineEdge * uArcActivity;
+    vec3 colIce = vec3(0.863, 0.984, 1.0);   // #dcfbff
+    vec3 colBlue = vec3(0.133, 0.722, 1.0);   // #22b8ff
+    vec3 colDeep = vec3(0.027, 0.341, 1.0);   // #0757ff
 
-    // Rim inner glow
-    float viewAngle = abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)));
-    float rimGlow = pow(1.0 - viewAngle, 2.8) * (0.35 + uEnergy * 0.55);
+    // Blend based on grid, pulse, and edge
+    vec3 color = colDeep;
+    color = mix(color, colBlue, energyFlow * 0.7);
+    color = mix(color, colIce, edgeBright + arc);
+    color = mix(color, colIce, fresnel * 0.8);
 
-    vec3 iceColor = vec3(0.863, 0.984, 1.0);
-    vec3 blueColor = vec3(0.133, 0.722, 1.0);
+    float alpha = (gridLines * 0.35 + energyFlow * 0.25 + fresnel * 0.55 + edgeBright * 0.8 + arc * 0.6) * uEnergy;
+    alpha = clamp(alpha, 0.0, 1.0);
 
-    vec3 finalColor = mix(blueColor, iceColor, electricArc + rimGlow);
-    float finalAlpha = (rimGlow * 0.55 + electricArc * 0.9);
-
-    gl_FragColor = vec4(finalColor * 1.8, finalAlpha);
+    gl_FragColor = vec4(color * (1.2 + uEnergy * 0.6), alpha);
   }
 `;
 
-// Wormhole Tunnel Shader
-const wormholeVertexShader = `
+/* ━━━ GLSL: Outer Crystal Facets Refraction ━━━ */
+
+const facetVertex = `
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
   varying vec2 vUv;
   void main() {
     vUv = uv;
+    vNormal = normalize(normalMatrix * normal);
+    vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
-const wormholeFragmentShader = `
+const facetFragment = `
   uniform float uTime;
   uniform float uEnergy;
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
   varying vec2 vUv;
 
   void main() {
-    vec2 st = vUv;
-    float zScroll = st.y * 14.0 - uTime * 2.8;
-    float spiral = st.x * 28.0 + st.y * 10.0 + uTime * 2.0;
+    float viewAngle = abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)));
+    float fresnel = pow(1.0 - viewAngle, 2.2);
 
-    float grid = abs(sin(spiral) * sin(zScroll));
-    float lines = smoothstep(0.72, 0.96, grid);
-    float depthFade = smoothstep(0.0, 0.35, st.y) * (1.0 - smoothstep(0.75, 1.0, st.y));
+    // Sharp crystalline edge highlight
+    vec2 edgeDist = abs(vUv - 0.5) * 2.0;
+    float edgeFactor = max(edgeDist.x, edgeDist.y);
+    float edgeLine = smoothstep(0.92, 0.98, edgeFactor);
 
-    vec3 ice = vec3(0.863, 0.984, 1.0);
-    vec3 deep = vec3(0.027, 0.341, 1.0);
-    vec3 color = mix(deep, ice, lines * 0.85);
+    // Subtle facet refraction shimmer
+    float shimmer = sin(vWorldPos.x * 12.0 + vWorldPos.y * 8.0 + uTime * 1.5) * 0.5 + 0.5;
+    shimmer *= fresnel;
 
-    gl_FragColor = vec4(color * (0.8 + uEnergy * 0.5), lines * depthFade * 0.42 * uEnergy);
+    vec3 colIce = vec3(0.863, 0.984, 1.0);
+    vec3 colBlue = vec3(0.133, 0.722, 1.0);
+
+    vec3 color = mix(colBlue, colIce, edgeLine + shimmer * 0.4);
+    float alpha = (fresnel * 0.35 + edgeLine * 0.65 + shimmer * 0.1) * (0.7 + uEnergy * 0.3);
+
+    gl_FragColor = vec4(color * 1.6, alpha);
   }
 `;
 
-// --- COMPONENTS ---
+/* ━━━ 1. Crystal Tesseract Core ━━━
+   Single monolithic crystal cube with internal circuit patterns,
+   like the reference image — NOT separated Rubik segments */
 
-// 1. Tesseract Glass Shell (PBR Glass + Inner Glow + Procedural Electric Tendrils)
-function TesseractGlassShell({ activity }: { activity: AiActivity }) {
-  const innerGlowRef = useRef<THREE.ShaderMaterial>(null);
-  const outerBoxRef = useRef<THREE.Mesh>(null);
+function CrystalTesseractCore({ activity }: { activity: AiActivity }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const internalMatRef = useRef<THREE.ShaderMaterial>(null);
+  const facetMatRef = useRef<THREE.ShaderMaterial>(null);
+  const innerCubeRef = useRef<THREE.Mesh>(null);
 
-  const isHighActivity = activity === "speaking" || activity === "thinking";
+  const mainGeo = useMemo(() => new THREE.BoxGeometry(2.0, 2.0, 2.0), []);
+  const innerGeo = useMemo(() => new THREE.BoxGeometry(1.85, 1.85, 1.85, 12, 12, 12), []);
 
-  useFrame(({ clock }, delta) => {
-    const time = clock.elapsedTime;
-    const speed = activitySpeed(activity);
-
-    if (outerBoxRef.current) {
-      outerBoxRef.current.rotation.y += delta * 0.16 * speed;
-      outerBoxRef.current.rotation.x = Math.sin(time * 0.3) * 0.12;
-    }
-
-    if (innerGlowRef.current) {
-      innerGlowRef.current.uniforms.uTime.value = time;
-      innerGlowRef.current.uniforms.uEnergy.value = activityEnergy(activity);
-      innerGlowRef.current.uniforms.uArcActivity.value = isHighActivity
-        ? activity === "speaking" ? 1.5 : 1.1
-        : 0.35;
-    }
-  });
-
-  return (
-    <group>
-      {/* Pristine PBR Physical Glass Cube */}
-      <mesh ref={outerBoxRef}>
-        <boxGeometry args={[2.0, 2.0, 2.0]} />
-        <meshPhysicalMaterial
-          color="#ffffff"
-          transmission={0.88}
-          roughness={0.08}
-          metalness={0.1}
-          clearcoat={1.0}
-          clearcoatRoughness={0.04}
-          ior={1.55}
-          transparent
-          opacity={0.94}
-          reflectivity={0.95}
-        />
-      </mesh>
-
-      {/* Edge Electric Tendrils & Inner Glow */}
-      <mesh scale={0.98}>
-        <boxGeometry args={[1.98, 1.98, 1.98]} />
-        <shaderMaterial
-          ref={innerGlowRef}
-          vertexShader={shellGlowVertexShader}
-          fragmentShader={shellGlowFragmentShader}
-          uniforms={{
-            uTime: { value: 0 },
-            uEnergy: { value: 1 },
-            uArcActivity: { value: 0.35 },
-          }}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-          transparent
-        />
-      </mesh>
-    </group>
-  );
-}
-
-// 2. Volumetric Cosmic Nebula Core + Space Stone Nucleus
-function VolumetricCosmicNebulaCore({ activity }: { activity: AiActivity }) {
-  const nebulaRef = useRef<THREE.ShaderMaterial>(null);
-  const stoneRef = useRef<THREE.Mesh>(null);
-  const raysRef = useRef<THREE.Group>(null);
+  // Inset beveled sub-frame wireframes (visible internal faceted structure)
+  const frameGeos = useMemo(() => {
+    const sizes = [1.92, 1.5, 1.1, 0.7];
+    return sizes.map(s => {
+      const box = new THREE.BoxGeometry(s, s, s);
+      const edges = new THREE.EdgesGeometry(box);
+      box.dispose();
+      return edges;
+    });
+  }, []);
 
   useFrame(({ clock }, delta) => {
     const time = clock.elapsedTime;
     const speed = activitySpeed(activity);
     const energy = activityEnergy(activity);
 
-    if (nebulaRef.current) {
-      nebulaRef.current.uniforms.uTime.value = time;
-      nebulaRef.current.uniforms.uEnergy.value = energy;
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * 0.14 * speed;
+      groupRef.current.rotation.x = Math.sin(time * 0.28) * 0.12;
+      groupRef.current.rotation.z = Math.cos(time * 0.22) * 0.06;
     }
 
-    if (stoneRef.current) {
-      stoneRef.current.rotation.x += delta * 1.0 * speed;
-      stoneRef.current.rotation.y += delta * 1.4 * speed;
-      const pulse = 0.88 + Math.sin(time * 6.5) * 0.06 + energy * 0.14;
-      stoneRef.current.scale.setScalar(pulse);
+    if (internalMatRef.current) {
+      internalMatRef.current.uniforms.uTime.value = time;
+      internalMatRef.current.uniforms.uEnergy.value = energy;
     }
 
-    if (raysRef.current) {
-      raysRef.current.rotation.z += delta * 0.45 * speed;
-      raysRef.current.scale.setScalar(1 + Math.sin(time * 8.0) * 0.1 * energy);
+    if (facetMatRef.current) {
+      facetMatRef.current.uniforms.uTime.value = time;
+      facetMatRef.current.uniforms.uEnergy.value = energy;
+    }
+
+    // Inner sub-frames counter-rotate for depth
+    if (innerCubeRef.current) {
+      innerCubeRef.current.rotation.y -= delta * 0.08 * speed;
+      innerCubeRef.current.rotation.x += delta * 0.05 * speed;
     }
   });
 
   return (
-    <group>
-      {/* Volumetric 3D Galaxy Core (Custom 3D Noise Shader) */}
-      <mesh scale={0.92}>
-        <boxGeometry args={[1.78, 1.78, 1.78, 16, 16, 16]} />
+    <group ref={groupRef}>
+      {/* Outer PBR Crystal Glass Shell */}
+      <mesh geometry={mainGeo}>
+        <meshPhysicalMaterial
+          color="#aaddff"
+          transmission={0.82}
+          roughness={0.05}
+          metalness={0.15}
+          clearcoat={1.0}
+          clearcoatRoughness={0.02}
+          ior={1.65}
+          transparent
+          opacity={0.88}
+          reflectivity={0.95}
+          envMapIntensity={1.2}
+        />
+      </mesh>
+
+      {/* Crystal facet edge shimmer overlay */}
+      <mesh geometry={mainGeo} scale={1.002}>
         <shaderMaterial
-          ref={nebulaRef}
-          vertexShader={nebulaVertexShader}
-          fragmentShader={nebulaFragmentShader}
+          ref={facetMatRef}
+          vertexShader={facetVertex}
+          fragmentShader={facetFragment}
+          uniforms={{
+            uTime: { value: 0 },
+            uEnergy: { value: 1 },
+          }}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          side={THREE.FrontSide}
+          transparent
+        />
+      </mesh>
+
+      {/* Internal circuit laser grid (visible through glass) */}
+      <mesh geometry={innerGeo} scale={0.96}>
+        <shaderMaterial
+          ref={internalMatRef}
+          vertexShader={crystalInternalVertex}
+          fragmentShader={crystalInternalFragment}
           uniforms={{
             uTime: { value: 0 },
             uEnergy: { value: 1 },
@@ -300,21 +224,166 @@ function VolumetricCosmicNebulaCore({ activity }: { activity: AiActivity }) {
         />
       </mesh>
 
-      {/* Space Stone Nucleus & 6 Cross Volumetric Energy Beams */}
-      <mesh ref={stoneRef}>
-        <octahedronGeometry args={[0.2, 0]} />
+      {/* Internal wireframe sub-structures (nested cubes) */}
+      <group ref={innerCubeRef}>
+        {frameGeos.map((geo, i) => (
+          <lineSegments key={i} geometry={geo} rotation={[i * 0.12, i * 0.15, i * 0.08]}>
+            <lineBasicMaterial
+              color={i < 2 ? ICE : BLUE}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+              opacity={0.45 + i * 0.12}
+              toneMapped={false}
+              transparent
+            />
+          </lineSegments>
+        ))}
+      </group>
+    </group>
+  );
+}
+
+/* ━━━ 2. Corner God Rays — 8 light beams from cube corners ━━━ */
+
+function CornerGodRays({ activity }: { activity: AiActivity }) {
+  const groupRef = useRef<THREE.Group>(null);
+
+  // 8 corners of a cube
+  const corners = useMemo(() => {
+    const positions: [number, number, number][] = [];
+    for (const x of [-1, 1]) {
+      for (const y of [-1, 1]) {
+        for (const z of [-1, 1]) {
+          positions.push([x * 1.0, y * 1.0, z * 1.0]);
+        }
+      }
+    }
+    return positions;
+  }, []);
+
+  // Create ray geometries pointing outward from each corner
+  const rayGeo = useMemo(() => new THREE.PlaneGeometry(0.04, 3.0), []);
+
+  useFrame(({ clock }, delta) => {
+    const time = clock.elapsedTime;
+    const energy = activityEnergy(activity);
+    const speed = activitySpeed(activity);
+
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * 0.06 * speed;
+
+      // Pulse the ray brightness via scale
+      const pulse = 0.7 + Math.sin(time * 3.5) * 0.3 * energy;
+      groupRef.current.scale.setScalar(pulse);
+    }
+  });
+
+  return (
+    <group ref={groupRef}>
+      {corners.map((pos, i) => {
+        // Ray direction: from center toward corner
+        const dir = new THREE.Vector3(...pos).normalize();
+        const lookAt = new THREE.Vector3().addVectors(
+          new THREE.Vector3(...pos),
+          dir.multiplyScalar(2)
+        );
+
+        return (
+          <group key={i} position={pos}>
+            {/* Two crossed planes for volumetric look */}
+            <mesh geometry={rayGeo} lookAt={lookAt}>
+              <meshBasicMaterial
+                color={ICE}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+                opacity={0.35}
+                transparent
+                toneMapped={false}
+              />
+            </mesh>
+            <mesh geometry={rayGeo} lookAt={lookAt} rotation={[0, 0, Math.PI / 2]}>
+              <meshBasicMaterial
+                color={BLUE}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+                opacity={0.25}
+                transparent
+                toneMapped={false}
+              />
+            </mesh>
+            {/* Corner glow point */}
+            <mesh>
+              <sphereGeometry args={[0.06, 8, 8]} />
+              <meshBasicMaterial color={ICE} toneMapped={false} />
+            </mesh>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+/* ━━━ 3. Central Cross Beams — 6-axis light shooting through cube ━━━ */
+
+function CentralBeams({ activity }: { activity: AiActivity }) {
+  const raysRef = useRef<THREE.Group>(null);
+  const lightRef = useRef<THREE.PointLight>(null);
+
+  useFrame(({ clock }, delta) => {
+    const time = clock.elapsedTime;
+    const speed = activitySpeed(activity);
+    const energy = activityEnergy(activity);
+
+    if (raysRef.current) {
+      raysRef.current.rotation.z += delta * 0.35 * speed;
+      const beamScale = 1.0 + Math.sin(time * 5.5) * 0.12 * energy;
+      raysRef.current.scale.setScalar(beamScale);
+    }
+
+    if (lightRef.current) {
+      lightRef.current.intensity = 3.0 + energy * 3.0 + Math.sin(time * 6.0) * 1.2;
+    }
+  });
+
+  return (
+    <group>
+      {/* Octahedron nucleus */}
+      <mesh>
+        <octahedronGeometry args={[0.15, 0]} />
         <meshBasicMaterial color={ICE} toneMapped={false} />
       </mesh>
 
+      {/* 6-direction cross beams */}
       <group ref={raysRef}>
-        {[0, Math.PI / 3, (2 * Math.PI) / 3].map((angle, index) => (
-          <mesh key={index} rotation={[0, 0, angle]}>
-            <planeGeometry args={[0.08, 1.95]} />
+        {[
+          [0, 0, 0],
+          [0, 0, Math.PI / 3],
+          [0, 0, (2 * Math.PI) / 3],
+        ].map((rot, i) => (
+          <mesh key={`z${i}`} rotation={rot as [number, number, number]}>
+            <planeGeometry args={[0.06, 2.8]} />
             <meshBasicMaterial
               color={ICE}
               blending={THREE.AdditiveBlending}
               depthWrite={false}
-              opacity={0.5}
+              opacity={0.4}
+              transparent
+              toneMapped={false}
+            />
+          </mesh>
+        ))}
+        {[
+          [Math.PI / 6, Math.PI / 2, 0],
+          [Math.PI / 2, Math.PI / 2, 0],
+          [(5 * Math.PI) / 6, Math.PI / 2, 0],
+        ].map((rot, i) => (
+          <mesh key={`x${i}`} rotation={rot as [number, number, number]}>
+            <planeGeometry args={[0.05, 2.4]} />
+            <meshBasicMaterial
+              color={BLUE}
+              blending={THREE.AdditiveBlending}
+              depthWrite={false}
+              opacity={0.3}
               transparent
               toneMapped={false}
             />
@@ -322,252 +391,257 @@ function VolumetricCosmicNebulaCore({ activity }: { activity: AiActivity }) {
         ))}
       </group>
 
-      <pointLight color={ICE} intensity={4.5} distance={6} position={[0, 0, 0]} />
+      <pointLight ref={lightRef} color={ICE} intensity={5} distance={10} />
     </group>
   );
 }
 
-// 3. Electric Hypercube 4D Matrix (Vertices + Laser Wires)
-function ElectricHypercube4D({ activity }: { activity: AiActivity }) {
-  const lineRef = useRef<THREE.LineSegments>(null);
-  const nodesRef = useRef<THREE.InstancedMesh>(null);
+/* ━━━ 4. Floating Data Debris — orbiting crystal fragments ━━━ */
+
+function FloatingDebris({ activity }: { activity: AiActivity }) {
+  const debrisCount = 180;
+  const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
+  const debrisGeo = useMemo(() => new THREE.BoxGeometry(0.04, 0.04, 0.04), []);
 
-  const { geometry, vertices, edges } = useMemo(() => {
-    const source: Array<[number, number, number, number]> = [];
-    for (let index = 0; index < 16; index += 1) {
-      source.push([
-        index & 1 ? 1 : -1,
-        index & 2 ? 1 : -1,
-        index & 4 ? 1 : -1,
-        index & 8 ? 1 : -1,
-      ]);
-    }
-    const connections: Array<[number, number]> = [];
-    for (let index = 0; index < source.length; index += 1) {
-      for (let dimension = 0; dimension < 4; dimension += 1) {
-        const neighbor = index ^ (1 << dimension);
-        if (index < neighbor) connections.push([index, neighbor]);
-      }
-    }
-    const positions = new Float32Array(connections.length * 6);
-    const buffer = new THREE.BufferGeometry();
-    buffer.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    return { geometry: buffer, vertices: source, edges: connections };
+  // Pre-compute orbital parameters
+  const orbits = useMemo(() => {
+    const rng = seededRandom(3377);
+    return Array.from({ length: debrisCount }, () => ({
+      radius: 1.5 + rng() * 3.5,
+      angle: rng() * Math.PI * 2,
+      speed: (0.15 + rng() * 0.6) * (rng() > 0.5 ? 1 : -1),
+      height: (rng() - 0.5) * 3.5,
+      tilt: (rng() - 0.5) * 0.8,
+      size: 0.3 + rng() * 0.8,
+    }));
   }, []);
-
-  const projectedCoords = useMemo(() => new Float32Array(16 * 3), []);
 
   useFrame(({ clock }, delta) => {
     const time = clock.elapsedTime;
     const speed = activitySpeed(activity);
-    const energy = activityEnergy(activity);
 
-    const positions = geometry.attributes.position as THREE.BufferAttribute;
-    const array = positions.array as Float32Array;
+    if (!meshRef.current) return;
 
-    const a = time * 0.38 * speed;
-    const b = time * 0.28 * speed;
-    const c = time * 0.2 * speed;
-    const ca = Math.cos(a), sa = Math.sin(a);
-    const cb = Math.cos(b), sb = Math.sin(b);
-    const cc = Math.cos(c), sc = Math.sin(c);
+    for (let i = 0; i < debrisCount; i++) {
+      const o = orbits[i];
+      const currentAngle = o.angle + time * o.speed * speed;
 
-    // Compute double 4D rotation and perspective projection
-    vertices.forEach(([sourceX, sourceY, sourceZ, sourceW], index) => {
-      let x = sourceX * ca - sourceW * sa;
-      let w = sourceX * sa + sourceW * ca;
-      let y = sourceY * cb - w * sb;
-      w = sourceY * sb + w * cb;
-      let z = sourceZ * cc - w * sc;
-      w = sourceZ * sc + w * cc;
+      dummy.position.set(
+        Math.cos(currentAngle) * o.radius,
+        o.height + Math.sin(time * 0.8 + i) * 0.15,
+        Math.sin(currentAngle) * o.radius
+      );
+      dummy.rotation.set(
+        time * o.speed * 2,
+        time * o.speed * 1.5,
+        o.tilt
+      );
+      dummy.scale.setScalar(o.size);
+      dummy.updateMatrix();
+      meshRef.current.setMatrixAt(i, dummy.matrix);
+    }
+    meshRef.current.instanceMatrix.needsUpdate = true;
+  });
 
-      const projection = 1.75 / (2.65 - w * 0.38);
-      const px = x * projection;
-      const py = y * projection;
-      const pz = z * projection;
+  return (
+    <instancedMesh ref={meshRef} args={[debrisGeo, undefined, debrisCount]}>
+      <meshBasicMaterial
+        color={ICE}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        opacity={0.5}
+        toneMapped={false}
+        transparent
+      />
+    </instancedMesh>
+  );
+}
 
-      projectedCoords[index * 3] = px;
-      projectedCoords[index * 3 + 1] = py;
-      projectedCoords[index * 3 + 2] = pz;
+/* ━━━ 5. Orbital Dot Ring ━━━ */
 
-      if (nodesRef.current) {
-        dummy.position.set(px, py, pz);
-        const pulseScale = (0.05 + Math.sin(time * 8.5 + index) * 0.018) * energy;
-        dummy.scale.setScalar(pulseScale);
+const DOT_COUNT = 36;
+
+function OrbitalDotRing({
+  activity,
+  baseRadius = 2.4,
+  tiltX = 0,
+  tiltZ = 0,
+  phase = 0,
+}: {
+  activity: AiActivity;
+  baseRadius?: number;
+  tiltX?: number;
+  tiltZ?: number;
+  phase?: number;
+}) {
+  const dotsRef = useRef<THREE.InstancedMesh>(null);
+  const ringRef = useRef<THREE.Group>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const dotGeo = useMemo(() => new THREE.SphereGeometry(0.032, 8, 8), []);
+  const currentRadius = useRef(baseRadius);
+
+  useFrame(({ clock }, delta) => {
+    const time = clock.elapsedTime;
+    const speed = activitySpeed(activity);
+
+    // Activity-driven radius modulation
+    let targetRadius = baseRadius;
+    if (activity === "listening") targetRadius = baseRadius + 0.18;
+    else if (activity === "thinking") targetRadius = baseRadius + Math.sin(time * 4.6) * 0.22;
+    else if (activity === "speaking") targetRadius = baseRadius + Math.sin(time * 8.4) * 0.3;
+
+    currentRadius.current = THREE.MathUtils.lerp(currentRadius.current, targetRadius, 0.1);
+    const r = currentRadius.current;
+
+    if (ringRef.current) {
+      ringRef.current.rotation.y += delta * 0.22 * speed;
+    }
+
+    if (dotsRef.current) {
+      for (let i = 0; i < DOT_COUNT; i++) {
+        const angle = (i / DOT_COUNT) * Math.PI * 2;
+        dummy.position.set(Math.cos(angle) * r, 0, Math.sin(angle) * r);
+
+        const basePulse = activityPulse(activity, time, phase + i * 0.4);
+        const brightFactor = activity === "speaking" ? 1.35 : activity === "thinking" ? 1.15 : 1.0;
+        dummy.scale.setScalar(basePulse * brightFactor);
         dummy.updateMatrix();
-        nodesRef.current.setMatrixAt(index, dummy.matrix);
+        dotsRef.current.setMatrixAt(i, dummy.matrix);
       }
-    });
-
-    edges.forEach(([from, to], index) => {
-      const offset = index * 6;
-      array[offset] = projectedCoords[from * 3];
-      array[offset + 1] = projectedCoords[from * 3 + 1];
-      array[offset + 2] = projectedCoords[from * 3 + 2];
-      array[offset + 3] = projectedCoords[to * 3];
-      array[offset + 4] = projectedCoords[to * 3 + 1];
-      array[offset + 5] = projectedCoords[to * 3 + 2];
-    });
-
-    positions.needsUpdate = true;
-    if (nodesRef.current) nodesRef.current.instanceMatrix.needsUpdate = true;
-
-    if (lineRef.current) {
-      lineRef.current.rotation.y += delta * 0.12 * speed;
-      lineRef.current.scale.setScalar(activityPulse(activity, time));
+      dotsRef.current.instanceMatrix.needsUpdate = true;
     }
   });
 
   return (
-    <group rotation={[0.2, -0.3, 0.08]}>
-      {/* Hypercube 4D Laser Wires */}
-      <lineSegments ref={lineRef} geometry={geometry}>
-        <lineBasicMaterial
-          color={ICE}
+    <group rotation={[tiltX, 0, tiltZ]} ref={ringRef}>
+      <instancedMesh ref={dotsRef} args={[dotGeo, undefined, DOT_COUNT]}>
+        <meshBasicMaterial
+          color="#ffffff"
+          toneMapped={false}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
-          opacity={0.92}
-          toneMapped={false}
-          transparent
         />
-      </lineSegments>
+      </instancedMesh>
 
-      <lineSegments geometry={geometry} scale={1.12}>
-        <lineBasicMaterial
-          color={DEEP}
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[baseRadius, 0.007, 8, 96]} />
+        <meshBasicMaterial
+          color={ICE}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           opacity={0.4}
-          toneMapped={false}
           transparent
+          toneMapped={false}
         />
-      </lineSegments>
-
-      {/* 16 Glowing 4D Vertices Nodes */}
-      <instancedMesh ref={nodesRef} args={[undefined, undefined, 16]}>
-        <sphereGeometry args={[1, 12, 12]} />
-        <meshBasicMaterial color={ICE} toneMapped={false} />
-      </instancedMesh>
+      </mesh>
     </group>
   );
 }
 
-// 4. Space Wormhole Tunnel & 1,200 Starlight Particles
-function SpaceWormholeTunnel({ activity }: { activity: AiActivity }) {
-  const wormholeShaderRef = useRef<THREE.ShaderMaterial>(null);
-  const particlesRef = useRef<THREE.Points>(null);
+/* ━━━ 6. Background Starfield ━━━ */
 
-  const particleCount = 1200;
-  const { positions, initialAngles, initialRadii, speeds } = useMemo(() => {
-    const random = seededRandom(1088);
-    const pos = new Float32Array(particleCount * 3);
-    const angles = new Float32Array(particleCount);
-    const radii = new Float32Array(particleCount);
-    const spds = new Float32Array(particleCount);
-
-    for (let i = 0; i < particleCount; i++) {
-      const angle = random() * Math.PI * 2;
-      const radius = 0.5 + random() * 4.2;
-      const z = -7.0 + random() * 9.0;
-
-      pos[i * 3] = Math.cos(angle) * radius;
-      pos[i * 3 + 1] = Math.sin(angle) * radius;
-      pos[i * 3 + 2] = z;
-
-      angles[i] = angle;
-      radii[i] = radius;
-      spds[i] = 0.4 + random() * 1.4;
+function BackgroundStarfield() {
+  const count = 500;
+  const positions = useMemo(() => {
+    const rng = seededRandom(2048);
+    const arr = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const theta = rng() * Math.PI * 2;
+      const phi = Math.acos(2 * rng() - 1);
+      const r = 4 + rng() * 6;
+      arr[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      arr[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      arr[i * 3 + 2] = r * Math.cos(phi);
     }
-    return { positions: pos, initialAngles: angles, initialRadii: radii, speeds: spds };
+    return arr;
   }, []);
 
-  useFrame(({ clock }, delta) => {
-    const time = clock.elapsedTime;
-    const speed = activitySpeed(activity);
+  const pointsRef = useRef<THREE.Points>(null);
 
-    if (wormholeShaderRef.current) {
-      wormholeShaderRef.current.uniforms.uTime.value = time;
-      wormholeShaderRef.current.uniforms.uEnergy.value = activityEnergy(activity);
-    }
-
-    if (particlesRef.current) {
-      const posAttr = particlesRef.current.geometry.attributes.position as THREE.BufferAttribute;
-      const posArray = posAttr.array as Float32Array;
-
-      for (let i = 0; i < particleCount; i++) {
-        initialAngles[i] += delta * speeds[i] * 0.9 * speed;
-        const currentAngle = initialAngles[i];
-        let z = posArray[i * 3 + 2] + delta * speeds[i] * 2.5 * speed;
-        if (z > 2.0) z = -7.0;
-
-        const currentRadius = initialRadii[i] * (1.0 + (z + 7.0) * 0.15);
-
-        posArray[i * 3] = Math.cos(currentAngle) * currentRadius;
-        posArray[i * 3 + 1] = Math.sin(currentAngle) * currentRadius;
-        posArray[i * 3 + 2] = z;
-      }
-      posAttr.needsUpdate = true;
+  useFrame(({ clock }) => {
+    if (pointsRef.current) {
+      pointsRef.current.rotation.y = clock.elapsedTime * 0.006;
     }
   });
 
   return (
-    <group position={[0, 0, -2.5]}>
-      {/* 3D Wormhole Funnel Cylinder Mesh */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.6, 5.2, 11, 32, 32, true]} />
-        <shaderMaterial
-          ref={wormholeShaderRef}
-          vertexShader={wormholeVertexShader}
-          fragmentShader={wormholeFragmentShader}
-          uniforms={{
-            uTime: { value: 0 },
-            uEnergy: { value: 1 },
-          }}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-          transparent
-        />
-      </mesh>
-
-      {/* 1,200 Starlight Particles Spiraling Inwards/Outwards */}
-      <points ref={particlesRef}>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-        </bufferGeometry>
-        <pointsMaterial
-          color={ICE}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          opacity={0.7}
-          size={0.035}
-          sizeAttenuation
-          toneMapped={false}
-          transparent
-        />
-      </points>
-    </group>
+    <points ref={pointsRef}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial
+        color="#ffffff"
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        opacity={0.45}
+        size={0.02}
+        sizeAttenuation
+        toneMapped={false}
+        transparent
+      />
+    </points>
   );
 }
 
-// --- MAIN SPACE SCENE ---
+/* ━━━ 7. Hover Zoom Rig ━━━ */
+
+function HoverZoomRig({ children }: { children: React.ReactNode }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const { gl } = useThree();
+  const hovered = useRef(false);
+  const currentScale = useRef(1.0);
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const onEnter = () => { hovered.current = true; };
+    const onLeave = () => { hovered.current = false; };
+    canvas.addEventListener("pointerenter", onEnter);
+    canvas.addEventListener("pointerleave", onLeave);
+    return () => {
+      canvas.removeEventListener("pointerenter", onEnter);
+      canvas.removeEventListener("pointerleave", onLeave);
+    };
+  }, [gl.domElement]);
+
+  useFrame(() => {
+    const target = hovered.current ? 1.12 : 1.0;
+    currentScale.current = THREE.MathUtils.lerp(currentScale.current, target, 0.06);
+    if (groupRef.current) {
+      groupRef.current.scale.setScalar(currentScale.current);
+    }
+  });
+
+  return <group ref={groupRef}>{children}</group>;
+}
+
+/* ━━━ MAIN SPACE SCENE ━━━ */
+
 export function SpaceScene({ activity = "idle" }: { activity?: AiActivity }) {
   return (
-    <group name="mcu-tesseract-space-scene" scale={1.25}>
-      <ambientLight intensity={0.6} color={DEEP} />
+    <group name="crystal-tesseract-space-scene" scale={1.25}>
+      <ambientLight intensity={0.4} color={DEEP} />
 
-      {/* 1. Wormhole Tunnel & 1,200 Starlight Particle Vortex */}
-      <SpaceWormholeTunnel activity={activity} />
+      <HoverZoomRig>
+        {/* Background stars */}
+        <BackgroundStarfield />
 
-      {/* 2. Electric 4D Hypercube Matrix */}
-      <ElectricHypercube4D activity={activity} />
+        {/* Floating crystal data debris */}
+        <FloatingDebris activity={activity} />
 
-      {/* 3. Volumetric Cosmic Nebula Core & Space Stone Nucleus */}
-      <VolumetricCosmicNebulaCore activity={activity} />
+        {/* Orbital dot rings — gyroscope effect */}
+        <OrbitalDotRing activity={activity} baseRadius={2.4} tiltX={0} tiltZ={0} phase={0} />
+        <OrbitalDotRing activity={activity} baseRadius={2.15} tiltX={1.05} tiltZ={0.4} phase={2.0} />
 
-      {/* 4. Translucent PBR Tesseract Glass Shell & Edge Arcs */}
-      <TesseractGlassShell activity={activity} />
+        {/* Corner god rays — 8 beams from cube vertices */}
+        <CornerGodRays activity={activity} />
+
+        {/* Central cross beams + nucleus */}
+        <CentralBeams activity={activity} />
+
+        {/* THE CRYSTAL CUBE — monolithic with internal circuit pattern */}
+        <CrystalTesseractCore activity={activity} />
+      </HoverZoomRig>
     </group>
   );
 }
