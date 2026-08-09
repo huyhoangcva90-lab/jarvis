@@ -1,90 +1,136 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { soundManager } from "../utils/soundManager.js";
+
+const LockIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 10V7.75a4.5 4.5 0 0 1 9 0V10M6 10h12v10H6z" /><path d="M12 14v2.5" /></svg>
+);
+
+const UserIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5.5 20c.6-3.8 2.8-5.8 6.5-5.8s5.9 2 6.5 5.8" /></svg>
+);
 
 export default function AuthScreen({ data, onUnlock }) {
   const [username, setUsername] = useState(data?.auth?.username || "admin");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [attempts, setAttempts] = useState(0);
   const [phase, setPhase] = useState("standby");
+  const timers = useRef([]);
 
   const expectedUsername = data?.auth?.username || "admin";
   const expectedPassword = data?.auth?.password || "123456";
   const locked = attempts >= 5;
 
   useEffect(() => soundManager.setEnabled(data?.soundEnabled !== false), [data?.soundEnabled]);
+  useEffect(() => () => timers.current.forEach(window.clearTimeout), []);
+
+  const resetFeedback = () => {
+    setError("");
+    if (phase === "denied") setPhase("standby");
+  };
 
   const submit = (event) => {
     event.preventDefault();
-    if (locked || phase === "granting") return;
+    if (locked || phase === "scanning" || phase === "granting") return;
+    setError("");
     setPhase("scanning");
-    window.setTimeout(() => {
+
+    timers.current.push(window.setTimeout(() => {
       if (username.trim() === expectedUsername && password === expectedPassword) {
         setPhase("granting");
-        setError("");
-        soundManager.play("spider");
-        window.setTimeout(onUnlock, 900);
+        soundManager.play("success");
+        timers.current.push(window.setTimeout(onUnlock, 900));
         return;
       }
+
       soundManager.play("warning");
       setAttempts((value) => value + 1);
       setPhase("denied");
-      setError("ĐỊNH DANH KHÔNG KHỚP · KIỂM TRA LẠI QUYỀN TRUY CẬP");
+      setError("Thông tin truy cập chưa đúng. Hãy kiểm tra và thử lại.");
       setPassword("");
-    }, 520);
+    }, 560));
   };
 
+  const status = locked
+    ? "Đã tạm khóa sau 5 lần thử. Tải lại trang để tiếp tục."
+    : phase === "scanning"
+      ? "Đang xác minh khóa truy cập…"
+      : phase === "granting"
+        ? "Danh tính hợp lệ. Đang mở J-Core…"
+        : error;
+
   return (
-    <main className={`stark-auth ${phase}`}>
-      <div className="stark-auth-grid" aria-hidden="true" />
-      <div className="stark-auth-scan" aria-hidden="true" />
-      <div className="stark-auth-corners" aria-hidden="true"><i /><i /><i /><i /></div>
+    <main className={`aegis-auth is-${phase}`}>
+      <div className="aegis-ambient" aria-hidden="true">
+        <i className="aegis-aurora aegis-aurora-one" />
+        <i className="aegis-aurora aegis-aurora-two" />
+        <i className="aegis-grain" />
+        <i className="aegis-grid" />
+      </div>
 
-      <header className="stark-auth-topline">
-        <div><span>J</span><b>J-CORE</b><small>PRIVATE INTELLIGENCE SYSTEM</small></div>
-        <p><i /> LOCAL ENCRYPTION ACTIVE</p>
-        <code>MK VII // {new Date().getFullYear()}</code>
-      </header>
+      <nav className="aegis-nav" aria-label="J-Core identity">
+        <div className="aegis-brand"><span>J</span><div><b>J—CORE</b><small>PRIVATE INTELLIGENCE</small></div></div>
+        <div className="aegis-private"><i /> LOCAL VAULT <span>ENCRYPTED</span></div>
+      </nav>
 
-      <section className="stark-auth-console">
-        <div className="stark-auth-reactor" aria-hidden="true">
-          <div className="reactor-orbit orbit-a"><i /><i /><i /></div>
-          <div className="reactor-orbit orbit-b"><i /><i /><i /><i /></div>
-          <div className="reactor-brackets"><i /><i /><i /><i /></div>
-          <div className="reactor-core"><span>J</span><small>{phase === "granting" ? "OPEN" : phase === "scanning" ? "SCAN" : "AI"}</small></div>
-          <svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="72" /><circle cx="100" cy="100" r="88" /></svg>
-          <p>ARC IDENTITY REACTOR</p>
+      <section className="aegis-stage">
+        <div className="aegis-story">
+          <p className="aegis-kicker"><span>01</span> PERSONAL INTELLIGENCE SYSTEM</p>
+          <h1>Mọi tín hiệu.<br />Một <em>hệ lõi.</em></h1>
+          <p className="aegis-lead">Không gian riêng để hoạch định, kết nối và điều khiển toàn bộ hệ thống cá nhân của bạn.</p>
+
+          <div className="aegis-core" aria-hidden="true">
+            <div className="aegis-core-halo" />
+            <div className="aegis-core-shell"><i /><i /><i /><span>J</span></div>
+            <div className="aegis-core-ring"><b /><b /><b /></div>
+          </div>
+
+          <div className="aegis-links" aria-label="Hệ thống sẵn sàng">
+            <span><i /> HERMES</span><span><i /> OPENCLAW</span><span><i /> 9ROUTER</span>
+          </div>
         </div>
 
-        <form className="stark-auth-form" onSubmit={submit}>
-          <div className="stark-auth-heading">
-            <span>SECURE ACCESS // LEVEL 07</span>
-            <h1>WELCOME BACK,<br /><b>{(username || "OPERATOR").toUpperCase()}</b></h1>
-            <p>Xác thực danh tính để kết nối J-Core, Hermes và mạng tác nhân cá nhân.</p>
+        <form className="aegis-card" onSubmit={submit} noValidate>
+          <div className="aegis-card-glow" aria-hidden="true" />
+          <header>
+            <p><LockIcon /> SECURE SESSION</p>
+            <h2>Chào mừng trở lại.</h2>
+            <span>Đăng nhập để mở không gian điều hành cá nhân.</span>
+          </header>
+
+          <div className="aegis-fields">
+            <label htmlFor="aegis-operator">Operator ID</label>
+            <div className="aegis-input">
+              <UserIcon />
+              <input id="aegis-operator" autoComplete="username" value={username} disabled={locked || phase === "granting"} onChange={(event) => { setUsername(event.target.value); resetFeedback(); }} />
+              <small>{username.trim() === expectedUsername ? "KNOWN" : "LOCAL"}</small>
+            </div>
+
+            <label htmlFor="aegis-key">Access key</label>
+            <div className={`aegis-input ${error ? "has-error" : ""}`}>
+              <LockIcon />
+              <input id="aegis-key" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} disabled={locked || phase === "granting"} placeholder="Nhập khóa truy cập" aria-invalid={Boolean(error)} aria-describedby="aegis-feedback" onChange={(event) => { setPassword(event.target.value); resetFeedback(); }} />
+              <button type="button" className="aegis-reveal" aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? "HIDE" : "SHOW"}</button>
+            </div>
           </div>
 
-          <label className="stark-field">
-            <span>OPERATOR ID</span>
-            <div><i>01</i><input autoComplete="username" value={username} disabled={locked || phase === "granting"} onChange={(event) => { setUsername(event.target.value); setError(""); setPhase("standby"); }} /><b>VERIFIED</b></div>
-          </label>
-          <label className="stark-field">
-            <span>ACCESS KEY</span>
-            <div><i>02</i><input type="password" autoComplete="current-password" value={password} disabled={locked || phase === "granting"} placeholder="••••••••••••" onChange={(event) => { setPassword(event.target.value); setError(""); setPhase("standby"); }} /><b>{password ? "ENCRYPTED" : "WAITING"}</b></div>
-          </label>
-
-          <div className="stark-auth-status" role="status">
-            <i />
-            <span>{locked ? "ACCESS LOCKED · RELOAD REQUIRED" : error || (phase === "scanning" ? "SCANNING BIOMETRIC SIGNATURE…" : phase === "granting" ? "IDENTITY CONFIRMED · OPENING CORE…" : "SYSTEM READY · AWAITING CREDENTIALS")}</span>
-            <small>{String(5 - Math.min(attempts, 5)).padStart(2, "0")} ATTEMPTS</small>
+          <div id="aegis-feedback" className="aegis-feedback" role="status" aria-live="polite">
+            <span>{status}</span>
+            {!locked && attempts > 0 && <small>Còn {5 - attempts} lần thử</small>}
           </div>
 
-          <button className="stark-auth-submit" type="submit" disabled={locked || phase === "scanning" || phase === "granting"}>
-            <span>{phase === "granting" ? "ACCESS GRANTED" : phase === "scanning" ? "AUTHENTICATING" : "INITIALIZE J-CORE"}</span><b>→</b>
+          <button className="aegis-submit" type="submit" disabled={locked || phase === "scanning" || phase === "granting"}>
+            <span>{phase === "granting" ? "ĐÃ XÁC NHẬN" : phase === "scanning" ? "ĐANG XÁC MINH" : locked ? "TẠM KHÓA" : "MỞ J—CORE"}</span>
+            <i aria-hidden="true">{phase === "granting" ? "✓" : "↗"}</i>
           </button>
+
+          <footer><LockIcon /><span>Thông tin đăng nhập chỉ được xác minh trên thiết bị này.</span></footer>
         </form>
       </section>
 
-      <footer className="stark-auth-footer"><span>HERMES GATEWAY</span><i /><span>OPENCLAW LINK</span><i /><span>9ROUTER MATRIX</span><b>ALL SYSTEMS STANDBY</b></footer>
+      <footer className="aegis-foot"><span>J—CORE / HERMES GATEWAY</span><span>SAIGON · {new Date().getFullYear()}</span></footer>
+      <div className="aegis-aperture" aria-hidden="true" />
     </main>
   );
 }
