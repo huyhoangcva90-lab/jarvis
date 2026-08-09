@@ -108,10 +108,10 @@ const QUICK_COMMANDS = [
 const paletteLabels: Record<Palette, string> = {
   gold: "Gold Core",
   blue: "Spatial Tesseract",
-  green: "Agamotto Oracle",
-  red: "Aether Reality",
-  violet: "Quantum Singularity",
-  orange: "Stark / Jarvis",
+  green: "Stark Matrix",
+  red: "Stark Combat",
+  violet: "Stark Quantum",
+  orange: "Arc Reactor",
   spider: "Spider 2099"
 };
 

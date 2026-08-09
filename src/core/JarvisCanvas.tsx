@@ -9,11 +9,8 @@ import RealmTransition from "./RealmTransition";
 import { useReducedMotion } from "../utils/useReducedMotion";
 import { MindScene } from "../realms/mind/MindScene";
 import { SpaceScene } from "../realms/space/SpaceScene";
-import { RealityScene } from "../realms/reality/RealityScene";
-import { TimeScene } from "../realms/time/TimeScene";
 import { SpiderScene } from "../realms/spider/SpiderScene";
-import { PowerScene } from "../realms/power/PowerScene";
-import { SoulScene } from "../realms/soul/SoulScene";
+import { TonyOrbScene } from "../realms/stark/TonyOrbScene";
 
 type JarvisCanvasProps = {
   activity: AiActivity;
@@ -223,10 +220,10 @@ function PostFX({ activity, palette }: { activity: AiActivity; palette: string }
     const activityBoost = activity === "speaking" ? 1.25 : activity === "thinking" ? 1.12 : 1;
     const profiles: Record<string, { intensity: number; threshold: number; smoothing: number }> = {
       blue: { intensity: 1.32, threshold: 0.28, smoothing: 0.52 },
-      green: { intensity: 1.35, threshold: 0.26, smoothing: 0.55 },
-      red: { intensity: 1.28, threshold: 0.32, smoothing: 0.48 },
-      violet: { intensity: 1.42, threshold: 0.25, smoothing: 0.5 },
-      orange: { intensity: 1.3, threshold: 0.35, smoothing: 0.45 },
+      green: { intensity: 0.92, threshold: 0.42, smoothing: 0.42 },
+      red: { intensity: 0.88, threshold: 0.46, smoothing: 0.4 },
+      violet: { intensity: 0.94, threshold: 0.44, smoothing: 0.4 },
+      orange: { intensity: 0.9, threshold: 0.46, smoothing: 0.38 },
       spider: { intensity: 1.25, threshold: 0.28, smoothing: 0.4 },
     };
     const selected = profiles[palette] ?? profiles.blue;
@@ -263,19 +260,19 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: Jar
                 return <MindScene activity={activity} palette="gold" />;
               }
               if (activePalette === "green") {
-                return <TimeScene activity={activity} />;
+                return <TonyOrbScene activity={activity} palette="green" />;
               }
               if (activePalette === "blue") {
                 return <SpaceScene activity={activity} />;
               }
               if (activePalette === "red") {
-                return <RealityScene activity={activity} />;
+                return <TonyOrbScene activity={activity} palette="red" />;
               }
               if (activePalette === "violet") {
-                return <PowerScene activity={activity} />;
+                return <TonyOrbScene activity={activity} palette="violet" />;
               }
               if (activePalette === "orange") {
-                return <SoulScene activity={activity} />;
+                return <TonyOrbScene activity={activity} palette="orange" />;
               }
               if (activePalette === "spider") {
                 return <SpiderScene activity={activity} />;
