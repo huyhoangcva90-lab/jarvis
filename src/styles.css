@@ -7627,6 +7627,37 @@ body[data-activity="speaking"] .prompt-shell {
 .aegis-fields>label{color:rgba(184,230,237,.66)}.aegis-input{height:58px;border-radius:1px;border-color:rgba(99,234,255,.17);background:rgba(0,8,13,.72);clip-path:polygon(0 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%)}.aegis-input:focus-within{border-color:rgba(99,234,255,.7);background:rgba(2,18,25,.9);box-shadow:0 0 0 1px rgba(99,234,255,.13),inset 3px 0 #63eaff,0 0 25px rgba(17,181,224,.08)}.aegis-input>svg{color:#62b8c7}.aegis-input>small,.aegis-reveal{color:#ffad73}.aegis-submit{height:58px;border-radius:1px;color:#031015;background:linear-gradient(100deg,#70eeff,#2dc6ed 65%,#ff9b54 150%);box-shadow:0 0 30px rgba(45,198,237,.17);clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,0 100%)}.aegis-submit i{border-radius:0;background:rgba(0,20,27,.13)}.aegis-card>footer{color:rgba(133,187,196,.48)}
 @keyframes aegis-scan{from{transform:translateY(-20vh)}to{transform:translateY(140vh)}}
 @media(max-width:900px){.aegis-stage{height:calc(100dvh - 112px)}.aegis-core{transform:scale(.54)}.aegis-card{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,14px 100%,0 calc(100% - 14px))}}
+
+/* Blue Arc revision — the reactor is the only dominant visual. */
+.aegis-auth{--aegis-cyan:#72f7ff;--aegis-orange:#72f7ff;background:#01050b;color:#edfeff}
+.aegis-aurora-one{inset:-24% 22% -10% -22%;opacity:1;background:radial-gradient(circle at 58% 57%,rgba(75,233,255,.2),transparent 17%),radial-gradient(ellipse at 48% 58%,rgba(0,117,255,.18),transparent 43%),radial-gradient(ellipse at 25% 75%,rgba(0,40,89,.3),transparent 54%)}
+.aegis-aurora-two{inset:0 -28% -45% 40%;opacity:.65;background:radial-gradient(ellipse at 45% 48%,rgba(32,173,255,.13),transparent 40%),radial-gradient(ellipse at 35% 66%,rgba(0,62,108,.14),transparent 56%)}
+.aegis-private span,.aegis-kicker span{border-color:rgba(114,247,255,.3);color:#a9faff;background:rgba(83,231,255,.04)}
+.aegis-stage{grid-template-columns:minmax(0,1fr) 438px;gap:clamp(42px,7vw,110px)}
+.aegis-story{justify-content:flex-start;padding-top:clamp(76px,11vh,128px)}
+.aegis-story h1{max-width:510px;font-size:clamp(42px,4.6vw,70px);line-height:.88;letter-spacing:-.055em}
+.aegis-story h1 em{background:linear-gradient(100deg,#efffff 4%,#7bf8ff 48%,#3a9fff 110%);background-clip:text;-webkit-background-clip:text}
+.aegis-lead{width:min(480px,78%);margin-top:20px;border-left-color:#72f7ff;padding-left:15px;color:rgba(182,226,234,.59)}
+.aegis-core{right:clamp(-30px,2vw,30px);bottom:clamp(-8px,1vh,18px);width:440px;height:440px;filter:drop-shadow(0 28px 80px rgba(0,0,0,.82))}
+.aegis-core-halo{width:94%;height:94%;background:radial-gradient(circle,rgba(180,252,255,.23) 0 4%,rgba(70,232,255,.17) 8%,rgba(0,157,255,.08) 28%,transparent 68%);filter:blur(7px);animation:aegis-reactor-pulse 3.2s ease-in-out infinite}
+.aegis-core-shell{width:176px;height:176px;border:2px solid rgba(218,254,255,.82);background:radial-gradient(circle,#fff 0 4%,#c8fdff 5% 9%,#68efff 10% 14%,rgba(13,141,189,.92) 15% 21%,rgba(2,31,47,.96) 23% 43%,rgba(28,189,224,.72) 44% 47%,rgba(1,11,20,.99) 49%);box-shadow:inset 0 0 30px rgba(181,251,255,.7),0 0 12px #d7fdff,0 0 42px rgba(72,234,255,.75),0 0 120px rgba(0,153,255,.34)}
+.aegis-core-shell:before{content:"";position:absolute;inset:-26px;border:0;border-radius:50%;background:repeating-conic-gradient(from -2deg,#bffcff 0 7deg,rgba(39,173,219,.2) 7deg 18deg,#62edff 18deg 24deg,transparent 24deg 30deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 16px),#000 calc(100% - 15px));mask:radial-gradient(farthest-side,transparent calc(100% - 16px),#000 calc(100% - 15px));box-shadow:none;animation:aegis-spin 18s linear infinite reverse}
+.aegis-core-shell:after{inset:42px;border:0;border-radius:8px;clip-path:polygon(50% 0,100% 92%,0 92%);background:linear-gradient(145deg,#eaffff 0 8%,#62ecff 16%,rgba(6,119,170,.8) 36%,rgba(1,18,29,.96) 58%);box-shadow:0 0 15px #c9fbff,0 0 38px #48e6ff}
+.aegis-core-shell span{width:25px;height:25px;z-index:3;overflow:hidden;color:transparent;clip-path:polygon(50% 0,100% 92%,0 92%);background:#eaffff;filter:drop-shadow(0 0 8px #fff)}
+.aegis-core-shell i{height:68px;top:-45px;background:linear-gradient(transparent,rgba(163,249,255,.8),rgba(43,211,255,.12),transparent);transform-origin:1px 132px}
+.aegis-core-ring{width:292px;height:292px;border-color:rgba(105,239,255,.44);border-style:solid;box-shadow:inset 0 0 28px rgba(60,220,255,.05),0 0 22px rgba(60,220,255,.06)}
+.aegis-core-ring:before{inset:12px;border:2px dashed rgba(139,244,255,.28)}.aegis-core-ring:after{inset:-29px;border-color:rgba(114,247,255,.18) transparent;border-width:2px}
+.aegis-core-ring b{background:#d8feff;box-shadow:0 0 12px #fff,0 0 26px #4deaff}
+.aegis-core-orbit.orbit-a{width:376px;height:234px;border-top-color:rgba(113,239,255,.48);border-bottom-color:rgba(15,148,255,.2)}.aegis-core-orbit.orbit-b{width:238px;height:382px;border-left-color:rgba(123,242,255,.42);border-right-color:rgba(20,147,255,.18)}
+.aegis-core-label{border-left-color:#72f7ff;color:rgba(190,250,255,.78);background:rgba(1,13,23,.82)}.aegis-core-label.label-a{right:0;top:86px}.aegis-core-label.label-b{left:4px;bottom:82px;border-color:#72f7ff;color:#9df8ff}
+.aegis-links{color:rgba(124,195,208,.55)}
+.aegis-card{border-color:rgba(114,247,255,.32);background:linear-gradient(145deg,rgba(5,25,38,.96),rgba(1,9,17,.94));box-shadow:0 36px 110px rgba(0,0,0,.76),inset 0 0 65px rgba(40,205,255,.035),0 0 50px rgba(0,160,255,.06)}
+.aegis-card:before{background:linear-gradient(130deg,rgba(190,252,255,.48),transparent 35%,transparent 72%,rgba(40,166,255,.24))}
+.aegis-card header>p,.aegis-input>small,.aegis-reveal{color:#8df5ff}
+.aegis-diagnostics span{border-color:rgba(114,247,255,.13);color:rgba(159,229,239,.58);background:rgba(48,198,255,.03)}.aegis-diagnostics i{background:#72f7ff;box-shadow:0 0 10px #72f7ff}
+.aegis-submit{background:linear-gradient(100deg,#bffcff,#59e8ff 58%,#279fff 132%);box-shadow:0 0 34px rgba(62,222,255,.23)}
+@keyframes aegis-reactor-pulse{0%,100%{transform:scale(.96);opacity:.72}50%{transform:scale(1.06);opacity:1}}
+@media(max-width:900px){.aegis-story{padding-top:20px}.aegis-core{right:-105px;top:-78px;bottom:auto;transform:scale(.5)}.aegis-card{margin-top:48px}}
 /* Spidey Tracker fidelity pass — personal editable field map */
 .spidey-tracker-shell{--st-blue:#194aa5;--st-cyan:#42acd0;--st-red:#ef414b;--st-ink:#071118;--st-paper:#eef7ed;display:block!important;background:linear-gradient(#174aa8 0 72%,#071a48 100%)!important;color:#fff;font-family:"Courier New",ui-monospace,monospace;isolation:isolate}
 .spidey-tracker-shell button,.spidey-tracker-shell input,.spidey-tracker-shell textarea,.spidey-tracker-shell select{font:inherit}.spidey-tracker-shell button{cursor:pointer}.spidey-tracker-shell button:focus-visible,.spidey-tracker-shell input:focus-visible,.spidey-tracker-shell textarea:focus-visible,.spidey-tracker-shell select:focus-visible{outline:3px solid #fff36c;outline-offset:3px}.spidey-skip{position:fixed;z-index:100;left:16px;top:-70px;padding:12px 16px;color:#071118;background:#fff36c;border:3px solid #071118;font-weight:900}.spidey-skip:focus{top:12px}

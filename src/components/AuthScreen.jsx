@@ -102,7 +102,7 @@ export default function AuthScreen({ data, onUnlock }) {
       <section className="aegis-stage">
         <div className="aegis-story">
           <p className="aegis-kicker"><span>01</span> ARC COMMAND ACCESS PROTOCOL</p>
-          <h1>Xác thực<br /><em>hệ lõi.</em></h1>
+          <h1>Hệ lõi<br /><em>hồ quang.</em></h1>
           <p className="aegis-lead">Một danh tính mở toàn bộ không gian hoạch định, tác nhân AI và hệ thống cá nhân của bạn.</p>
 
           <div className="aegis-core" aria-hidden="true">
