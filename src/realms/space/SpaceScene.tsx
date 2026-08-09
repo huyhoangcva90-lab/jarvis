@@ -2,580 +2,517 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AiActivity } from "../../App";
-import { activityEnergy, activityPulse, activitySpeed, seededRandom } from "../shared/coreMotion";
+import { activityEnergy, activityPulse, activitySpeed, seededRandom, segmentGeometry } from "../shared/coreMotion";
 
+const ICE = "#dcfbff";
 const BLUE = "#22b8ff";
-const ICE  = "#dcfbff";
 const DEEP = "#0757ff";
+const DARK = "#020713";
 
-/* ━━━ GLSL: Internal Crystal Circuit Pattern ━━━ */
-
-const crystalInternalVertex = `
-  varying vec3 vPosition;
+const glassVertex = `
   varying vec3 vNormal;
+  varying vec3 vWorldPosition;
   varying vec2 vUv;
+
   void main() {
     vUv = uv;
-    vPosition = position;
     vNormal = normalize(normalMatrix * normal);
+    vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
-const crystalInternalFragment = `
+const glassFragment = `
   uniform float uTime;
   uniform float uEnergy;
-  varying vec3 vPosition;
   varying vec3 vNormal;
+  varying vec3 vWorldPosition;
   varying vec2 vUv;
 
   float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
   }
 
   void main() {
-    // --- Internal laser grid circuit pattern ---
-    vec2 grid = fract(vUv * 8.0);
-    float lineX = smoothstep(0.0, 0.06, grid.x) * (1.0 - smoothstep(0.94, 1.0, grid.x));
-    float lineY = smoothstep(0.0, 0.06, grid.y) * (1.0 - smoothstep(0.94, 1.0, grid.y));
-    float gridLines = 1.0 - lineX * lineY;
+    vec3 viewDir = normalize(cameraPosition - vWorldPosition);
+    float fresnel = pow(1.0 - abs(dot(viewDir, normalize(vNormal))), 2.15);
 
-    // Traveling energy pulse along grid
-    float pulse1 = sin(vUv.x * 25.0 - uTime * 4.0) * 0.5 + 0.5;
-    float pulse2 = sin(vUv.y * 25.0 + uTime * 3.2) * 0.5 + 0.5;
-    float energyFlow = max(pulse1 * gridLines, pulse2 * gridLines);
+    vec2 grid = abs(fract(vUv * 7.0) - 0.5);
+    float circuit = 1.0 - smoothstep(0.012, 0.045, min(grid.x, grid.y));
+    float scan = smoothstep(0.62, 1.0, sin((vUv.x + vUv.y) * 22.0 - uTime * 4.2) * 0.5 + 0.5);
+    float chip = step(0.84, hash(floor(vUv * 11.0) + floor(uTime * 2.0))) * 0.28;
 
-    // Fresnel rim for edge glow
-    float viewAngle = abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)));
-    float fresnel = pow(1.0 - viewAngle, 3.0);
+    vec3 ice = vec3(0.86, 0.98, 1.0);
+    vec3 cyan = vec3(0.13, 0.72, 1.0);
+    vec3 deep = vec3(0.03, 0.20, 0.86);
+    vec3 color = mix(deep, cyan, 0.45 + circuit * 0.35);
+    color = mix(color, ice, fresnel * 0.9 + scan * circuit * 0.45 + chip);
 
-    // Electric arc flicker on high activity
-    float noise = hash(vUv * 80.0 + floor(uTime * 22.0));
-    float arc = step(0.72, noise) * gridLines * uEnergy * 0.5;
-
-    // Edge detection - bright edges of the box
-    vec2 edgeDist = abs(vUv - 0.5) * 2.0;
-    float edgeFactor = max(edgeDist.x, edgeDist.y);
-    float edgeBright = smoothstep(0.88, 0.99, edgeFactor);
-
-    vec3 colIce = vec3(0.863, 0.984, 1.0);   // #dcfbff
-    vec3 colBlue = vec3(0.133, 0.722, 1.0);   // #22b8ff
-    vec3 colDeep = vec3(0.027, 0.341, 1.0);   // #0757ff
-
-    // Blend based on grid, pulse, and edge
-    vec3 color = colDeep;
-    color = mix(color, colBlue, energyFlow * 0.7);
-    color = mix(color, colIce, edgeBright + arc);
-    color = mix(color, colIce, fresnel * 0.8);
-
-    float alpha = (gridLines * 0.35 + energyFlow * 0.25 + fresnel * 0.55 + edgeBright * 0.8 + arc * 0.6) * uEnergy;
-    alpha = clamp(alpha, 0.0, 1.0);
-
-    gl_FragColor = vec4(color * (1.2 + uEnergy * 0.6), alpha);
+    float edge = smoothstep(0.42, 0.5, max(abs(vUv.x - 0.5), abs(vUv.y - 0.5)));
+    float alpha = 0.08 + fresnel * 0.58 + edge * 0.38 + circuit * scan * 0.22;
+    alpha *= 0.72 + uEnergy * 0.36;
+    gl_FragColor = vec4(color * (1.2 + uEnergy * 0.45), clamp(alpha, 0.0, 0.96));
   }
 `;
 
-/* ━━━ GLSL: Outer Crystal Facets Refraction ━━━ */
-
-const facetVertex = `
-  varying vec3 vNormal;
-  varying vec3 vWorldPos;
+const beamVertex = `
   varying vec2 vUv;
   void main() {
     vUv = uv;
-    vNormal = normalize(normalMatrix * normal);
-    vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
 
-const facetFragment = `
+const beamFragment = `
   uniform float uTime;
   uniform float uEnergy;
-  varying vec3 vNormal;
-  varying vec3 vWorldPos;
+  uniform vec3 uColor;
   varying vec2 vUv;
 
   void main() {
-    float viewAngle = abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0)));
-    float fresnel = pow(1.0 - viewAngle, 2.2);
-
-    // Sharp crystalline edge highlight
-    vec2 edgeDist = abs(vUv - 0.5) * 2.0;
-    float edgeFactor = max(edgeDist.x, edgeDist.y);
-    float edgeLine = smoothstep(0.92, 0.98, edgeFactor);
-
-    // Subtle facet refraction shimmer
-    float shimmer = sin(vWorldPos.x * 12.0 + vWorldPos.y * 8.0 + uTime * 1.5) * 0.5 + 0.5;
-    shimmer *= fresnel;
-
-    vec3 colIce = vec3(0.863, 0.984, 1.0);
-    vec3 colBlue = vec3(0.133, 0.722, 1.0);
-
-    vec3 color = mix(colBlue, colIce, edgeLine + shimmer * 0.4);
-    float alpha = (fresnel * 0.35 + edgeLine * 0.65 + shimmer * 0.1) * (0.7 + uEnergy * 0.3);
-
-    gl_FragColor = vec4(color * 1.6, alpha);
+    float core = 1.0 - smoothstep(0.0, 0.48, abs(vUv.y - 0.5));
+    float taper = smoothstep(0.0, 0.14, vUv.x) * (1.0 - smoothstep(0.78, 1.0, vUv.x));
+    float pulse = 0.65 + 0.35 * sin(uTime * 5.8 + vUv.x * 20.0);
+    gl_FragColor = vec4(uColor * (1.35 + pulse * 0.8), core * taper * (0.09 + uEnergy * 0.11));
   }
 `;
 
-/* ━━━ 1. Crystal Tesseract Core ━━━
-   Single monolithic crystal cube with internal circuit patterns,
-   like the reference image — NOT separated Rubik segments */
+type HypercubeData = {
+  baseVertices: Array<[number, number, number, number]>;
+  edges: Array<[number, number]>;
+  positions: Float32Array;
+};
 
-function CrystalTesseractCore({ activity }: { activity: AiActivity }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const internalMatRef = useRef<THREE.ShaderMaterial>(null);
-  const facetMatRef = useRef<THREE.ShaderMaterial>(null);
-  const innerCubeRef = useRef<THREE.Mesh>(null);
+function makeHypercubeData(): HypercubeData {
+  const baseVertices: Array<[number, number, number, number]> = [];
+  for (const x of [-1, 1]) {
+    for (const y of [-1, 1]) {
+      for (const z of [-1, 1]) {
+        for (const w of [-1, 1]) {
+          baseVertices.push([x, y, z, w]);
+        }
+      }
+    }
+  }
 
-  const mainGeo = useMemo(() => new THREE.BoxGeometry(2.0, 2.0, 2.0), []);
-  const innerGeo = useMemo(() => new THREE.BoxGeometry(1.85, 1.85, 1.85, 12, 12, 12), []);
+  const edges: Array<[number, number]> = [];
+  for (let a = 0; a < baseVertices.length; a += 1) {
+    for (let b = a + 1; b < baseVertices.length; b += 1) {
+      let differences = 0;
+      for (let axis = 0; axis < 4; axis += 1) {
+        if (baseVertices[a][axis] !== baseVertices[b][axis]) differences += 1;
+      }
+      if (differences === 1) edges.push([a, b]);
+    }
+  }
 
-  // Inset beveled sub-frame wireframes (visible internal faceted structure)
-  const frameGeos = useMemo(() => {
-    const sizes = [1.92, 1.5, 1.1, 0.7];
-    return sizes.map(s => {
-      const box = new THREE.BoxGeometry(s, s, s);
+  return { baseVertices, edges, positions: new Float32Array(edges.length * 6) };
+}
+
+function buildFaceCircuitGeometry() {
+  const rng = seededRandom(88201);
+  const segments: Array<[THREE.Vector3, THREE.Vector3]> = [];
+  const faces = [
+    { axis: "z", sign: 1 },
+    { axis: "z", sign: -1 },
+    { axis: "x", sign: 1 },
+    { axis: "x", sign: -1 },
+    { axis: "y", sign: 1 },
+    { axis: "y", sign: -1 },
+  ] as const;
+
+  const makePoint = (axis: "x" | "y" | "z", sign: number, a: number, b: number) => {
+    const depth = sign * 0.995;
+    if (axis === "z") return new THREE.Vector3(a, b, depth);
+    if (axis === "x") return new THREE.Vector3(depth, a, b);
+    return new THREE.Vector3(a, depth, b);
+  };
+
+  faces.forEach((face, faceIndex) => {
+    for (let trace = 0; trace < 20; trace += 1) {
+      const lane = -0.72 + Math.floor(rng() * 7) * 0.24;
+      const from = -0.88 + rng() * 0.24;
+      const length = 0.32 + rng() * 0.82;
+      const elbow = from + length * (0.35 + rng() * 0.35);
+      const cross = lane + (rng() > 0.5 ? 1 : -1) * (0.08 + rng() * 0.18);
+      const horizontal = trace % 2 === 0;
+      const a = horizontal ? makePoint(face.axis, face.sign, from, lane) : makePoint(face.axis, face.sign, lane, from);
+      const b = horizontal ? makePoint(face.axis, face.sign, elbow, lane) : makePoint(face.axis, face.sign, lane, elbow);
+      const c = horizontal ? makePoint(face.axis, face.sign, elbow, cross) : makePoint(face.axis, face.sign, cross, elbow);
+      const d = horizontal ? makePoint(face.axis, face.sign, Math.min(0.92, from + length), cross) : makePoint(face.axis, face.sign, cross, Math.min(0.92, from + length));
+      segments.push([a, b], [b, c], [c, d]);
+      if ((trace + faceIndex) % 4 === 0) {
+        const pad = horizontal ? makePoint(face.axis, face.sign, d.x || d.z, cross + 0.055) : makePoint(face.axis, face.sign, cross + 0.055, d.y || d.z);
+        segments.push([c, pad]);
+      }
+    }
+  });
+
+  return segmentGeometry(segments);
+}
+
+function buildPrismaticShardGeometry() {
+  const rng = seededRandom(64043);
+  const segments: Array<[THREE.Vector3, THREE.Vector3]> = [];
+  for (let shard = 0; shard < 68; shard += 1) {
+    const theta = rng() * Math.PI * 2;
+    const y = (rng() - 0.5) * 2.8;
+    const radius = 1.35 + rng() * 1.7;
+    const start = new THREE.Vector3(Math.cos(theta) * radius, y, Math.sin(theta) * radius * 0.76);
+    const end = start
+      .clone()
+      .add(new THREE.Vector3((rng() - 0.5) * 0.16, (rng() - 0.5) * 0.16, (rng() - 0.5) * 0.16));
+    segments.push([start, end]);
+  }
+  return segmentGeometry(segments);
+}
+
+function CoreLight({ activity }: { activity: AiActivity }) {
+  const core = useRef<THREE.Mesh>(null);
+  const halo = useRef<THREE.Mesh>(null);
+  const light = useRef<THREE.PointLight>(null);
+
+  useFrame(({ clock }, delta) => {
+    const time = clock.elapsedTime;
+    const energy = activityEnergy(activity);
+    const pulse = activityPulse(activity, time, 0.8);
+    if (core.current) {
+      core.current.rotation.x += delta * 0.72 * activitySpeed(activity);
+      core.current.rotation.y -= delta * 0.58 * activitySpeed(activity);
+      core.current.scale.setScalar(0.92 + (pulse - 1) * 1.8);
+    }
+    if (halo.current) halo.current.scale.setScalar(1.25 + Math.sin(time * 4.8) * 0.1 * energy);
+    if (light.current) light.current.intensity = 5.8 + energy * 4.8 + Math.sin(time * 7.2) * 1.3;
+  });
+
+  return (
+    <group>
+      <mesh ref={halo}>
+        <sphereGeometry args={[0.52, 48, 48]} />
+        <meshBasicMaterial
+          blending={THREE.AdditiveBlending}
+          color={BLUE}
+          depthWrite={false}
+          opacity={0.22}
+          toneMapped={false}
+          transparent
+        />
+      </mesh>
+      <mesh ref={core}>
+        <octahedronGeometry args={[0.26, 2]} />
+        <meshBasicMaterial color={ICE} toneMapped={false} />
+      </mesh>
+      <pointLight ref={light} color={ICE} distance={9} intensity={8} />
+    </group>
+  );
+}
+
+function TesseractGlassCore({ activity }: { activity: AiActivity }) {
+  const group = useRef<THREE.Group>(null);
+  const glass = useRef<THREE.ShaderMaterial>(null);
+  const circuits = useRef<THREE.LineSegments>(null);
+  const frame = useRef<THREE.Group>(null);
+
+  const cubeGeometry = useMemo(() => new THREE.BoxGeometry(1.88, 1.88, 1.88, 10, 10, 10), []);
+  const circuitGeometry = useMemo(buildFaceCircuitGeometry, []);
+  const edgeGeometries = useMemo(() => {
+    return [1.94, 1.48, 1.08, 0.62].map((size) => {
+      const box = new THREE.BoxGeometry(size, size, size);
       const edges = new THREE.EdgesGeometry(box);
       box.dispose();
       return edges;
     });
   }, []);
 
+  useEffect(() => {
+    return () => {
+      cubeGeometry.dispose();
+      circuitGeometry.dispose();
+      edgeGeometries.forEach((geometry) => geometry.dispose());
+    };
+  }, [circuitGeometry, cubeGeometry, edgeGeometries]);
+
   useFrame(({ clock }, delta) => {
     const time = clock.elapsedTime;
-    const speed = activitySpeed(activity);
     const energy = activityEnergy(activity);
-
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.14 * speed;
-      groupRef.current.rotation.x = Math.sin(time * 0.28) * 0.12;
-      groupRef.current.rotation.z = Math.cos(time * 0.22) * 0.06;
+    const speed = activitySpeed(activity);
+    if (group.current) {
+      group.current.rotation.y += delta * 0.13 * speed;
+      group.current.rotation.x = 0.62 + Math.sin(time * 0.21) * 0.08;
+      group.current.rotation.z = 0.78 + Math.cos(time * 0.18) * 0.045;
+      group.current.scale.setScalar(1.0 + Math.sin(time * 1.8) * 0.012 * energy);
     }
-
-    if (internalMatRef.current) {
-      internalMatRef.current.uniforms.uTime.value = time;
-      internalMatRef.current.uniforms.uEnergy.value = energy;
+    if (glass.current) {
+      glass.current.uniforms.uTime.value = time;
+      glass.current.uniforms.uEnergy.value = energy;
     }
-
-    if (facetMatRef.current) {
-      facetMatRef.current.uniforms.uTime.value = time;
-      facetMatRef.current.uniforms.uEnergy.value = energy;
+    if (circuits.current) {
+      circuits.current.rotation.y -= delta * 0.06 * speed;
+      circuits.current.rotation.x += delta * 0.025 * speed;
     }
-
-    // Inner sub-frames counter-rotate for depth
-    if (innerCubeRef.current) {
-      innerCubeRef.current.rotation.y -= delta * 0.08 * speed;
-      innerCubeRef.current.rotation.x += delta * 0.05 * speed;
+    if (frame.current) {
+      frame.current.rotation.y -= delta * 0.08 * speed;
+      frame.current.rotation.z += delta * 0.03 * speed;
     }
   });
 
   return (
-    <group ref={groupRef}>
-      {/* Outer PBR Crystal Glass Shell */}
-      <mesh geometry={mainGeo}>
+    <group ref={group}>
+      <mesh geometry={cubeGeometry}>
         <meshPhysicalMaterial
-          color="#aaddff"
-          transmission={0.82}
-          roughness={0.05}
-          metalness={0.15}
-          clearcoat={1.0}
-          clearcoatRoughness={0.02}
-          ior={1.65}
+          clearcoat={1}
+          clearcoatRoughness={0.035}
+          color="#9be8ff"
+          depthWrite={false}
+          envMapIntensity={1.6}
+          ior={1.58}
+          metalness={0.08}
+          opacity={0.34}
+          reflectivity={1}
+          roughness={0.045}
+          transmission={0.78}
           transparent
-          opacity={0.88}
-          reflectivity={0.95}
-          envMapIntensity={1.2}
         />
       </mesh>
-
-      {/* Crystal facet edge shimmer overlay */}
-      <mesh geometry={mainGeo} scale={1.002}>
+      <mesh geometry={cubeGeometry} scale={1.006}>
         <shaderMaterial
-          ref={facetMatRef}
-          vertexShader={facetVertex}
-          fragmentShader={facetFragment}
-          uniforms={{
-            uTime: { value: 0 },
-            uEnergy: { value: 1 },
-          }}
+          ref={glass}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
-          side={THREE.FrontSide}
+          fragmentShader={glassFragment}
           transparent
+          uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 } }}
+          vertexShader={glassVertex}
         />
       </mesh>
-
-      {/* Internal circuit laser grid (visible through glass) */}
-      <mesh geometry={innerGeo} scale={0.96}>
-        <shaderMaterial
-          ref={internalMatRef}
-          vertexShader={crystalInternalVertex}
-          fragmentShader={crystalInternalFragment}
-          uniforms={{
-            uTime: { value: 0 },
-            uEnergy: { value: 1 },
-          }}
+      <lineSegments ref={circuits} geometry={circuitGeometry}>
+        <lineBasicMaterial
           blending={THREE.AdditiveBlending}
+          color={ICE}
           depthWrite={false}
-          side={THREE.DoubleSide}
+          opacity={0.58}
+          toneMapped={false}
           transparent
         />
-      </mesh>
-
-      {/* Internal wireframe sub-structures (nested cubes) */}
-      <group ref={innerCubeRef}>
-        {frameGeos.map((geo, i) => (
-          <lineSegments key={i} geometry={geo} rotation={[i * 0.12, i * 0.15, i * 0.08]}>
+      </lineSegments>
+      <group ref={frame}>
+        {edgeGeometries.map((geometry, index) => (
+          <lineSegments key={index} geometry={geometry} rotation={[index * 0.17, index * 0.21, index * 0.13]}>
             <lineBasicMaterial
-              color={i < 2 ? ICE : BLUE}
               blending={THREE.AdditiveBlending}
+              color={index < 2 ? ICE : BLUE}
               depthWrite={false}
-              opacity={0.45 + i * 0.12}
+              opacity={0.72 - index * 0.09}
               toneMapped={false}
               transparent
             />
           </lineSegments>
         ))}
       </group>
+      <CoreLight activity={activity} />
     </group>
   );
 }
 
-/* ━━━ 2. Corner God Rays — 8 light beams from cube corners ━━━ */
-
-function CornerGodRays({ activity }: { activity: AiActivity }) {
-  const groupRef = useRef<THREE.Group>(null);
-
-  // 8 corners of a cube
-  const corners = useMemo(() => {
-    const positions: [number, number, number][] = [];
-    for (const x of [-1, 1]) {
-      for (const y of [-1, 1]) {
-        for (const z of [-1, 1]) {
-          positions.push([x * 1.0, y * 1.0, z * 1.0]);
-        }
-      }
-    }
-    return positions;
-  }, []);
-
-  // Create ray geometries pointing outward from each corner
-  const rayGeo = useMemo(() => new THREE.PlaneGeometry(0.04, 3.0), []);
-
-  useFrame(({ clock }, delta) => {
-    const time = clock.elapsedTime;
-    const energy = activityEnergy(activity);
-    const speed = activitySpeed(activity);
-
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.06 * speed;
-
-      // Pulse the ray brightness via scale
-      const pulse = 0.7 + Math.sin(time * 3.5) * 0.3 * energy;
-      groupRef.current.scale.setScalar(pulse);
-    }
-  });
-
-  return (
-    <group ref={groupRef}>
-      {corners.map((pos, i) => {
-        // Ray direction: from center toward corner
-        const dir = new THREE.Vector3(...pos).normalize();
-        const lookAt = new THREE.Vector3().addVectors(
-          new THREE.Vector3(...pos),
-          dir.multiplyScalar(2)
-        );
-
-        return (
-          <group key={i} position={pos}>
-            {/* Two crossed planes for volumetric look */}
-            <mesh geometry={rayGeo} lookAt={lookAt}>
-              <meshBasicMaterial
-                color={ICE}
-                blending={THREE.AdditiveBlending}
-                depthWrite={false}
-                opacity={0.35}
-                transparent
-                toneMapped={false}
-              />
-            </mesh>
-            <mesh geometry={rayGeo} lookAt={lookAt} rotation={[0, 0, Math.PI / 2]}>
-              <meshBasicMaterial
-                color={BLUE}
-                blending={THREE.AdditiveBlending}
-                depthWrite={false}
-                opacity={0.25}
-                transparent
-                toneMapped={false}
-              />
-            </mesh>
-            {/* Corner glow point */}
-            <mesh>
-              <sphereGeometry args={[0.06, 8, 8]} />
-              <meshBasicMaterial color={ICE} toneMapped={false} />
-            </mesh>
-          </group>
-        );
-      })}
-    </group>
-  );
-}
-
-/* ━━━ 3. Central Cross Beams — 6-axis light shooting through cube ━━━ */
-
-function CentralBeams({ activity }: { activity: AiActivity }) {
-  const raysRef = useRef<THREE.Group>(null);
-  const lightRef = useRef<THREE.PointLight>(null);
-
-  useFrame(({ clock }, delta) => {
-    const time = clock.elapsedTime;
-    const speed = activitySpeed(activity);
-    const energy = activityEnergy(activity);
-
-    if (raysRef.current) {
-      raysRef.current.rotation.z += delta * 0.35 * speed;
-      const beamScale = 1.0 + Math.sin(time * 5.5) * 0.12 * energy;
-      raysRef.current.scale.setScalar(beamScale);
-    }
-
-    if (lightRef.current) {
-      lightRef.current.intensity = 3.0 + energy * 3.0 + Math.sin(time * 6.0) * 1.2;
-    }
-  });
-
-  return (
-    <group>
-      {/* Octahedron nucleus */}
-      <mesh>
-        <octahedronGeometry args={[0.15, 0]} />
-        <meshBasicMaterial color={ICE} toneMapped={false} />
-      </mesh>
-
-      {/* 6-direction cross beams */}
-      <group ref={raysRef}>
-        {[
-          [0, 0, 0],
-          [0, 0, Math.PI / 3],
-          [0, 0, (2 * Math.PI) / 3],
-        ].map((rot, i) => (
-          <mesh key={`z${i}`} rotation={rot as [number, number, number]}>
-            <planeGeometry args={[0.06, 2.8]} />
-            <meshBasicMaterial
-              color={ICE}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-              opacity={0.4}
-              transparent
-              toneMapped={false}
-            />
-          </mesh>
-        ))}
-        {[
-          [Math.PI / 6, Math.PI / 2, 0],
-          [Math.PI / 2, Math.PI / 2, 0],
-          [(5 * Math.PI) / 6, Math.PI / 2, 0],
-        ].map((rot, i) => (
-          <mesh key={`x${i}`} rotation={rot as [number, number, number]}>
-            <planeGeometry args={[0.05, 2.4]} />
-            <meshBasicMaterial
-              color={BLUE}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-              opacity={0.3}
-              transparent
-              toneMapped={false}
-            />
-          </mesh>
-        ))}
-      </group>
-
-      <pointLight ref={lightRef} color={ICE} intensity={5} distance={10} />
-    </group>
-  );
-}
-
-/* ━━━ 4. Floating Data Debris — orbiting crystal fragments ━━━ */
-
-function FloatingDebris({ activity }: { activity: AiActivity }) {
-  const debrisCount = 180;
-  const meshRef = useRef<THREE.InstancedMesh>(null);
+function HypercubeProjection({ activity }: { activity: AiActivity }) {
+  const lineRef = useRef<THREE.LineSegments>(null);
+  const nodesRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const debrisGeo = useMemo(() => new THREE.BoxGeometry(0.04, 0.04, 0.04), []);
+  const data = useMemo(makeHypercubeData, []);
+  const nodeGeometry = useMemo(() => new THREE.SphereGeometry(1, 10, 10), []);
+  const geometry = useMemo(() => {
+    const buffer = new THREE.BufferGeometry();
+    buffer.setAttribute("position", new THREE.BufferAttribute(data.positions, 3));
+    return buffer;
+  }, [data.positions]);
 
-  // Pre-compute orbital parameters
-  const orbits = useMemo(() => {
-    const rng = seededRandom(3377);
-    return Array.from({ length: debrisCount }, () => ({
-      radius: 1.5 + rng() * 3.5,
+  useEffect(
+    () => () => {
+      geometry.dispose();
+      nodeGeometry.dispose();
+    },
+    [geometry, nodeGeometry]
+  );
+
+  useFrame(({ clock }) => {
+    const time = clock.elapsedTime;
+    const speed = activitySpeed(activity);
+    const energy = activityEnergy(activity);
+    const projected: THREE.Vector3[] = [];
+
+    const angleXw = time * 0.24 * speed;
+    const angleYz = time * 0.18 * speed;
+    const angleZw = time * 0.15 * speed;
+    const cxw = Math.cos(angleXw);
+    const sxw = Math.sin(angleXw);
+    const cyz = Math.cos(angleYz);
+    const syz = Math.sin(angleYz);
+    const czw = Math.cos(angleZw);
+    const szw = Math.sin(angleZw);
+
+    data.baseVertices.forEach(([x0, y0, z0, w0]) => {
+      let x = x0;
+      let y = y0;
+      let z = z0;
+      let w = w0;
+
+      const nx = x * cxw - w * sxw;
+      const nw = x * sxw + w * cxw;
+      x = nx;
+      w = nw;
+
+      const ny = y * cyz - z * syz;
+      const nz = y * syz + z * cyz;
+      y = ny;
+      z = nz;
+
+      const nz2 = z * czw - w * szw;
+      const nw2 = z * szw + w * czw;
+      z = nz2;
+      w = nw2;
+
+      const perspective = 2.35 / (2.95 - w);
+      projected.push(new THREE.Vector3(x * perspective, y * perspective, z * perspective).multiplyScalar(0.98));
+    });
+
+    data.edges.forEach(([a, b], edgeIndex) => {
+      const offset = edgeIndex * 6;
+      const pa = projected[a];
+      const pb = projected[b];
+      data.positions[offset] = pa.x;
+      data.positions[offset + 1] = pa.y;
+      data.positions[offset + 2] = pa.z;
+      data.positions[offset + 3] = pb.x;
+      data.positions[offset + 4] = pb.y;
+      data.positions[offset + 5] = pb.z;
+    });
+    geometry.attributes.position.needsUpdate = true;
+
+    if (lineRef.current) lineRef.current.scale.setScalar(1.04 + Math.sin(time * 2.8) * 0.018 * energy);
+    if (nodesRef.current) {
+      projected.forEach((point, index) => {
+        dummy.position.copy(point);
+        dummy.scale.setScalar(0.04 + (index % 3) * 0.006 + Math.sin(time * 4.4 + index) * 0.006 * energy);
+        dummy.updateMatrix();
+        nodesRef.current?.setMatrixAt(index, dummy.matrix);
+      });
+      nodesRef.current.instanceMatrix.needsUpdate = true;
+    }
+  });
+
+  return (
+    <group rotation={[0.56, 0.28, 0.1]} scale={1.18}>
+      <lineSegments ref={lineRef} geometry={geometry}>
+        <lineBasicMaterial
+          blending={THREE.AdditiveBlending}
+          color={BLUE}
+          depthWrite={false}
+          opacity={0.68}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+      <instancedMesh ref={nodesRef} args={[nodeGeometry, undefined, 16]}>
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={ICE} depthWrite={false} toneMapped={false} />
+      </instancedMesh>
+    </group>
+  );
+}
+
+function SpaceBeams({ activity }: { activity: AiActivity }) {
+  const group = useRef<THREE.Group>(null);
+  const material = useRef<THREE.ShaderMaterial>(null);
+  const geometry = useMemo(() => new THREE.PlaneGeometry(5.8, 0.26), []);
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
+  useFrame(({ clock }, delta) => {
+    const time = clock.elapsedTime;
+    const speed = activitySpeed(activity);
+    if (group.current) {
+      group.current.rotation.z += delta * 0.08 * speed;
+      group.current.scale.setScalar(1 + Math.sin(time * 3.6) * 0.025 * activityEnergy(activity));
+    }
+    if (material.current) {
+      material.current.uniforms.uTime.value = time;
+      material.current.uniforms.uEnergy.value = activityEnergy(activity);
+    }
+  });
+
+  const rotations: [number, number, number][] = [
+    [0, 0, 0],
+    [0, 0, Math.PI / 2],
+    [0.55, Math.PI / 2, 0],
+    [-0.55, Math.PI / 2, 0],
+    [0, 0, Math.PI / 4],
+    [0, 0, -Math.PI / 4],
+  ];
+
+  return (
+    <group ref={group}>
+      {rotations.map((rotation, index) => (
+        <mesh key={index} geometry={geometry} rotation={rotation}>
+          <shaderMaterial
+            ref={index === 0 ? material : undefined}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            fragmentShader={beamFragment}
+            transparent
+            uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 }, uColor: { value: new THREE.Color(index < 2 ? ICE : BLUE) } }}
+            vertexShader={beamVertex}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function ParticleHalo({ activity }: { activity: AiActivity }) {
+  const count = 520;
+  const points = useRef<THREE.Points>(null);
+  const positions = useMemo(() => new Float32Array(count * 3), []);
+  const params = useMemo(() => {
+    const rng = seededRandom(37111);
+    return Array.from({ length: count }, () => ({
+      radius: 1.7 + rng() * 2.6,
       angle: rng() * Math.PI * 2,
-      speed: (0.15 + rng() * 0.6) * (rng() > 0.5 ? 1 : -1),
-      height: (rng() - 0.5) * 3.5,
-      tilt: (rng() - 0.5) * 0.8,
-      size: 0.3 + rng() * 0.8,
+      y: (rng() - 0.5) * 3.6,
+      speed: (0.08 + rng() * 0.44) * (rng() > 0.5 ? 1 : -1),
+      wobble: rng() * Math.PI * 2,
+      band: rng() > 0.76,
     }));
   }, []);
 
-  useFrame(({ clock }, delta) => {
-    const time = clock.elapsedTime;
-    const speed = activitySpeed(activity);
-
-    if (!meshRef.current) return;
-
-    for (let i = 0; i < debrisCount; i++) {
-      const o = orbits[i];
-      const currentAngle = o.angle + time * o.speed * speed;
-
-      dummy.position.set(
-        Math.cos(currentAngle) * o.radius,
-        o.height + Math.sin(time * 0.8 + i) * 0.15,
-        Math.sin(currentAngle) * o.radius
-      );
-      dummy.rotation.set(
-        time * o.speed * 2,
-        time * o.speed * 1.5,
-        o.tilt
-      );
-      dummy.scale.setScalar(o.size);
-      dummy.updateMatrix();
-      meshRef.current.setMatrixAt(i, dummy.matrix);
-    }
-    meshRef.current.instanceMatrix.needsUpdate = true;
-  });
-
-  return (
-    <instancedMesh ref={meshRef} args={[debrisGeo, undefined, debrisCount]}>
-      <meshBasicMaterial
-        color={ICE}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-        opacity={0.5}
-        toneMapped={false}
-        transparent
-      />
-    </instancedMesh>
-  );
-}
-
-/* ━━━ 5. Orbital Dot Ring ━━━ */
-
-const DOT_COUNT = 36;
-
-function OrbitalDotRing({
-  activity,
-  baseRadius = 2.4,
-  tiltX = 0,
-  tiltZ = 0,
-  phase = 0,
-}: {
-  activity: AiActivity;
-  baseRadius?: number;
-  tiltX?: number;
-  tiltZ?: number;
-  phase?: number;
-}) {
-  const dotsRef = useRef<THREE.InstancedMesh>(null);
-  const ringRef = useRef<THREE.Group>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const dotGeo = useMemo(() => new THREE.SphereGeometry(0.032, 8, 8), []);
-  const currentRadius = useRef(baseRadius);
-
-  useFrame(({ clock }, delta) => {
-    const time = clock.elapsedTime;
-    const speed = activitySpeed(activity);
-
-    // Activity-driven radius modulation
-    let targetRadius = baseRadius;
-    if (activity === "listening") targetRadius = baseRadius + 0.18;
-    else if (activity === "thinking") targetRadius = baseRadius + Math.sin(time * 4.6) * 0.22;
-    else if (activity === "speaking") targetRadius = baseRadius + Math.sin(time * 8.4) * 0.3;
-
-    currentRadius.current = THREE.MathUtils.lerp(currentRadius.current, targetRadius, 0.1);
-    const r = currentRadius.current;
-
-    if (ringRef.current) {
-      ringRef.current.rotation.y += delta * 0.22 * speed;
-    }
-
-    if (dotsRef.current) {
-      for (let i = 0; i < DOT_COUNT; i++) {
-        const angle = (i / DOT_COUNT) * Math.PI * 2;
-        dummy.position.set(Math.cos(angle) * r, 0, Math.sin(angle) * r);
-
-        const basePulse = activityPulse(activity, time, phase + i * 0.4);
-        const brightFactor = activity === "speaking" ? 1.35 : activity === "thinking" ? 1.15 : 1.0;
-        dummy.scale.setScalar(basePulse * brightFactor);
-        dummy.updateMatrix();
-        dotsRef.current.setMatrixAt(i, dummy.matrix);
-      }
-      dotsRef.current.instanceMatrix.needsUpdate = true;
-    }
-  });
-
-  return (
-    <group rotation={[tiltX, 0, tiltZ]} ref={ringRef}>
-      <instancedMesh ref={dotsRef} args={[dotGeo, undefined, DOT_COUNT]}>
-        <meshBasicMaterial
-          color="#ffffff"
-          toneMapped={false}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </instancedMesh>
-
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[baseRadius, 0.007, 8, 96]} />
-        <meshBasicMaterial
-          color={ICE}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          opacity={0.4}
-          transparent
-          toneMapped={false}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-/* ━━━ 6. Background Starfield ━━━ */
-
-function BackgroundStarfield() {
-  const count = 500;
-  const positions = useMemo(() => {
-    const rng = seededRandom(2048);
-    const arr = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const theta = rng() * Math.PI * 2;
-      const phi = Math.acos(2 * rng() - 1);
-      const r = 4 + rng() * 6;
-      arr[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      arr[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      arr[i * 3 + 2] = r * Math.cos(phi);
-    }
-    return arr;
-  }, []);
-
-  const pointsRef = useRef<THREE.Points>(null);
-
   useFrame(({ clock }) => {
-    if (pointsRef.current) {
-      pointsRef.current.rotation.y = clock.elapsedTime * 0.006;
+    const time = clock.elapsedTime;
+    const speed = activitySpeed(activity);
+    const energy = activityEnergy(activity);
+    for (let i = 0; i < count; i += 1) {
+      const param = params[i];
+      const angle = param.angle + time * param.speed * speed;
+      const radius = param.radius + Math.sin(time * 0.8 + param.wobble) * 0.08 * energy;
+      positions[i * 3] = Math.cos(angle) * radius;
+      positions[i * 3 + 1] = param.band ? Math.sin(angle * 3.0) * 0.34 : param.y;
+      positions[i * 3 + 2] = Math.sin(angle) * radius * 0.62;
+    }
+    if (points.current) {
+      points.current.rotation.x = 0.36;
+      points.current.rotation.y = time * 0.018;
+      points.current.geometry.attributes.position.needsUpdate = true;
     }
   });
 
   return (
-    <points ref={pointsRef}>
+    <points ref={points}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
       <pointsMaterial
-        color="#ffffff"
         blending={THREE.AdditiveBlending}
+        color={ICE}
         depthWrite={false}
-        opacity={0.45}
-        size={0.02}
+        opacity={0.52}
+        size={0.028}
         sizeAttenuation
         toneMapped={false}
         transparent
@@ -584,18 +521,118 @@ function BackgroundStarfield() {
   );
 }
 
-/* ━━━ 7. Hover Zoom Rig ━━━ */
+function ShardField({ activity }: { activity: AiActivity }) {
+  const lines = useRef<THREE.LineSegments>(null);
+  const geometry = useMemo(buildPrismaticShardGeometry, []);
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
+  useFrame(({ clock }, delta) => {
+    if (lines.current) {
+      lines.current.rotation.y += delta * 0.025 * activitySpeed(activity);
+      lines.current.rotation.z = Math.sin(clock.elapsedTime * 0.22) * 0.08;
+    }
+  });
+
+  return (
+    <lineSegments ref={lines} geometry={geometry}>
+      <lineBasicMaterial
+        blending={THREE.AdditiveBlending}
+        color={BLUE}
+        depthWrite={false}
+        opacity={0.42}
+        toneMapped={false}
+        transparent
+      />
+    </lineSegments>
+  );
+}
+
+function TesseractRings({ activity }: { activity: AiActivity }) {
+  const rings = useRef<THREE.Group>(null);
+  useFrame(({ clock }, delta) => {
+    if (!rings.current) return;
+    rings.current.rotation.y += delta * 0.16 * activitySpeed(activity);
+    rings.current.scale.setScalar(1 + Math.sin(clock.elapsedTime * 2.2) * 0.018 * activityEnergy(activity));
+  });
+
+  return (
+    <group ref={rings}>
+      {[
+        { radius: 2.3, tube: 0.007, rotation: [Math.PI / 2, 0, 0] },
+        { radius: 2.08, tube: 0.005, rotation: [1.12, 0.2, 0.46] },
+        { radius: 1.72, tube: 0.004, rotation: [0.42, 1.05, -0.18] },
+      ].map((ring, index) => (
+        <mesh key={index} rotation={ring.rotation as [number, number, number]}>
+          <torusGeometry args={[ring.radius, ring.tube, 6, 160]} />
+          <meshBasicMaterial
+            blending={THREE.AdditiveBlending}
+            color={index === 0 ? ICE : BLUE}
+            depthWrite={false}
+            opacity={0.18 + index * 0.08}
+            toneMapped={false}
+            transparent
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+function BackgroundStarfield() {
+  const count = 700;
+  const positions = useMemo(() => {
+    const rng = seededRandom(2048);
+    const data = new Float32Array(count * 3);
+    for (let index = 0; index < count; index += 1) {
+      const theta = rng() * Math.PI * 2;
+      const phi = Math.acos(2 * rng() - 1);
+      const radius = 5 + rng() * 7.5;
+      data[index * 3] = radius * Math.sin(phi) * Math.cos(theta);
+      data[index * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+      data[index * 3 + 2] = radius * Math.cos(phi);
+    }
+    return data;
+  }, []);
+  const points = useRef<THREE.Points>(null);
+
+  useFrame(({ clock }) => {
+    if (points.current) points.current.rotation.y = clock.elapsedTime * 0.004;
+  });
+
+  return (
+    <points ref={points}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial
+        blending={THREE.AdditiveBlending}
+        color="#ffffff"
+        depthWrite={false}
+        opacity={0.38}
+        size={0.018}
+        sizeAttenuation
+        toneMapped={false}
+        transparent
+      />
+    </points>
+  );
+}
 
 function HoverZoomRig({ children }: { children: React.ReactNode }) {
-  const groupRef = useRef<THREE.Group>(null);
+  const group = useRef<THREE.Group>(null);
   const { gl } = useThree();
   const hovered = useRef(false);
-  const currentScale = useRef(1.0);
+  const currentScale = useRef(1);
 
   useEffect(() => {
     const canvas = gl.domElement;
-    const onEnter = () => { hovered.current = true; };
-    const onLeave = () => { hovered.current = false; };
+    const onEnter = () => {
+      hovered.current = true;
+    };
+    const onLeave = () => {
+      hovered.current = false;
+    };
     canvas.addEventListener("pointerenter", onEnter);
     canvas.addEventListener("pointerleave", onLeave);
     return () => {
@@ -605,42 +642,29 @@ function HoverZoomRig({ children }: { children: React.ReactNode }) {
   }, [gl.domElement]);
 
   useFrame(() => {
-    const target = hovered.current ? 1.12 : 1.0;
-    currentScale.current = THREE.MathUtils.lerp(currentScale.current, target, 0.06);
-    if (groupRef.current) {
-      groupRef.current.scale.setScalar(currentScale.current);
-    }
+    currentScale.current = THREE.MathUtils.lerp(currentScale.current, hovered.current ? 1.1 : 1, 0.06);
+    if (group.current) group.current.scale.setScalar(currentScale.current);
   });
 
-  return <group ref={groupRef}>{children}</group>;
+  return <group ref={group}>{children}</group>;
 }
-
-/* ━━━ MAIN SPACE SCENE ━━━ */
 
 export function SpaceScene({ activity = "idle" }: { activity?: AiActivity }) {
   return (
-    <group name="crystal-tesseract-space-scene" scale={1.25}>
-      <ambientLight intensity={0.4} color={DEEP} />
+    <group name="blue-space-tesseract-ai-core" scale={0.96}>
+      <color attach="background" args={[DARK]} />
+      <ambientLight color={DEEP} intensity={0.42} />
+      <directionalLight color={ICE} intensity={1.45} position={[3, 4, 5]} />
+      <pointLight color={BLUE} distance={11} intensity={2.4} position={[-2.4, 1.2, 2.2]} />
 
       <HoverZoomRig>
-        {/* Background stars */}
         <BackgroundStarfield />
-
-        {/* Floating crystal data debris */}
-        <FloatingDebris activity={activity} />
-
-        {/* Orbital dot rings — gyroscope effect */}
-        <OrbitalDotRing activity={activity} baseRadius={2.4} tiltX={0} tiltZ={0} phase={0} />
-        <OrbitalDotRing activity={activity} baseRadius={2.15} tiltX={1.05} tiltZ={0.4} phase={2.0} />
-
-        {/* Corner god rays — 8 beams from cube vertices */}
-        <CornerGodRays activity={activity} />
-
-        {/* Central cross beams + nucleus */}
-        <CentralBeams activity={activity} />
-
-        {/* THE CRYSTAL CUBE — monolithic with internal circuit pattern */}
-        <CrystalTesseractCore activity={activity} />
+        <ParticleHalo activity={activity} />
+        <ShardField activity={activity} />
+        <TesseractRings activity={activity} />
+        <SpaceBeams activity={activity} />
+        <HypercubeProjection activity={activity} />
+        <TesseractGlassCore activity={activity} />
       </HoverZoomRig>
     </group>
   );
