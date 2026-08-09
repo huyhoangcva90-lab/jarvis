@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { DEFAULT_HERMES_PROFILE_ID, HERMES_PROFILES, type HermesProfileId } from "../../utils/hermesProfiles";
+import { DEFAULT_HERMES_PROFILE_ID, HERMES_PROFILES, type HermesProfile, type HermesProfileId } from "../../utils/hermesProfiles";
 
 type ServiceHealth = {
   latencyMs?: number;
@@ -20,6 +20,7 @@ type ServiceDashboardProps = {
   reply: string;
   sending: boolean;
   selectedProfileId?: HermesProfileId;
+  profiles?: HermesProfile[];
   onSelectProfile?: (profileId: HermesProfileId) => void;
   diagnostics?: string[];
   onRunDiagnostic?: (action: string) => void;
@@ -68,6 +69,7 @@ export default function ServiceDashboard({
   reply,
   sending,
   selectedProfileId = DEFAULT_HERMES_PROFILE_ID,
+  profiles = HERMES_PROFILES,
   onSelectProfile,
   diagnostics = [],
   onRunDiagnostic,
@@ -108,7 +110,7 @@ export default function ServiceDashboard({
             <small>Ubuntu · đang dùng: {selectedProfileId}</small>
           </header>
           <div className="profile-chips">
-            {HERMES_PROFILES.map((profile) => (
+            {profiles.map((profile) => (
               <button
                 type="button"
                 className={`profile-chip ${selectedProfileId === profile.id ? "active" : ""}`}
@@ -117,6 +119,7 @@ export default function ServiceDashboard({
               >
                 <b>{profile.name}</b>
                 <small>{profile.description || `${profile.id} · bộ nhớ phiên bền vững`}</small>
+                <em>{profile.source === "hermes" ? "SYNCED METADATA" : "LOCAL FALLBACK"}</em>
               </button>
             ))}
           </div>

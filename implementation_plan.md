@@ -113,10 +113,16 @@ Da co:
 - OpenClaw hub co nut status/doctor/models/tasks goi command that qua Gateway.
 - 9Router hub co nut doc models/status that qua Gateway.
 
-Can lam tiep:
+Da trien khai trong control pass 2026-08-09:
 
-- Full Hermes voice pipeline tieng Viet.
-- PTY terminal stream WebSocket/SSH session cho Ubuntu private mode.
-- Dashboard dieu khien sau hon cho Hermes/Claude theo API/CLI that tren may.
-- Orb profile sync tu Hermes metadata tren Ubuntu thay vi mapping local tam thoi.
-- Obsidian knowledge hub co sap xep theo tag/link/topic.
+- Hermes voice pipeline tieng Viet co hai tang: local STT/TTS OpenAI-compatible tren Ubuntu va browser fallback. Client co VAD de tu dung khi im lang, sau do gui transcript qua Hermes profile active.
+- Private Ubuntu PTY stream qua WebSocket, ticket mot lan, session timeout va audit metadata. Local browser console + Ubuntu Files khong API van la mac dinh.
+- Hermes/Claude dashboard co them allowlist diagnostics profiles/config va doctor/auth; khong co lenh restart/delete/write tu UI.
+- Profile metadata, model, tag va palette duoc dong bo tu Hermes `/v1/profiles`, co fallback tu env/catalog neu upstream chua ho tro.
+- Obsidian knowledge hub duoc sap xep theo topic/tag/folder, co outgoing links, backlinks, unresolved-note state va layout cluster deterministic.
+
+Con phu thuoc cau hinh tren Ubuntu (khong the hard-code trong web):
+
+- Gan `HERMES_STT_URL` va `HERMES_TTS_URL` vao Whisper/TTS runtime that neu muon thay browser voice.
+- Bat `JCORE_TERMINAL_PRIVATE_MODE=true` chi sau khi Gateway nam sau private tunnel/strong access control.
+- Xac nhan CLI Hermes/Claude tren may ho tro cac action allowlist tuong ung; action khong ton tai se hien exit code/output that, khong fallback gia lap.

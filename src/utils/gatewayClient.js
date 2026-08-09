@@ -30,6 +30,10 @@ const GATEWAY_ERROR_MESSAGES = {
   terminal_private_mode_disabled: "Private Ubuntu shell chưa được bật trên Gateway.",
   terminal_private_mode_requires_ubuntu: "Private shell chỉ chạy trên Ubuntu Gateway host.",
   dashboard_command_not_allowed: "Lệnh dashboard này chưa nằm trong allowlist Gateway.",
+  voice_stt_not_configured: "Hermes STT local chưa được cấu hình; J-Core sẽ dùng nhận giọng nói của trình duyệt.",
+  voice_tts_not_configured: "Hermes TTS local chưa được cấu hình; J-Core sẽ dùng giọng đọc của trình duyệt.",
+  voice_audio_missing: "Chưa nhận được dữ liệu microphone.",
+  voice_text_invalid: "Nội dung cần đọc không hợp lệ hoặc quá dài.",
   upstream_timeout: "Dịch vụ phía sau gateway phản hồi quá chậm.",
   upstream_offline: "Dịch vụ phía sau gateway đang offline.",
 };
@@ -117,6 +121,35 @@ export async function gatewayFetch(data, path, options = {}) {
   } finally {
     globalThis.clearTimeout(timeout);
     fetchOptions.signal?.removeEventListener("abort", abortFromCaller);
+  }
+}
+
+export async function gatewayBinaryFetch(data, path, options = {}) {
+  const { gateway, token } = getGatewayConfig(data);
+  const { timeoutMs = 60000, headers: optionHeaders, ...fetchOptions } = options;
+  const requestId = createRequestId();
+  const headers = { "x-request-id": requestId, ...(optionHeaders || {}) };
+  if (token) headers.authorization = `Bearer ${token}`;
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${gateway}${path}`, { ...fetchOptions, headers, signal: controller.signal });
+    if (!response.ok) {
+      let details = {};
+      try { details = await response.json(); } catch { details = {}; }
+      const code = details.error || details.message;
+      const error = new Error(GATEWAY_ERROR_MESSAGES[code] || code || `Gateway error ${response.status}`);
+      error.status = response.status;
+      error.details = details;
+      error.requestId = response.headers.get("x-request-id") || requestId;
+      throw error;
+    }
+    return response;
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error(`Gateway timeout after ${timeoutMs}ms`);
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeout);
   }
 }
 

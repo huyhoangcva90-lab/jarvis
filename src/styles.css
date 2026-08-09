@@ -3275,6 +3275,30 @@ body.hud-dragging {
   font-size: 10px;
 }
 
+.terminal-mode-actions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.terminal-mode-actions button {
+  min-height: 34px;
+  border: 1px solid rgba(81, 255, 202, .32);
+  border-radius: 3px;
+  padding: 0 10px;
+  color: #7dffda;
+  background: rgba(31, 124, 94, .12);
+  font: 700 8px/1 "JetBrains Mono", monospace;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+
+.terminal-mode-actions button:hover,
+.terminal-mode-actions button:focus-visible { outline: 2px solid #7dffda; outline-offset: 2px; background: rgba(81, 255, 202, .18); }
+.terminal-mode-actions button.danger { color: #ff9aae; border-color: rgba(255, 102, 127, .45); background: rgba(255, 102, 127, .08); }
+.terminal-mode-actions button:disabled { cursor: wait; opacity: .52; }
+
 .os-terminal-stream {
   min-height: 0;
   overflow: auto;
@@ -6454,6 +6478,15 @@ body.hud-dragging {
   font-size: 8px;
 }
 
+.profile-chip em {
+  justify-self: start;
+  margin-top: 2px;
+  color: rgba(var(--accent-rgb), .74);
+  font: 700 7px/1 "JetBrains Mono", monospace;
+  font-style: normal;
+  letter-spacing: .1em;
+}
+
 .cadence-quick-presets {
   display: grid;
   gap: 6px;
@@ -6486,9 +6519,46 @@ body.hud-dragging {
 .obsidian-mindmap-container {
   height: 100%;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   background: rgba(2, 8, 18, 0.96);
 }
+
+.obsidian-topic-lane {
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(var(--accent-rgb), .14);
+  background: rgba(0, 0, 0, .28);
+  scrollbar-width: thin;
+}
+
+.obsidian-topic-lane button {
+  min-height: 34px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(var(--accent-rgb), .2);
+  border-radius: 3px;
+  padding: 0 10px;
+  color: rgba(255, 245, 225, .62);
+  background: rgba(var(--accent-rgb), .045);
+  cursor: pointer;
+}
+
+.obsidian-topic-lane button:hover,
+.obsidian-topic-lane button:focus-visible,
+.obsidian-topic-lane button.active {
+  outline: none;
+  color: var(--hot);
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), .15);
+}
+
+.obsidian-topic-lane b { text-transform: capitalize; font-size: 9px; }
+.obsidian-topic-lane small { color: var(--accent); font: 700 8px/1 "JetBrains Mono", monospace; }
 
 .obsidian-mindmap-toolbar {
   display: flex;
@@ -6623,6 +6693,34 @@ body.hud-dragging {
   color: rgba(255, 245, 225, 0.75);
   font-size: 11px;
   line-height: 1.5;
+}
+
+.note-context-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.note-context-grid > span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 7px;
+  border: 1px solid rgba(var(--accent-rgb), .13);
+  background: rgba(var(--accent-rgb), .04);
+}
+
+.note-context-grid b {
+  overflow: hidden;
+  color: rgba(255, 245, 225, .72);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backlinks-section {
+  border-top: 1px solid rgba(var(--accent-rgb), .12);
+  padding-top: 8px;
 }
 
 .tag-badges {
@@ -6822,6 +6920,34 @@ body[data-activity="speaking"] .prompt-shell {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 7px;
 }
+
+.voice-pipeline-status {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 9px;
+}
+
+.voice-pipeline-status span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 27px;
+  border: 1px solid rgba(var(--accent-rgb), .16);
+  padding: 0 8px;
+  color: rgba(255, 245, 225, .58);
+  background: rgba(var(--accent-rgb), .04);
+  font: 700 8px/1 "JetBrains Mono", monospace;
+}
+
+.voice-pipeline-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d29a45;
+}
+
+.voice-pipeline-status i.online { background: #47ee91; box-shadow: 0 0 8px rgba(71, 238, 145, .55); }
 
 .voice-style-grid button {
   min-height: 58px;

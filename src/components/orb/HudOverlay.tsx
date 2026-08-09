@@ -1,6 +1,6 @@
 import { FormEvent, type ChangeEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type WheelEvent as ReactWheelEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiActivity, EnergyPalette } from "../../App";
-import { gatewayFetch, getGatewayConfig, getGatewayReply } from "../../utils/gatewayClient.js";
+import { gatewayBinaryFetch, gatewayFetch, getGatewayConfig, getGatewayReply } from "../../utils/gatewayClient.js";
 import { useStoneState } from "../../utils/stoneState.jsx";
 import { ORB_UI_STORAGE_KEY } from "../../utils/orbPreferences";
 import { DEFAULT_NINEROUTER_MODEL, NINEROUTER_MODELS, getNineRouterModel } from "../../utils/nineRouterModels.js";
@@ -18,9 +18,12 @@ import NineRouterDashboard from "../nineRouterDashboard.jsx";
 import SpiderPersonalHub from "./SpiderPersonalHub";
 import {
   DEFAULT_HERMES_PROFILE_ID,
+  HERMES_PROFILES,
   HermesProfileId,
   loadStoredHermesProfileId,
+  mergeHermesProfiles,
   saveStoredHermesProfileId,
+  type HermesProfile,
 } from "../../utils/hermesProfiles";
 import {
   HUB_TEMPLATES,
@@ -454,6 +457,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [handsFree, setHandsFree] = useState(initial?.handsFree ?? false);
   const [advisorMode, setAdvisorMode] = useState(initial?.advisorMode ?? true);
   const [voiceMode, setVoiceMode] = useState(false);
+  const [voiceCapabilities, setVoiceCapabilities] = useState({ stt: false, tts: false });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 760);
   const [hubOpen, setHubOpen] = useState(() => typeof window !== "undefined" && window.innerWidth > 980);
@@ -490,6 +494,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [youtubeVideoId, setYoutubeVideoId] = useState("ciNHn38EyRc");
   const [youtubeError, setYoutubeError] = useState("");
   const [terminalInput, setTerminalInput] = useState("");
+  const [terminalMode, setTerminalMode] = useState<"local" | "pty">("local");
+  const [terminalConnecting, setTerminalConnecting] = useState(false);
   const [terminalLines, setTerminalLines] = useState([
     "J-CORE LOCAL CONSOLE // không API",
     "Phiên này điều khiển giao diện local; file Ubuntu mở bằng quyền thư mục của trình duyệt.",
@@ -516,6 +522,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     const configured = data?.ai?.hermesProfile;
     return configured ? configured as HermesProfileId : loadStoredHermesProfileId();
   });
+  const [hermesProfiles, setHermesProfiles] = useState<HermesProfile[]>(HERMES_PROFILES);
   const [servicePanels, setServicePanels] = useState<Record<ServiceKey, ServicePanelState>>({
     hermes: { ...EMPTY_SERVICE_PANEL },
     claude: { ...EMPTY_SERVICE_PANEL },
@@ -534,6 +541,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     });
   }, [routerModels]);
   const recognitionRef = useRef<any>(null);
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
+  const terminalSocketRef = useRef<WebSocket | null>(null);
   const voiceModeRef = useRef(false);
   const recognitionActiveRef = useRef(false);
   const microphonePermissionRef = useRef(false);
@@ -587,6 +596,15 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     setGatewayDraft(data.endpoints?.gateway || "");
     setGatewayTokenDraft(data.endpoints?.gatewayToken || "");
   }, [data.endpoints?.gateway, data.endpoints?.gatewayToken]);
+  useEffect(() => {
+    let active = true;
+    gatewayFetch(data, "/api/hermes/voice/capabilities", { method: "GET", timeoutMs: 5000 })
+      .then((payload: any) => {
+        if (active) setVoiceCapabilities({ stt: Boolean(payload?.stt?.configured), tts: Boolean(payload?.tts?.configured) });
+      })
+      .catch(() => { if (active) setVoiceCapabilities({ stt: false, tts: false }); });
+    return () => { active = false; };
+  }, [data.endpoints?.gateway, data.endpoints?.gatewayToken]);
   useEffect(() => { activityRef.current = activity; }, [activity]);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
   useEffect(() => { messageEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -600,6 +618,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     if (restartTimer.current) window.clearTimeout(restartTimer.current);
     requestControllerRef.current?.abort();
     recognitionRef.current?.abort?.();
+    voiceAudioRef.current?.pause();
+    terminalSocketRef.current?.close(1000, "j-core-unmounted");
     window.speechSynthesis?.cancel();
   }, []);
 
@@ -618,19 +638,35 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       const remaining = Math.max(300, minimumSpeakingMs - (Date.now() - startedAt));
       idleTimer.current = window.setTimeout(() => { setActivity("idle"); scheduleVoiceRestart(); }, remaining);
     };
-    if (!voiceReply || !("speechSynthesis" in window)) {
+    if (!voiceReply) {
       finishSpeaking();
       return;
     }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "vi-VN";
-    utterance.voice = selectVietnameseVoice(voiceStyle);
-    utterance.rate = voiceStyle === "female" ? 0.98 : 0.9;
-    utterance.pitch = voiceStyle === "female" ? 1.02 : 0.78;
-    utterance.onend = finishSpeaking;
-    utterance.onerror = finishSpeaking;
-    window.speechSynthesis.speak(utterance);
+    const speakWithBrowser = () => {
+      if (!("speechSynthesis" in window)) { finishSpeaking(); return; }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "vi-VN";
+      utterance.voice = selectVietnameseVoice(voiceStyle);
+      utterance.rate = voiceStyle === "female" ? 0.98 : 0.9;
+      utterance.pitch = voiceStyle === "female" ? 1.02 : 0.78;
+      utterance.onend = finishSpeaking;
+      utterance.onerror = finishSpeaking;
+      window.speechSynthesis.speak(utterance);
+    };
+    if (!voiceCapabilities.tts) { speakWithBrowser(); return; }
+    void gatewayBinaryFetch(data, "/api/hermes/voice/synthesize", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text, voice: voiceStyle === "female" ? "female" : "male" }),
+      timeoutMs: 60000,
+    }).then((response: Response) => response.blob()).then((blob: Blob) => {
+      const audio = new Audio(URL.createObjectURL(blob));
+      voiceAudioRef.current = audio;
+      audio.onended = () => { URL.revokeObjectURL(audio.src); finishSpeaking(); };
+      audio.onerror = () => { URL.revokeObjectURL(audio.src); speakWithBrowser(); };
+      return audio.play();
+    }).catch(speakWithBrowser);
   };
 
   const sendMessage = async (value = input, source: "text" | "voice" = "text") => {
@@ -779,7 +815,77 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     }
   };
 
+  async function startLocalVoiceCapture() {
+    if (!navigator.mediaDevices?.getUserMedia || !("MediaRecorder" in window)) return false;
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    microphonePermissionRef.current = true;
+    const preferredMime = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"].find((type) => MediaRecorder.isTypeSupported(type));
+    const recorder = new MediaRecorder(stream, preferredMime ? { mimeType: preferredMime } : undefined);
+    const chunks: BlobPart[] = [];
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 512;
+    audioContext.createMediaStreamSource(stream).connect(analyser);
+    const samples = new Uint8Array(analyser.fftSize);
+    let discarded = false;
+    let heardVoice = false;
+    let lastVoiceAt = Date.now();
+    const startedAt = Date.now();
+    const monitor = window.setInterval(() => {
+      analyser.getByteTimeDomainData(samples);
+      let energy = 0;
+      for (const sample of samples) energy += Math.abs(sample - 128);
+      const level = energy / samples.length;
+      if (level > 4.2) { heardVoice = true; lastVoiceAt = Date.now(); }
+      const elapsed = Date.now() - startedAt;
+      if (recorder.state === "recording" && (elapsed > 20000 || (heardVoice && elapsed > 1400 && Date.now() - lastVoiceAt > 950))) recorder.stop();
+    }, 100);
+    const cleanup = () => {
+      window.clearInterval(monitor);
+      stream.getTracks().forEach((track) => track.stop());
+      void audioContext.close();
+      recognitionActiveRef.current = false;
+      setListening(false);
+    };
+    recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+    recorder.onstart = () => { recognitionActiveRef.current = true; setListening(true); setActivity("listening"); };
+    recorder.onerror = () => { cleanup(); setActivity("idle"); setToast("Không thể ghi âm giọng nói local."); };
+    recorder.onstop = async () => {
+      cleanup();
+      if (discarded || !chunks.length) { setActivity("idle"); return; }
+      setActivity("thinking");
+      try {
+        const audio = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        const response = await gatewayBinaryFetch(data, "/api/hermes/voice/transcribe", {
+          method: "POST",
+          headers: { "content-type": audio.type },
+          body: audio,
+          timeoutMs: 60000,
+        });
+        const payload: any = await response.json();
+        const transcript = String(payload.transcript || "").trim();
+        resultHandledRef.current = Boolean(transcript);
+        setInput(transcript);
+        if (transcript) await sendMessage(transcript, "voice");
+        else { setActivity("idle"); setToast("Hermes STT chưa nhận được nội dung tiếng Việt."); scheduleVoiceRestart(900); }
+      } catch (error) {
+        setActivity("idle");
+        setToast(error instanceof Error ? error.message : "Hermes STT không phản hồi.");
+      }
+    };
+    recognitionRef.current = {
+      stop: () => { if (recorder.state === "recording") recorder.stop(); },
+      abort: () => { discarded = true; if (recorder.state === "recording") recorder.stop(); },
+    };
+    recorder.start(250);
+    return true;
+  }
+
   async function startRecognition() {
+    if (voiceCapabilities.stt) {
+      try { return await startLocalVoiceCapture(); }
+      catch { setToast("Không mở được microphone cho Hermes STT."); setActivity("idle"); return false; }
+    }
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) { setToast("Trình duyệt này chưa hỗ trợ nhận giọng nói. Hãy dùng Chrome hoặc Edge."); return; }
     if (recognitionActiveRef.current || activityRef.current === "thinking" || activityRef.current === "speaking") return;
@@ -944,11 +1050,17 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const refreshServicePanel = async (service: ServiceKey) => {
     updateServicePanel(service, { state: "loading", error: "" });
     try {
-      const overview: any = await gatewayFetch(
-        data,
-        service === "hermes" ? "/api/hermes/capabilities" : "/api/claude/capabilities",
-        { method: "GET", timeoutMs: 7000 },
-      );
+      const [overview, profilePayload]: any[] = await Promise.all([
+        gatewayFetch(
+          data,
+          service === "hermes" ? "/api/hermes/capabilities" : "/api/claude/capabilities",
+          { method: "GET", timeoutMs: 7000 },
+        ),
+        service === "hermes"
+          ? gatewayFetch(data, "/api/hermes/profiles", { method: "GET", timeoutMs: 7000 }).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      if (profilePayload?.profiles) setHermesProfiles(mergeHermesProfiles(profilePayload.profiles));
       updateServicePanel(service, { state: "ready", overview, error: "" });
     } catch (error: any) {
       updateServicePanel(service, {
@@ -1030,7 +1142,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     setSelectedHermesProfileId(profileId);
     saveStoredHermesProfileId(profileId);
     updateData({ ai: { ...(data.ai || {}), hermesProfile: profileId } });
-    onPaletteChange(HERMES_PROFILE_PALETTES[profileId] || HERMES_PROFILE_PALETTES.jarvis);
+    const profilePalette = hermesProfiles.find((profile) => profile.id === profileId)?.palette;
+    onPaletteChange(profilePalette || HERMES_PROFILE_PALETTES[profileId] || HERMES_PROFILE_PALETTES.jarvis);
     setToast(`Hermes profile: ${profileId}`);
   };
 
@@ -1189,11 +1302,68 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     setYoutubeError("");
   };
 
+  const connectPrivateTerminal = async () => {
+    const currentSocket = terminalSocketRef.current;
+    if (currentSocket && currentSocket.readyState <= WebSocket.OPEN) {
+      currentSocket.close(1000, "operator-disconnect");
+      return;
+    }
+    if (terminalConnecting) return;
+    setTerminalConnecting(true);
+    try {
+      const session: any = await gatewayFetch(data, "/api/system/terminal/session", { method: "POST", timeoutMs: 10000 });
+      const { gateway } = getGatewayConfig(data);
+      const gatewayUrl = new URL(gateway);
+      gatewayUrl.protocol = gatewayUrl.protocol === "https:" ? "wss:" : "ws:";
+      gatewayUrl.pathname = String(session.websocketPath || "/ws/terminal");
+      gatewayUrl.search = new URLSearchParams({ ticket: String(session.ticket || "") }).toString();
+      const socket = new WebSocket(gatewayUrl.toString());
+      terminalSocketRef.current = socket;
+      socket.onopen = () => {
+        setTerminalMode("pty");
+        setTerminalConnecting(false);
+        pushTerminal("PRIVATE UBUNTU PTY // connected with one-time ticket // audited session");
+      };
+      socket.onmessage = (event) => {
+        try {
+          const payload = JSON.parse(String(event.data));
+          if (payload.type === "output") {
+            const text = String(payload.data || "").replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, "");
+            pushTerminal(text.split(/\r?\n/).filter(Boolean));
+          }
+          if (payload.type === "ready") pushTerminal(`session ${payload.sessionId} ready · expires ${payload.expiresInSeconds}s`);
+          if (payload.type === "error") pushTerminal(`PTY ERROR: ${payload.message || "unknown error"}`);
+          if (payload.type === "exit") pushTerminal(`[PTY EXIT ${payload.code ?? "?"}]`);
+        } catch {
+          pushTerminal(String(event.data));
+        }
+      };
+      socket.onerror = () => {
+        setTerminalConnecting(false);
+        pushTerminal("PTY CONNECTION FAILED // kiểm tra private mode và tunnel WebSocket.");
+      };
+      socket.onclose = (event) => {
+        terminalSocketRef.current = null;
+        setTerminalMode("local");
+        setTerminalConnecting(false);
+        pushTerminal(`PTY DISCONNECTED${event.reason ? ` // ${event.reason}` : ""}`);
+      };
+    } catch (error) {
+      setTerminalConnecting(false);
+      pushTerminal(`PTY UNAVAILABLE: ${error instanceof Error ? error.message : "unknown error"}`);
+    }
+  };
+
   const runTerminal = async (event: FormEvent) => {
     event.preventDefault();
     const raw = terminalInput.trim();
     if (!raw) return;
     const [command, ...args] = raw.toLowerCase().split(/\s+/);
+    if (terminalMode === "pty" && terminalSocketRef.current?.readyState === WebSocket.OPEN) {
+      terminalSocketRef.current.send(JSON.stringify({ type: "input", data: `${raw}\n` }));
+      setTerminalInput("");
+      return;
+    }
     pushTerminal(`operator@j-core:~$ ${raw}`);
     setTerminalInput("");
 
@@ -1582,6 +1752,10 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           </section>
           <section className="settings-block">
             <div className="settings-block-head"><span>Kênh giọng nói tiếng Việt</span><button className={voiceMode ? "danger" : "primary"} type="button" onClick={toggleVoiceMode}>{voiceMode ? "Tắt" : "Bật"}</button></div>
+            <div className="voice-pipeline-status">
+              <span><i className={voiceCapabilities.stt ? "online" : "fallback"} />STT: {voiceCapabilities.stt ? "HERMES LOCAL" : "BROWSER"}</span>
+              <span><i className={voiceCapabilities.tts ? "online" : "fallback"} />TTS: {voiceCapabilities.tts ? "HERMES LOCAL" : "BROWSER"}</span>
+            </div>
             <div className="voice-style-grid" role="group" aria-label="Chọn chất giọng tiếng Việt">
               {(Object.keys(VOICE_STYLE_LABELS) as VoiceStyle[]).map((style) => (
                 <button
@@ -1642,7 +1816,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       {terminalOpen && (
         <OsWindow
           title="Ubuntu Terminal"
-          code="SYS://UBUNTU-RO"
+          code={terminalMode === "pty" ? "PTY://UBUNTU-PRIVATE" : "LOCAL://BROWSER"}
           drag={terminalDrag}
           minimized={terminalMinimized}
           active={activeWindow === "terminal"}
@@ -1653,16 +1827,21 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         >
           <div className="terminal-mode-toggle">
             <span>
-              Local browser console
-              <small>Đăng nhập bảo vệ J-Core · Ubuntu Files dùng quyền thư mục trực tiếp · không API</small>
+              {terminalMode === "pty" ? "Private Ubuntu PTY" : "Local browser console"}
+              <small>{terminalMode === "pty" ? "Phiên riêng có thời hạn · input/output được audit theo byte" : "Ubuntu Files dùng quyền thư mục trực tiếp · PTY là chế độ nâng cao tùy chọn"}</small>
             </span>
-            <button type="button" onClick={() => { setIntelMode("files"); openOsWindow("intel"); }}>MỞ UBUNTU FILES</button>
+            <div className="terminal-mode-actions">
+              <button type="button" onClick={() => { setIntelMode("files"); openOsWindow("intel"); }}>UBUNTU FILES</button>
+              <button className={terminalMode === "pty" ? "danger" : ""} type="button" disabled={terminalConnecting} onClick={() => void connectPrivateTerminal()}>
+                {terminalConnecting ? "ĐANG NỐI" : terminalMode === "pty" ? "NGẮT PTY" : "MỞ PRIVATE PTY"}
+              </button>
+            </div>
           </div>
           <div className="os-terminal-stream" aria-live="polite">
             {terminalLines.map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}
           </div>
           <form className="os-terminal-input" onSubmit={(event) => void runTerminal(event)}>
-            <span>operator@j-core:~$</span>
+            <span>{terminalMode === "pty" ? "ubuntu@j-core:~$" : "operator@j-core:~$"}</span>
             <input
               value={terminalInput}
               onChange={(event) => setTerminalInput(event.target.value)}
@@ -1810,6 +1989,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             reply={servicePanels.hermes.reply}
             sending={servicePanels.hermes.sending}
             selectedProfileId={selectedHermesProfileId}
+            profiles={hermesProfiles}
             onSelectProfile={(profileId) => {
               selectHermesProfile(profileId);
               setToast(`Đã chuyển sang Hermes profile: ${profileId}`);
@@ -1817,7 +1997,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             onPromptChange={(prompt) => updateServicePanel("hermes", { prompt })}
             onRefresh={() => void refreshServicePanel("hermes")}
             onSubmit={() => void testServicePanel("hermes")}
-            diagnostics={["status", "doctor", "sessions", "cron"]}
+            diagnostics={["status", "doctor", "sessions", "cron", "profiles", "config"]}
             onRunDiagnostic={(action) => void runServiceDiagnostic("hermes", action)}
           />
         </OsWindow>
@@ -1849,7 +2029,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             onPromptChange={(prompt) => updateServicePanel("claude", { prompt })}
             onRefresh={() => void refreshServicePanel("claude")}
             onSubmit={() => void testServicePanel("claude")}
-            diagnostics={["version", "status"]}
+            diagnostics={["version", "status", "doctor", "auth"]}
             onRunDiagnostic={(action) => void runServiceDiagnostic("claude", action)}
           />
         </OsWindow>

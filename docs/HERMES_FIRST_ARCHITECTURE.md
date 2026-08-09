@@ -19,6 +19,7 @@ J-Core Console is a single web dashboard for talking to a local AI profile and c
 | --- | --- | --- |
 | Hermes chat | `POST /api/hermes/chat` | Hermes OpenAI-compatible chat endpoint |
 | Hermes profiles | `GET /api/hermes/profiles` | Gateway profile allowlist |
+| Hermes voice | `GET /api/hermes/voice/capabilities`, `POST /transcribe`, `POST /synthesize` | Optional local Whisper/TTS with browser fallback |
 | Hermes capabilities | `GET /api/hermes/capabilities` | Hermes models/capabilities |
 | OpenClaw task | `POST /api/openclaw/task` | OpenClaw task endpoint |
 | OpenClaw diagnostics | `POST /api/system/dashboard-command` | `openclaw status/doctor/models/tasks` allowlist |
@@ -30,6 +31,7 @@ J-Core Console is a single web dashboard for talking to a local AI profile and c
 | Obsidian vault | `GET /api/obsidian/notes` | Safe Markdown vault reader |
 | Terminal broker | `POST /api/system/terminal` | Safe read-only command catalog |
 | Private terminal | `POST /api/system/private-terminal` | Gated Ubuntu shell mode |
+| Private PTY | `POST /api/system/terminal/session` + `WS /ws/terminal` | One-time ticket, streamed audited Ubuntu session |
 
 ## Security baseline
 
@@ -39,6 +41,7 @@ J-Core Console is a single web dashboard for talking to a local AI profile and c
 - Workspace APIs return relative paths only.
 - Terminal broker rejects shell metacharacters and write/delete/restart/stop operations.
 - Private shell is disabled by default and only works when `JCORE_TERMINAL_PRIVATE_MODE=true` on Linux.
+- PTY WebSocket tickets are single-use, origin-bound and short-lived; audit stores metadata, not command text.
 
 ## Hermes profile behavior
 

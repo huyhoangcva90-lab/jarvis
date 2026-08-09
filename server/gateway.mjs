@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
+import { WebSocketServer } from "ws";
 
 const envPath = resolve(process.cwd(), ".env.local");
 if (existsSync(envPath)) {
@@ -39,9 +40,25 @@ const HERMES_ALLOWED_PROFILES = new Set(
     .filter(Boolean),
 );
 HERMES_ALLOWED_PROFILES.add(HERMES_DEFAULT_PROFILE);
+const HERMES_PROFILE_METADATA_TTL_MS = Math.max(5000, Number(process.env.HERMES_PROFILE_METADATA_TTL_MS || 30000));
+const HERMES_PROFILE_CATALOG = [
+  { id: "jarvis", name: "Jarvis Orchestrator", role: "Trợ lý điều phối mặc định của J-Core", description: "Profile điều phối chính trên Ubuntu.", icon: "terminal", palette: "orange", tags: ["Default", "Memory", "Command"] },
+  { id: "ev-personal", name: "E.V Personal Link", role: "Trợ lý hoạch định đời sống và liên kết cá nhân", description: "Profile riêng cho Spider Mode và personal planning.", icon: "router", palette: "spider", tags: ["Personal", "Planner", "OpenClaw"] },
+  { id: "cadence-content", name: "Cadence Content Studio", role: "Studio sáng tạo nội dung đa bước", description: "Pipeline research, scripting, SEO và scheduling.", icon: "media", palette: "violet", tags: ["Studio", "Pipeline"] },
+  { id: "code-architect", name: "Code Architect", role: "Kiến trúc sư phần mềm và reviewer", description: "Phân tích kiến trúc và chất lượng code.", icon: "router", palette: "blue", tags: ["Dev", "Architecture"] },
+  { id: "security-auditor", name: "Security Auditor", role: "Kiểm thử an ninh và phòng thủ", description: "Đánh giá quyền hạn, cấu hình và bề mặt tấn công.", icon: "shield", palette: "red", tags: ["Security", "Defense"] },
+];
+let hermesProfileMetadataCache = { expiresAt: 0, profiles: [] };
 const HERMES_SESSION_MODE = process.env.HERMES_SESSION_MODE === "telegram" ? "telegram" : "web";
 const HERMES_SESSION_ID = process.env.HERMES_SESSION_ID || "jarvis-web-primary";
 const HERMES_SESSION_KEY = process.env.HERMES_SESSION_KEY || "agent:jarvis:web:dm:owner";
+const HERMES_STT_URL = process.env.HERMES_STT_URL || "";
+const HERMES_STT_API_KEY = process.env.HERMES_STT_API_KEY || "";
+const HERMES_STT_MODEL = process.env.HERMES_STT_MODEL || "whisper-1";
+const HERMES_TTS_URL = process.env.HERMES_TTS_URL || "";
+const HERMES_TTS_API_KEY = process.env.HERMES_TTS_API_KEY || "";
+const HERMES_TTS_MODEL = process.env.HERMES_TTS_MODEL || "tts-1";
+const HERMES_TTS_VOICE = process.env.HERMES_TTS_VOICE || "alloy";
 const WORKSPACE_ROOT = resolve(process.env.JCORE_WORKSPACE_ROOT || process.cwd());
 const OBSIDIAN_ROOT = process.env.JCORE_OBSIDIAN_ROOT ? resolve(process.env.JCORE_OBSIDIAN_ROOT) : "";
 const WORKSPACE_WRITE_ENABLED = /^(1|true|yes|on)$/i.test(process.env.JCORE_WORKSPACE_WRITE_ENABLED || "false");
@@ -49,6 +66,8 @@ const TERMINAL_ENABLED = !/^(0|false|no|off)$/i.test(process.env.JCORE_TERMINAL_
 const TERMINAL_PRIVATE_MODE = /^(1|true|yes|on)$/i.test(process.env.JCORE_TERMINAL_PRIVATE_MODE || "false");
 const TERMINAL_TIMEOUT_MS = Math.min(30000, Math.max(1000, Number(process.env.JCORE_TERMINAL_TIMEOUT_MS || 10000)));
 const TERMINAL_OUTPUT_LIMIT = Math.min(1024 * 1024, Math.max(16384, Number(process.env.JCORE_TERMINAL_OUTPUT_LIMIT || 262144)));
+const TERMINAL_SESSION_TTL_MS = Math.min(8 * 60 * 60 * 1000, Math.max(60 * 1000, Number(process.env.JCORE_TERMINAL_SESSION_TTL_MS || 30 * 60 * 1000)));
+const TERMINAL_TICKET_TTL_MS = Math.min(120000, Math.max(10000, Number(process.env.JCORE_TERMINAL_TICKET_TTL_MS || 60000)));
 const MANAGED_SERVICES = new Set(
   (process.env.JCORE_MANAGED_SERVICES || "j-core-gateway,hermes,openclaw,9router")
     .split(",")
@@ -77,6 +96,8 @@ const gatewayStats = {
 
 const upstreamCircuits = new Map();
 const dashboardSessions = new Map();
+const terminalTickets = new Map();
+const terminalAudit = [];
 
 if (!TOKEN && !IS_LOOPBACK) {
   throw new Error("JCORE_GATEWAY_TOKEN is required when the gateway listens beyond localhost.");
@@ -138,6 +159,21 @@ function sendJson(req, res, status, payload, extraHeaders = {}) {
   res.end(JSON.stringify({ requestId: req.requestId, ...payload }));
 }
 
+function sendBuffer(req, res, status, payload, contentType = "application/octet-stream", extraHeaders = {}) {
+  res.writeHead(status, {
+    "content-type": contentType,
+    "content-length": payload.length,
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
+    "x-request-id": req.requestId,
+    "access-control-allow-origin": getCorsOrigin(req),
+    "access-control-expose-headers": "x-request-id,x-jcore-upstream,server-timing",
+    "vary": "Origin",
+    ...extraHeaders,
+  });
+  res.end(payload);
+}
+
 function authorized(req) {
   if (!TOKEN) return true;
   return req.headers.authorization === `Bearer ${TOKEN}`;
@@ -193,6 +229,21 @@ async function readJson(req) {
   const raw = Buffer.concat(chunks).toString("utf8");
   if (!raw) return {};
   return JSON.parse(raw);
+}
+
+async function readBuffer(req, limit = 16 * 1024 * 1024) {
+  const chunks = [];
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    totalBytes += chunk.length;
+    if (totalBytes > limit) {
+      const error = new Error("payload_too_large");
+      error.statusCode = 413;
+      throw error;
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
 }
 
 function pathIsInside(rootPath, targetPath) {
@@ -571,6 +622,8 @@ async function executeTerminalCommand(rawCommand) {
       doctor: ["doctor"],
       sessions: ["sessions", "list"],
       cron: ["cron", "list"],
+      profiles: ["profile", "list"],
+      config: ["config", "get", "gateway.multiplex_profiles"],
     };
     const action = actions[String(args[0] || "status").toLowerCase()];
     if (!action) {
@@ -595,8 +648,20 @@ async function executeTerminalCommand(rawCommand) {
     }
     return runProcess(process.env.JCORE_OPENCLAW_CLI || "openclaw", action);
   }
-  if (command === "claude" && String(args[0] || "version").toLowerCase() === "version") {
-    return runProcess(process.env.JCORE_CLAUDE_CLI || "claude", ["--version"]);
+  if (command === "claude") {
+    const actions = {
+      version: ["--version"],
+      status: ["--version"],
+      doctor: ["doctor"],
+      auth: ["auth", "status"],
+    };
+    const action = actions[String(args[0] || "version").toLowerCase()];
+    if (!action) {
+      const error = new Error("terminal_command_not_allowed");
+      error.statusCode = 400;
+      throw error;
+    }
+    return runProcess(process.env.JCORE_CLAUDE_CLI || "claude", action);
   }
   if (command === "9router" && String(args[0] || "models").toLowerCase() === "models") {
     const result = await fetchJson(`${services.nineRouter.base.replace(/\/+$/, "")}/v1/models`, services.nineRouter.apiKey);
@@ -639,6 +704,8 @@ async function executeDashboardCommand(body = {}) {
       doctor: "hermes doctor",
       sessions: "hermes sessions",
       cron: "hermes cron",
+      profiles: "hermes profiles",
+      config: "hermes config",
     },
     openclaw: {
       status: "openclaw status",
@@ -649,6 +716,8 @@ async function executeDashboardCommand(body = {}) {
     claude: {
       version: "claude version",
       status: "claude version",
+      doctor: "claude doctor",
+      auth: "claude auth",
     },
     "9router": {
       models: "9router models",
@@ -881,6 +950,45 @@ async function proxyJson(url, payload, apiKey = "", extraHeaders = {}) {
   }
 }
 
+async function transcribeVietnameseAudio(audio, mimeType = "audio/webm") {
+  if (!HERMES_STT_URL) return { ok: false, status: 503, error: "voice_stt_not_configured" };
+  const form = new FormData();
+  const extension = mimeType.includes("ogg") ? "ogg" : mimeType.includes("wav") ? "wav" : "webm";
+  form.append("file", new Blob([audio], { type: mimeType }), `jcore-voice.${extension}`);
+  form.append("model", HERMES_STT_MODEL);
+  form.append("language", "vi");
+  const headers = HERMES_STT_API_KEY ? { authorization: `Bearer ${HERMES_STT_API_KEY}` } : {};
+  const startedAt = Date.now();
+  try {
+    const response = await fetch(HERMES_STT_URL, { method: "POST", headers, body: form, signal: AbortSignal.timeout(60000) });
+    const text = await response.text();
+    let data;
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { text }; }
+    return { ok: response.ok, status: response.status, data, latencyMs: Date.now() - startedAt, error: response.ok ? null : data?.error || `upstream_${response.status}` };
+  } catch (error) {
+    return { ok: false, status: 0, error: error?.name === "TimeoutError" ? "upstream_timeout" : "upstream_offline", latencyMs: Date.now() - startedAt };
+  }
+}
+
+async function synthesizeVietnameseSpeech(text, voice) {
+  if (!HERMES_TTS_URL) return { ok: false, status: 503, error: "voice_tts_not_configured" };
+  const headers = { "content-type": "application/json" };
+  if (HERMES_TTS_API_KEY) headers.authorization = `Bearer ${HERMES_TTS_API_KEY}`;
+  const startedAt = Date.now();
+  try {
+    const response = await fetch(HERMES_TTS_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ model: HERMES_TTS_MODEL, voice: voice || HERMES_TTS_VOICE, input: text, language: "vi-VN", response_format: "mp3" }),
+      signal: AbortSignal.timeout(60000),
+    });
+    const audio = Buffer.from(await response.arrayBuffer());
+    return { ok: response.ok, status: response.status, audio, contentType: response.headers.get("content-type") || "audio/mpeg", latencyMs: Date.now() - startedAt };
+  } catch (error) {
+    return { ok: false, status: 0, error: error?.name === "TimeoutError" ? "upstream_timeout" : "upstream_offline", latencyMs: Date.now() - startedAt };
+  }
+}
+
 function safeHermesIdentifier(value) {
   const normalized = String(value || "").trim();
   return /^[a-zA-Z0-9._:@-]{1,256}$/.test(normalized) ? normalized : "";
@@ -890,6 +998,60 @@ function normalizeHermesProfile(value) {
   const profile = String(value || HERMES_DEFAULT_PROFILE).trim();
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/.test(profile)) return "";
   return HERMES_ALLOWED_PROFILES.has(profile) ? profile : "";
+}
+
+function safeProfileMetadata(value, fallback = {}) {
+  if (!value || typeof value !== "object") return null;
+  const id = normalizeHermesProfile(value.id || fallback.id);
+  if (!id) return null;
+  const palette = /^(gold|blue|green|red|violet|orange|spider)$/.test(String(value.palette || fallback.palette || ""))
+    ? String(value.palette || fallback.palette)
+    : "gold";
+  const tags = Array.isArray(value.tags || fallback.tags)
+    ? (value.tags || fallback.tags).map((tag) => String(tag).slice(0, 32)).filter(Boolean).slice(0, 8)
+    : [];
+  return {
+    id,
+    name: String(value.name || value.title || fallback.name || id).slice(0, 96),
+    role: String(value.role || fallback.role || "Hermes profile").slice(0, 180),
+    description: String(value.description || value.summary || fallback.description || `Profile ${id} trên Hermes Ubuntu.`).slice(0, 320),
+    icon: String(value.icon || fallback.icon || "terminal").slice(0, 32),
+    palette,
+    tags,
+    defaultModel: String(value.defaultModel || value.model || fallback.defaultModel || services.hermes.model).slice(0, 128),
+  };
+}
+
+function configuredProfileMetadata() {
+  let configured = [];
+  try {
+    const parsed = JSON.parse(process.env.HERMES_PROFILE_METADATA_JSON || "[]");
+    configured = Array.isArray(parsed) ? parsed : Object.entries(parsed).map(([id, metadata]) => ({ id, ...(metadata || {}) }));
+  } catch {
+    configured = [];
+  }
+  const fallbackById = new Map(HERMES_PROFILE_CATALOG.map((profile) => [profile.id, profile]));
+  const configuredById = new Map(configured.map((profile) => [String(profile?.id || ""), profile]));
+  return [...HERMES_ALLOWED_PROFILES].map((id) => safeProfileMetadata(configuredById.get(id) || {}, fallbackById.get(id) || { id })).filter(Boolean);
+}
+
+async function loadHermesProfileMetadata() {
+  if (hermesProfileMetadataCache.expiresAt > Date.now()) return hermesProfileMetadataCache.profiles;
+  const localProfiles = configuredProfileMetadata();
+  const localById = new Map(localProfiles.map((profile) => [profile.id, profile]));
+  const upstream = await fetchJson(`${services.hermes.base.replace(/\/+$/, "")}/v1/profiles`, services.hermes.apiKey, 3500);
+  const upstreamProfiles = Array.isArray(upstream.data?.profiles)
+    ? upstream.data.profiles
+    : Array.isArray(upstream.data?.data)
+      ? upstream.data.data
+      : Array.isArray(upstream.data)
+        ? upstream.data
+        : [];
+  const profiles = upstreamProfiles.length
+    ? upstreamProfiles.map((profile) => safeProfileMetadata(profile, localById.get(String(profile?.id || "")) || {})).filter(Boolean)
+    : localProfiles;
+  hermesProfileMetadataCache = { expiresAt: Date.now() + HERMES_PROFILE_METADATA_TTL_MS, profiles };
+  return profiles;
 }
 
 function hermesChatUrl(profile) {
@@ -941,6 +1103,42 @@ function toOpenAiPayload(payload, model) {
   if (payload.temperature !== undefined) result.temperature = payload.temperature;
   if (payload.max_tokens !== undefined) result.max_tokens = payload.max_tokens;
   return result;
+}
+
+function terminalSessionAvailable() {
+  return TERMINAL_ENABLED && TERMINAL_PRIVATE_MODE && process.platform === "linux";
+}
+
+function recordTerminalAudit(event) {
+  terminalAudit.push({ at: new Date().toISOString(), ...event });
+  if (terminalAudit.length > 200) terminalAudit.splice(0, terminalAudit.length - 200);
+}
+
+function issueTerminalTicket(req) {
+  if (!terminalSessionAvailable()) {
+    const error = new Error(!TERMINAL_PRIVATE_MODE ? "terminal_private_mode_disabled" : "terminal_private_mode_requires_ubuntu");
+    error.statusCode = 403;
+    throw error;
+  }
+  const ticket = randomUUID();
+  const sessionId = randomUUID();
+  terminalTickets.set(ticket, {
+    sessionId,
+    expiresAt: Date.now() + TERMINAL_TICKET_TTL_MS,
+    origin: String(req.headers.origin || ""),
+    remoteAddress: String(req.socket.remoteAddress || ""),
+  });
+  recordTerminalAudit({ event: "ticket-issued", sessionId, remoteAddress: String(req.socket.remoteAddress || "") });
+  return { ticket, sessionId, expiresInSeconds: Math.floor(TERMINAL_TICKET_TTL_MS / 1000) };
+}
+
+function consumeTerminalTicket(ticket, req) {
+  const entry = terminalTickets.get(ticket);
+  terminalTickets.delete(ticket);
+  if (!entry || entry.expiresAt < Date.now()) return null;
+  const origin = String(req.headers.origin || "");
+  if (entry.origin && origin && entry.origin !== origin) return null;
+  return entry;
 }
 
 const server = createServer(async (req, res) => {
@@ -1012,9 +1210,10 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && url.pathname === "/api/hermes/capabilities") {
-      const [capabilities, models] = await Promise.all([
+      const [capabilities, models, profileMetadata] = await Promise.all([
         fetchJson(`${services.hermes.base.replace(/\/+$/, "")}/v1/capabilities`, services.hermes.apiKey),
         fetchJson(`${services.hermes.base.replace(/\/+$/, "")}/v1/models`, services.hermes.apiKey),
+        loadHermesProfileMetadata(),
       ]);
       const ok = capabilities.ok || models.ok;
       return sendJson(req, res, ok ? 200 : 502, {
@@ -1023,6 +1222,7 @@ const server = createServer(async (req, res) => {
         model: services.hermes.model,
         defaultProfile: HERMES_DEFAULT_PROFILE,
         profiles: [...HERMES_ALLOWED_PROFILES],
+        profileMetadata,
         multiplexProfiles: HERMES_MULTIPLEX_PROFILES,
         session: {
           mode: HERMES_SESSION_MODE,
@@ -1158,18 +1358,44 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && url.pathname === "/api/hermes/profiles") {
+      const profiles = await loadHermesProfileMetadata();
       return sendJson(req, res, 200, {
         source: "hermes",
         defaultProfile: HERMES_DEFAULT_PROFILE,
         multiplexProfiles: HERMES_MULTIPLEX_PROFILES,
-        profiles: [
-          { id: "ev-personal", name: "E.V Personal Link", role: "Trợ lý hoạch định đời sống và liên kết cá nhân", icon: "router" },
-          { id: "jarvis", name: "Jarvis Orchestrator", role: "Trợ lý điều phối mặc định của J-Core", icon: "terminal" },
-          { id: "cadence-content", name: "Cadence Content Studio", role: "Studio sáng tạo nội dung đa bước (Cadence)", icon: "media" },
-          { id: "code-architect", name: "Code Architect", role: "Kiến trúc sư phần mềm & Reviewer", icon: "router" },
-          { id: "security-auditor", name: "Security Auditor", role: "Kiểm thử an ninh & Quy tắc phòng thủ", icon: "shield" },
-        ].filter((profile) => HERMES_ALLOWED_PROFILES.has(profile.id)),
+        profiles,
+        metadataSource: profiles.some((profile) => profile.defaultModel !== services.hermes.model) ? "hermes" : "configured-fallback",
       });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/hermes/voice/capabilities") {
+      return sendJson(req, res, 200, {
+        source: "hermes-voice",
+        stt: { configured: Boolean(HERMES_STT_URL), model: HERMES_STT_URL ? HERMES_STT_MODEL : "browser-speech-recognition", language: "vi-VN" },
+        tts: { configured: Boolean(HERMES_TTS_URL), model: HERMES_TTS_URL ? HERMES_TTS_MODEL : "browser-speech-synthesis", voice: HERMES_TTS_URL ? HERMES_TTS_VOICE : "system-vi", language: "vi-VN" },
+      });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/hermes/voice/transcribe") {
+      const audio = await readBuffer(req, 16 * 1024 * 1024);
+      if (!audio.length) return sendJson(req, res, 400, { error: "voice_audio_missing" });
+      const result = await transcribeVietnameseAudio(audio, String(req.headers["content-type"] || "audio/webm").split(";")[0]);
+      if (!result.ok) return sendJson(req, res, result.status || 502, { error: result.error || "voice_transcription_failed" });
+      return sendJson(req, res, 200, {
+        source: "hermes-stt",
+        transcript: String(result.data?.text || result.data?.transcript || ""),
+        language: result.data?.language || "vi",
+        latencyMs: result.latencyMs,
+      }, { "x-jcore-upstream": "hermes-stt", "server-timing": `stt;dur=${result.latencyMs}` });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/hermes/voice/synthesize") {
+      const body = await readJson(req);
+      const text = String(body.text || "").trim();
+      if (!text || text.length > 5000) return sendJson(req, res, 400, { error: "voice_text_invalid" });
+      const result = await synthesizeVietnameseSpeech(text, String(body.voice || ""));
+      if (!result.ok) return sendJson(req, res, result.status || 502, { error: result.error || "voice_synthesis_failed" });
+      return sendBuffer(req, res, 200, result.audio, result.contentType, { "x-jcore-upstream": "hermes-tts", "server-timing": `tts;dur=${result.latencyMs}` });
     }
 
     if (req.method === "POST" && url.pathname === "/api/hermes/chat") {
@@ -1260,6 +1486,20 @@ const server = createServer(async (req, res) => {
         truncated: vault.truncated,
         readOnly: true,
       });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/system/terminal/session") {
+      const session = issueTerminalTicket(req);
+      return sendJson(req, res, 200, {
+        ...session,
+        websocketPath: "/ws/terminal",
+        mode: "private-ubuntu-pty",
+        audit: true,
+      });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/system/terminal/audit") {
+      return sendJson(req, res, 200, { events: terminalAudit.slice(-100), total: terminalAudit.length });
     }
 
     if (req.method === "POST" && url.pathname === "/api/system/terminal") {
@@ -1366,10 +1606,90 @@ const server = createServer(async (req, res) => {
   }
 });
 
+const terminalWss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
+
+server.on("upgrade", (req, socket, head) => {
+  let url;
+  try { url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`); } catch { socket.destroy(); return; }
+  if (url.pathname !== "/ws/terminal") { socket.destroy(); return; }
+  const requestOrigin = String(req.headers.origin || "").replace(/\/+$/, "");
+  if (!CORS_ORIGINS.includes("*") && requestOrigin && !CORS_ORIGINS.includes(requestOrigin)) {
+    socket.write("HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+  const terminalSession = consumeTerminalTicket(String(url.searchParams.get("ticket") || ""), req);
+  if (!terminalSession || !terminalSessionAvailable()) {
+    socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+  terminalWss.handleUpgrade(req, socket, head, (websocket) => {
+    terminalWss.emit("connection", websocket, req, terminalSession);
+  });
+});
+
+terminalWss.on("connection", (websocket, req, session) => {
+  const shell = process.env.JCORE_TERMINAL_SHELL || process.env.SHELL || "/bin/bash";
+  const cwd = existsSync(WORKSPACE_ROOT) ? WORKSPACE_ROOT : process.cwd();
+  const terminal = spawn("script", ["-qefc", shell, "/dev/null"], {
+    cwd,
+    env: { ...process.env, TERM: "xterm-256color", JCORE_TERMINAL_SESSION_ID: session.sessionId },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  let closed = false;
+  let inputBytes = 0;
+  let outputBytes = 0;
+  const startedAt = Date.now();
+  const sessionTimer = setTimeout(() => websocket.close(4000, "session-expired"), TERMINAL_SESSION_TTL_MS);
+  const send = (payload) => {
+    if (websocket.readyState === 1) websocket.send(JSON.stringify(payload));
+  };
+  const sendOutput = (stream, chunk) => {
+    outputBytes += chunk.length;
+    send({ type: "output", stream, data: chunk.toString("utf8") });
+  };
+  terminal.stdout.on("data", (chunk) => sendOutput("stdout", chunk));
+  terminal.stderr.on("data", (chunk) => sendOutput("stderr", chunk));
+  terminal.on("error", (error) => send({ type: "error", message: error.message }));
+  terminal.on("close", (code, signal) => {
+    send({ type: "exit", code, signal });
+    if (websocket.readyState === 1) websocket.close(1000, "process-exited");
+  });
+  websocket.on("message", (raw) => {
+    let payload;
+    try { payload = JSON.parse(String(raw)); } catch { payload = { type: "input", data: String(raw) }; }
+    if (payload.type !== "input") return;
+    const input = String(payload.data || "");
+    if (!input || input.length > 8192) return;
+    inputBytes += Buffer.byteLength(input);
+    terminal.stdin.write(input);
+  });
+  const cleanup = () => {
+    if (closed) return;
+    closed = true;
+    clearTimeout(sessionTimer);
+    if (!terminal.killed) terminal.kill("SIGHUP");
+    recordTerminalAudit({
+      event: "session-closed",
+      sessionId: session.sessionId,
+      durationMs: Date.now() - startedAt,
+      inputBytes,
+      outputBytes,
+      remoteAddress: String(req.socket.remoteAddress || ""),
+    });
+  };
+  websocket.on("close", cleanup);
+  websocket.on("error", cleanup);
+  recordTerminalAudit({ event: "session-opened", sessionId: session.sessionId, remoteAddress: String(req.socket.remoteAddress || "") });
+  send({ type: "ready", sessionId: session.sessionId, cwd: ".", expiresInSeconds: Math.floor(TERMINAL_SESSION_TTL_MS / 1000) });
+});
+
 server.listen(PORT, HOST, () => {
   console.log(`J-Core local gateway: http://${HOST}:${PORT}`);
   console.log(`Hermes: ${services.hermes.base}`);
   console.log(`OpenClaw: ${services.openclaw.base}`);
   console.log(`9Router: ${services.nineRouter.base}`);
   console.log(`Claude bridge: ${services.claude.base}`);
+  console.log(`Private terminal PTY: ${terminalSessionAvailable() ? "enabled" : "disabled"}`);
 });

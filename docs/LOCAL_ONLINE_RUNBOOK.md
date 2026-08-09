@@ -66,6 +66,13 @@ HERMES_SESSION_KEY=agent:jarvis:web:dm:owner
 
 The UI sends the active Hermes profile with `/api/hermes/chat`. Profile switching in the UI changes the orb palette and persists the selected profile locally.
 
+J-Core now reads profile metadata from Hermes `/v1/profiles`. If the installed Hermes build does not expose that route, configure a safe fallback without adding secrets:
+
+```env
+HERMES_PROFILE_METADATA_JSON=[{"id":"jarvis","name":"Jarvis","palette":"orange","tags":["Memory"]},{"id":"ev-personal","name":"E.V","palette":"spider","tags":["Personal"]}]
+HERMES_PROFILE_METADATA_TTL_MS=30000
+```
+
 Create the real isolated E.V profile before enabling Spider Mode chat:
 
 ```bash
@@ -141,15 +148,40 @@ JCORE_TERMINAL_PRIVATE_MODE=true
 JCORE_TERMINAL_SHELL=/bin/bash
 ```
 
-When the UI toggle `Private Ubuntu shell` is enabled, commands go to:
+The non-streaming private command endpoint remains available for trusted diagnostics:
 
 ```text
 POST /api/system/private-terminal
 ```
 
+The focused Terminal dashboard also supports a real streamed PTY. The browser first requests an authenticated, one-time ticket from `POST /api/system/terminal/session`, then connects to `/ws/terminal`. The ticket expires after 60 seconds and the PTY session expires after 30 minutes by default:
+
+```env
+JCORE_TERMINAL_TICKET_TTL_MS=60000
+JCORE_TERMINAL_SESSION_TTL_MS=1800000
+```
+
+PTY audit records session open/close time, remote address and input/output byte counts. It deliberately does not store command text because commands may contain secrets. Local browser console and direct Ubuntu Files remain the default mode.
+
 Do not enable private shell on a public gateway unless it is behind strong access control.
 
-## 7. Verify
+## 7. Vietnamese voice pipeline
+
+Without extra configuration, J-Core keeps using browser SpeechRecognition and speechSynthesis. To use local Ubuntu voice, point these variables at OpenAI-compatible Whisper and TTS endpoints:
+
+```env
+HERMES_STT_URL=http://127.0.0.1:9000/v1/audio/transcriptions
+HERMES_STT_API_KEY=
+HERMES_STT_MODEL=whisper-1
+HERMES_TTS_URL=http://127.0.0.1:9001/v1/audio/speech
+HERMES_TTS_API_KEY=
+HERMES_TTS_MODEL=tts-1
+HERMES_TTS_VOICE=alloy
+```
+
+The client records WebM/Opus, uses local VAD to stop after silence, transcribes as Vietnamese, routes the text through the active Hermes profile, and plays local TTS. If either service is absent, that half of the pipeline falls back to the browser automatically.
+
+## 8. Verify
 
 ```bash
 curl -H "Authorization: Bearer $JCORE_GATEWAY_TOKEN" \

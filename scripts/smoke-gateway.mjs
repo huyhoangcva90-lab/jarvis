@@ -18,6 +18,11 @@ const upstream = createServer(async (req, res) => {
     res.end(JSON.stringify({ features: { chat_completions: true } }));
     return;
   }
+  if (req.url === "/v1/profiles") {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ profiles: [{ id: "jarvis", name: "Jarvis Live", palette: "orange", tags: ["Ubuntu", "Memory"], model: "hermes-agent" }] }));
+    return;
+  }
   if (req.url === "/dashboard") {
     res.writeHead(200, {
       "content-type": "text/html; charset=utf-8",
@@ -172,6 +177,11 @@ try {
     throw new Error(`Private terminal must be disabled by default: ${privateTerminalDisabled.status} ${await privateTerminalDisabled.text()}`);
   }
 
+  const privatePtyDisabled = await fetch(`${base}/api/system/terminal/session`, { method: "POST", headers: authHeaders });
+  if (privatePtyDisabled.status !== 403) {
+    throw new Error(`Private PTY ticket must be disabled by default: ${privatePtyDisabled.status} ${await privatePtyDisabled.text()}`);
+  }
+
   const dashboardCommand = await fetch(`${base}/api/system/dashboard-command`, {
     method: "POST",
     headers: { ...authHeaders, "content-type": "application/json" },
@@ -208,8 +218,14 @@ try {
 
   const profiles = await fetch(`${base}/api/hermes/profiles`, { headers: authHeaders });
   const profilesBody = await profiles.json();
-  if (!profiles.ok || profilesBody.defaultProfile !== "jarvis" || profilesBody.profiles?.length !== 1 || profilesBody.profiles[0]?.id !== "jarvis") {
+  if (!profiles.ok || profilesBody.defaultProfile !== "jarvis" || profilesBody.profiles?.length !== 1 || profilesBody.profiles[0]?.name !== "Jarvis Live" || profilesBody.profiles[0]?.palette !== "orange") {
     throw new Error(`Hermes single-profile default failed: ${JSON.stringify(profilesBody)}`);
+  }
+
+  const voiceCapabilities = await fetch(`${base}/api/hermes/voice/capabilities`, { headers: authHeaders });
+  const voiceBody = await voiceCapabilities.json();
+  if (!voiceCapabilities.ok || voiceBody.stt?.configured !== false || voiceBody.tts?.configured !== false) {
+    throw new Error(`Voice fallback capabilities failed: ${JSON.stringify(voiceBody)}`);
   }
 
   const [hermesChat, claudeChat] = await Promise.all([
@@ -303,7 +319,7 @@ try {
     throw new Error(`Native management API proxy failed: ${JSON.stringify(nativeSettingsBody)}`);
   }
 
-  console.log("Gateway smoke test passed: auth, safe workspace/terminal broker, Hermes-first routing, capabilities and native dashboard proxy.");
+  console.log("Gateway smoke test passed: auth, workspace, terminal guards, Hermes profile metadata, voice fallback, routing and dashboard proxy.");
 } finally {
   gateway.kill();
   upstream.close();

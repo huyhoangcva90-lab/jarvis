@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { buildObsidianGraph, ObsidianNoteNode } from "../../utils/obsidianParser";
+import { buildObsidianGraph } from "../../utils/obsidianParser";
 import Icon from "./Icon";
 
 interface ObsidianMindmapProps {
@@ -11,15 +11,18 @@ export default function ObsidianMindmap({ notes, onSelectNote }: ObsidianMindmap
   const graph = useMemo(() => buildObsidianGraph(notes), [notes]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() => graph.nodes[0]?.id || null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeTopic, setActiveTopic] = useState("all");
   const [zoom, setZoom] = useState(1);
 
   const filteredNodes = useMemo(() => {
-    if (!searchTerm.trim()) return graph.nodes;
     const term = searchTerm.toLowerCase();
     return graph.nodes.filter(
-      (n) => n.title.toLowerCase().includes(term) || n.tags.some((t) => t.toLowerCase().includes(term))
+      (n) => (activeTopic === "all" || n.topic === activeTopic)
+        && (!term || n.title.toLowerCase().includes(term) || n.folder.toLowerCase().includes(term) || n.tags.some((t) => t.toLowerCase().includes(term)))
     );
-  }, [graph.nodes, searchTerm]);
+  }, [activeTopic, graph.nodes, searchTerm]);
+
+  const visibleNodeIds = useMemo(() => new Set(filteredNodes.map((node) => node.id)), [filteredNodes]);
 
   const selectedNode = useMemo(
     () => graph.nodes.find((n) => n.id === selectedNodeId) || graph.nodes[0] || null,
@@ -53,6 +56,15 @@ export default function ObsidianMindmap({ notes, onSelectNote }: ObsidianMindmap
         </div>
       </header>
 
+      <nav className="obsidian-topic-lane" aria-label="Chủ đề trong Obsidian vault">
+        <button type="button" className={activeTopic === "all" ? "active" : ""} onClick={() => setActiveTopic("all")}><b>Tất cả</b><small>{graph.nodes.length}</small></button>
+        {graph.topics.map((topic) => (
+          <button type="button" key={topic.id} className={activeTopic === topic.id ? "active" : ""} onClick={() => setActiveTopic(topic.id)}>
+            <b>{topic.label}</b><small>{topic.count}</small>
+          </button>
+        ))}
+      </nav>
+
       <div className="obsidian-mindmap-body">
         <div className="mindmap-canvas-wrapper">
           <svg
@@ -77,6 +89,7 @@ export default function ObsidianMindmap({ notes, onSelectNote }: ObsidianMindmap
             {/* Edges */}
             <g className="mindmap-edges">
               {graph.edges.map((edge, idx) => {
+                if (!visibleNodeIds.has(edge.source) || !visibleNodeIds.has(edge.target)) return null;
                 const sourceNode = graph.nodes.find((n) => n.id === edge.source);
                 const targetNode = graph.nodes.find((n) => n.id === edge.target);
                 if (!sourceNode || !targetNode) return null;
@@ -142,6 +155,13 @@ export default function ObsidianMindmap({ notes, onSelectNote }: ObsidianMindmap
             <div className="inspector-content">
               <p className="summary-text">{selectedNode.summary}</p>
 
+              <div className="note-context-grid">
+                <span><small>TOPIC</small><b>{selectedNode.topic}</b></span>
+                <span><small>FOLDER</small><b>{selectedNode.folder}</b></span>
+                <span><small>LINKS</small><b>{selectedNode.linkIds.length}</b></span>
+                <span><small>BACKLINKS</small><b>{selectedNode.backlinks.length}</b></span>
+              </div>
+
               {selectedNode.tags.length > 0 && (
                 <div className="tags-section">
                   <span>TAGS:</span>
@@ -159,13 +179,23 @@ export default function ObsidianMindmap({ notes, onSelectNote }: ObsidianMindmap
                 <div className="links-section">
                   <span>OUTGOING LINKS ({selectedNode.links.length}):</span>
                   <ul>
-                    {selectedNode.links.map((link) => (
-                      <li key={link} onClick={() => setSelectedNodeId(link)}>
+                    {selectedNode.links.map((link, index) => (
+                      <li key={`${link}-${index}`} onClick={() => setSelectedNodeId(selectedNode.linkIds[index] || selectedNode.id)}>
                         <Icon name="external" />
                         <span>{link}</span>
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {selectedNode.backlinks.length > 0 && (
+                <div className="links-section backlinks-section">
+                  <span>BACKLINKS ({selectedNode.backlinks.length}):</span>
+                  <ul>{selectedNode.backlinks.map((sourceId) => {
+                    const source = graph.nodes.find((node) => node.id === sourceId);
+                    return source ? <li key={sourceId} onClick={() => setSelectedNodeId(sourceId)}><Icon name="external" /><span>{source.title}</span></li> : null;
+                  })}</ul>
                 </div>
               )}
             </div>
