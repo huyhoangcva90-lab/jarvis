@@ -7658,6 +7658,19 @@ body[data-activity="speaking"] .prompt-shell {
 .aegis-submit{background:linear-gradient(100deg,#bffcff,#59e8ff 58%,#279fff 132%);box-shadow:0 0 34px rgba(62,222,255,.23)}
 @keyframes aegis-reactor-pulse{0%,100%{transform:scale(.96);opacity:.72}50%{transform:scale(1.06);opacity:1}}
 @media(max-width:900px){.aegis-story{padding-top:20px}.aegis-core{right:-105px;top:-78px;bottom:auto;transform:scale(.5)}.aegis-card{margin-top:48px}}
+
+/* Reactor asset pass — original project-bound 3D render. */
+.aegis-reactor-image{position:absolute;z-index:2;width:340px;height:340px;object-fit:contain;filter:drop-shadow(0 0 12px rgba(216,253,255,.9)) drop-shadow(0 0 38px rgba(61,225,255,.62)) drop-shadow(0 0 100px rgba(0,123,255,.35));animation:aegis-reactor-float 5s ease-in-out infinite;user-select:none}
+.aegis-core-shell{display:none}
+.aegis-core-ring{z-index:3;width:366px;height:366px;border-color:rgba(147,247,255,.38);box-shadow:inset 0 0 40px rgba(65,222,255,.06)}
+.aegis-core-ring:before{inset:17px;border-color:rgba(147,247,255,.22)}.aegis-core-ring:after{inset:-22px}
+.aegis-core-orbit{z-index:1}.aegis-core-orbit.orbit-a{width:420px;height:272px}.aegis-core-orbit.orbit-b{width:278px;height:424px}
+.aegis-core-halo{z-index:0;width:108%;height:108%;background:radial-gradient(circle,rgba(225,254,255,.3) 0 3%,rgba(92,235,255,.2) 8%,rgba(0,146,255,.12) 27%,transparent 66%)}
+.aegis-core-label{z-index:4}.aegis-core-label.label-a{right:-14px;top:62px}.aegis-core-label.label-b{left:-12px;bottom:62px}
+.aegis-story h1{font-size:clamp(38px,4vw,62px)}
+.aegis-card{background:linear-gradient(145deg,rgba(5,27,42,.91),rgba(1,8,16,.93));backdrop-filter:blur(24px) saturate(135%)}
+@keyframes aegis-reactor-float{0%,100%{transform:scale(.985);filter:drop-shadow(0 0 11px rgba(216,253,255,.82)) drop-shadow(0 0 34px rgba(61,225,255,.55)) drop-shadow(0 0 90px rgba(0,123,255,.3))}50%{transform:scale(1.015);filter:drop-shadow(0 0 15px rgba(235,255,255,1)) drop-shadow(0 0 48px rgba(61,225,255,.76)) drop-shadow(0 0 122px rgba(0,123,255,.42))}}
+@media(max-width:900px){.aegis-reactor-image{width:330px;height:330px}.aegis-core-ring{width:354px;height:354px}}
 /* Spidey Tracker fidelity pass — personal editable field map */
 .spidey-tracker-shell{--st-blue:#194aa5;--st-cyan:#42acd0;--st-red:#ef414b;--st-ink:#071118;--st-paper:#eef7ed;display:block!important;background:linear-gradient(#174aa8 0 72%,#071a48 100%)!important;color:#fff;font-family:"Courier New",ui-monospace,monospace;isolation:isolate}
 .spidey-tracker-shell button,.spidey-tracker-shell input,.spidey-tracker-shell textarea,.spidey-tracker-shell select{font:inherit}.spidey-tracker-shell button{cursor:pointer}.spidey-tracker-shell button:focus-visible,.spidey-tracker-shell input:focus-visible,.spidey-tracker-shell textarea:focus-visible,.spidey-tracker-shell select:focus-visible{outline:3px solid #fff36c;outline-offset:3px}.spidey-skip{position:fixed;z-index:100;left:16px;top:-70px;padding:12px 16px;color:#071118;background:#fff36c;border:3px solid #071118;font-weight:900}.spidey-skip:focus{top:12px}

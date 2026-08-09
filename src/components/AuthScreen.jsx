@@ -103,10 +103,11 @@ export default function AuthScreen({ data, onUnlock }) {
         <div className="aegis-story">
           <p className="aegis-kicker"><span>01</span> ARC COMMAND ACCESS PROTOCOL</p>
           <h1>Hệ lõi<br /><em>hồ quang.</em></h1>
-          <p className="aegis-lead">Một danh tính mở toàn bộ không gian hoạch định, tác nhân AI và hệ thống cá nhân của bạn.</p>
+          <p className="aegis-lead">Đăng nhập một lần để mở không gian hoạch định, tác nhân AI và hệ thống cá nhân.</p>
 
           <div className="aegis-core" aria-hidden="true">
             <div className="aegis-core-halo" />
+            <img className="aegis-reactor-image" src="./assets/arc-reactor-v2.webp" alt="" />
             <div className="aegis-core-shell"><i /><i /><i /><span>J</span></div>
             <div className="aegis-core-ring"><b /><b /><b /></div>
             <div className="aegis-core-orbit orbit-a" />
