@@ -19,6 +19,8 @@ const GATEWAY_ERROR_MESSAGES = {
   workspace_not_a_file: "Đường dẫn này không phải file.",
   workspace_file_too_large: "File vượt quá giới hạn đọc 512 KB.",
   workspace_file_type_not_allowed: "Gateway chỉ cho đọc các định dạng văn bản an toàn.",
+  workspace_write_disabled: "Gateway chưa bật quyền sửa workspace. Đặt JCORE_WORKSPACE_WRITE_ENABLED=true rồi khởi động lại gateway.",
+  workspace_file_changed: "File đã thay đổi trên máy chủ. Hãy tải lại trước khi lưu để tránh ghi đè.",
   terminal_disabled: "Ubuntu command broker đang bị tắt trên Gateway.",
   terminal_missing_command: "Chưa nhập lệnh Ubuntu.",
   terminal_missing_argument: "Lệnh còn thiếu tham số bắt buộc.",

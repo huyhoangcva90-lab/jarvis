@@ -39,7 +39,8 @@ export default function UbuntuWorkspace({ data }: UbuntuWorkspaceProps) {
   const [rootId, setRootId] = useState("workspace");
   const [path, setPath] = useState("");
   const [entries, setEntries] = useState<WorkspaceEntry[]>([]);
-  const [selectedFile, setSelectedFile] = useState<{ path: string; content: string; size: number } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<{ path: string; content: string; originalContent: string; size: number; modifiedAt: string } | null>(null);
+  const [saving, setSaving] = useState(false);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState("");
 
@@ -96,7 +97,7 @@ export default function UbuntuWorkspace({ data }: UbuntuWorkspaceProps) {
         `/api/workspace/file?root=${encodeURIComponent(rootId)}&path=${encodeURIComponent(entry.path)}`,
         { method: "GET", timeoutMs: 10000 },
       );
-      setSelectedFile({ path: payload.path, content: payload.content, size: payload.size });
+      setSelectedFile({ path: payload.path, content: payload.content, originalContent: payload.content, size: payload.size, modifiedAt: payload.modifiedAt });
       setState("ready");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Không đọc được file.");
@@ -105,13 +106,33 @@ export default function UbuntuWorkspace({ data }: UbuntuWorkspaceProps) {
   };
 
   const availableRoots = useMemo(() => roots.filter((root) => root.available), [roots]);
+  const activeRoot = roots.find((root) => root.id === rootId);
+  const dirty = Boolean(selectedFile && selectedFile.content !== selectedFile.originalContent);
+
+  const saveSelectedFile = async () => {
+    if (!selectedFile || !activeRoot?.writable || !dirty || saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      const payload: any = await gatewayFetch(data, "/api/workspace/file", {
+        method: "PUT",
+        timeoutMs: 15000,
+        body: JSON.stringify({ root: rootId, path: selectedFile.path, content: selectedFile.content, expectedModifiedAt: selectedFile.modifiedAt }),
+      });
+      setSelectedFile((current) => current ? { ...current, originalContent: current.content, size: payload.size, modifiedAt: payload.modifiedAt } : current);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Không lưu được file.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <section className="ubuntu-workspace" role="tabpanel" aria-label="Ubuntu Files">
       <header className="workspace-toolbar">
         <div>
           <Icon name="document" />
-          <span><b>UBUNTU FILES</b><small>READ-ONLY BROKER</small></span>
+          <span><b>UBUNTU FILES</b><small>{activeRoot?.writable ? "SAFE EDIT BROKER" : "READ-ONLY BROKER"}</small></span>
         </div>
         <label>
           <span>Root</span>
@@ -162,8 +183,20 @@ export default function UbuntuWorkspace({ data }: UbuntuWorkspaceProps) {
           <article className="workspace-file-viewer" aria-live="polite">
             {selectedFile ? (
               <>
-                <header><span>FILE VIEWER</span><b>{selectedFile.path}</b><small>{formatBytes(selectedFile.size)}</small></header>
-                <pre><code>{selectedFile.content}</code></pre>
+                <header>
+                  <span>{activeRoot?.writable ? "FILE EDITOR" : "FILE VIEWER"}</span>
+                  <b>{selectedFile.path}</b>
+                  <small>{dirty ? "UNSAVED" : formatBytes(selectedFile.size)}</small>
+                  {activeRoot?.writable && <button type="button" disabled={!dirty || saving} onClick={() => void saveSelectedFile()}>{saving ? "ĐANG LƯU" : "LƯU FILE"}</button>}
+                </header>
+                {activeRoot?.writable ? (
+                  <textarea
+                    className="workspace-code-editor"
+                    value={selectedFile.content}
+                    spellCheck={false}
+                    onChange={(event) => setSelectedFile((current) => current ? { ...current, content: event.target.value } : current)}
+                  />
+                ) : <pre><code>{selectedFile.content}</code></pre>}
               </>
             ) : (
               <div className="workspace-empty-viewer">

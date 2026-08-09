@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CinematicOrb from "./components/orb/CinematicOrb";
 import HudOverlay from "./components/orb/HudOverlay";
 import BootScreen from "./components/BootScreen.jsx";
@@ -21,6 +21,7 @@ export default function App() {
   const [resetViewSignal, setResetViewSignal] = useState(0);
   const [hudVisible, setHudVisible] = useState(true);
   const [coreMinimized, setCoreMinimized] = useState(false);
+  const previousPaletteRef = useRef<EnergyPalette>(energyPalette);
 
   useEffect(() => {
     const bootTimer = window.setTimeout(() => setBooting(false), 2000);
@@ -46,6 +47,10 @@ export default function App() {
   useEffect(() => {
     document.body.dataset.palette = energyPalette;
     saveStoredEnergyPalette(energyPalette);
+    if (energyPalette === "spider" && previousPaletteRef.current !== "spider") {
+      soundManager.play("spider");
+    }
+    previousPaletteRef.current = energyPalette;
   }, [energyPalette]);
 
   useEffect(() => {

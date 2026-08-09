@@ -57,14 +57,24 @@ HERMES_CHAT_URL=http://127.0.0.1:8642/v1/chat/completions
 HERMES_API_KEY=<matches-hermes-api-server-key>
 HERMES_MODEL=hermes-agent
 HERMES_DEFAULT_PROFILE=jarvis
-HERMES_ALLOWED_PROFILES=jarvis
-HERMES_MULTIPLEX_PROFILES=false
+HERMES_ALLOWED_PROFILES=jarvis,ev-personal
+HERMES_MULTIPLEX_PROFILES=true
 HERMES_SESSION_MODE=web
 HERMES_SESSION_ID=jarvis-web-primary
 HERMES_SESSION_KEY=agent:jarvis:web:dm:owner
 ```
 
 The UI sends the active Hermes profile with `/api/hermes/chat`. Profile switching in the UI changes the orb palette and persists the selected profile locally.
+
+Create the real isolated E.V profile before enabling Spider Mode chat:
+
+```bash
+hermes profile create ev-personal
+hermes config set gateway.multiplex_profiles true
+hermes gateway restart
+```
+
+E.V then uses its own profile directory, memory, tools and provider credentials. J-Core routes it through the multiplexed profile endpoint instead of treating a frontend persona as a separate agent.
 
 ## 4. OpenClaw, 9Router and Claude
 
@@ -92,9 +102,10 @@ Dashboard diagnostics use `POST /api/system/dashboard-command` with an allowlist
 ```env
 JCORE_WORKSPACE_ROOT=/srv/j-core
 JCORE_OBSIDIAN_ROOT=/home/<ubuntu-user>/Documents/ObsidianVault
+JCORE_WORKSPACE_WRITE_ENABLED=true
 ```
 
-The gateway returns relative paths only. It skips dotfiles, secrets, symlinks and oversized files. File viewing is read-only.
+The gateway returns relative paths only. It skips dotfiles, secrets, symlinks and oversized files. Text-file editing is enabled only when `JCORE_WORKSPACE_WRITE_ENABLED=true`; writes use conflict detection and an atomic same-directory replacement. Create/delete and binary writes are not exposed by this broker.
 
 ## 6. Terminal modes
 

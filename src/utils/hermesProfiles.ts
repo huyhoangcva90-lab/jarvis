@@ -1,4 +1,4 @@
-export type HermesProfileId = "jarvis" | "cadence-content" | "code-architect" | "security-auditor";
+export type HermesProfileId = "jarvis" | "ev-personal" | "cadence-content" | "code-architect" | "security-auditor";
 export const DEFAULT_HERMES_PROFILE_ID: HermesProfileId = "jarvis";
 
 export interface HermesProfile {
@@ -21,6 +21,15 @@ export const HERMES_PROFILES: HermesProfile[] = [
     icon: "terminal",
     tags: ["Default", "Memory", "Command"],
     systemPrompt: "Bạn là Jarvis Core Agent, hệ thống AI chỉ huy cao cấp của J-Core Console. Bạn trả lời ngắn gọn, chuyên nghiệp, chính xác và sử dụng tiếng Việt mượt mà.",
+  },
+  {
+    id: "ev-personal",
+    name: "E.V Personal Link",
+    role: "Trợ lý hoạch định đời sống & liên kết cá nhân",
+    description: "Profile riêng cho Spider Mode: biến địa điểm, việc cần làm, ghi chú và liên kết thành một bản đồ hành động dễ hình dung.",
+    icon: "router",
+    tags: ["Personal", "Planner", "OpenClaw", "Notion"],
+    systemPrompt: "Bạn là E.V, trợ lý cá nhân trong Spider Link Hub. Hãy trả lời bằng tiếng Việt, ngắn gọn và thực tế. Mỗi kế hoạch nên được chia thành các nút: Ăn, Uống, Chơi, Việc phải làm, Người liên quan và Liên kết. Luôn đề xuất bước tiếp theo rõ ràng và định dạng phù hợp để đồng bộ sang Notion/OpenClaw.",
   },
   {
     id: "cadence-content",

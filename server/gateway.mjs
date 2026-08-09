@@ -1,7 +1,7 @@
 import { createServer, request as httpRequest } from "node:http";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { extname, isAbsolute, join, relative, resolve } from "node:path";
 
 const envPath = resolve(process.cwd(), ".env.local");
@@ -44,6 +44,7 @@ const HERMES_SESSION_ID = process.env.HERMES_SESSION_ID || "jarvis-web-primary";
 const HERMES_SESSION_KEY = process.env.HERMES_SESSION_KEY || "agent:jarvis:web:dm:owner";
 const WORKSPACE_ROOT = resolve(process.env.JCORE_WORKSPACE_ROOT || process.cwd());
 const OBSIDIAN_ROOT = process.env.JCORE_OBSIDIAN_ROOT ? resolve(process.env.JCORE_OBSIDIAN_ROOT) : "";
+const WORKSPACE_WRITE_ENABLED = /^(1|true|yes|on)$/i.test(process.env.JCORE_WORKSPACE_WRITE_ENABLED || "false");
 const TERMINAL_ENABLED = !/^(0|false|no|off)$/i.test(process.env.JCORE_TERMINAL_ENABLED || "true");
 const TERMINAL_PRIVATE_MODE = /^(1|true|yes|on)$/i.test(process.env.JCORE_TERMINAL_PRIVATE_MODE || "false");
 const TERMINAL_TIMEOUT_MS = Math.min(30000, Math.max(1000, Number(process.env.JCORE_TERMINAL_TIMEOUT_MS || 10000)));
@@ -126,7 +127,7 @@ function sendJson(req, res, status, payload, extraHeaders = {}) {
     "x-content-type-options": "nosniff",
     "x-request-id": req.requestId,
     "access-control-allow-origin": getCorsOrigin(req),
-    "access-control-allow-methods": "GET,POST,OPTIONS",
+    "access-control-allow-methods": "GET,POST,PUT,OPTIONS",
     "access-control-allow-headers": "content-type,authorization,x-request-id",
     "access-control-expose-headers": "x-request-id,x-jcore-upstream,server-timing",
     "access-control-allow-credentials": "true",
@@ -204,7 +205,7 @@ function rootSummary(root) {
     id: root.id,
     label: root.label,
     available: existsSync(root.path),
-    writable: false,
+    writable: WORKSPACE_WRITE_ENABLED,
   };
 }
 
@@ -312,6 +313,46 @@ function readWorkspaceFile(rootId, requestedPath) {
     size: stat.size,
     modifiedAt: stat.mtime.toISOString(),
   };
+}
+
+function writeWorkspaceFile(rootId, requestedPath, content, expectedModifiedAt = "") {
+  if (!WORKSPACE_WRITE_ENABLED) {
+    const error = new Error("workspace_write_disabled");
+    error.statusCode = 403;
+    throw error;
+  }
+  const resolvedPath = resolveWorkspacePath(rootId, requestedPath);
+  const stats = statSync(resolvedPath.targetPath);
+  if (!stats.isFile()) {
+    const error = new Error("workspace_not_a_file");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!TEXT_FILE_EXTENSIONS.has(extname(resolvedPath.targetPath).toLowerCase())) {
+    const error = new Error("workspace_file_type_not_allowed");
+    error.statusCode = 415;
+    throw error;
+  }
+  if (expectedModifiedAt && Math.abs(new Date(expectedModifiedAt).getTime() - stats.mtimeMs) > 1) {
+    const error = new Error("workspace_file_changed");
+    error.statusCode = 409;
+    throw error;
+  }
+  const nextContent = String(content ?? "");
+  if (Buffer.byteLength(nextContent, "utf8") > FILE_READ_LIMIT) {
+    const error = new Error("workspace_file_too_large");
+    error.statusCode = 413;
+    throw error;
+  }
+  const temporaryPath = `${resolvedPath.targetPath}.jcore-tmp`;
+  try {
+    writeFileSync(temporaryPath, nextContent, { encoding: "utf8", mode: stats.mode });
+    renameSync(temporaryPath, resolvedPath.targetPath);
+  } finally {
+    if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+  }
+  const updated = statSync(resolvedPath.targetPath);
+  return { ...resolvedPath, size: updated.size, modifiedAt: updated.mtime.toISOString() };
 }
 
 function collectObsidianNotes() {
@@ -1122,6 +1163,7 @@ const server = createServer(async (req, res) => {
         defaultProfile: HERMES_DEFAULT_PROFILE,
         multiplexProfiles: HERMES_MULTIPLEX_PROFILES,
         profiles: [
+          { id: "ev-personal", name: "E.V Personal Link", role: "Trợ lý hoạch định đời sống và liên kết cá nhân", icon: "router" },
           { id: "jarvis", name: "Jarvis Orchestrator", role: "Trợ lý điều phối mặc định của J-Core", icon: "terminal" },
           { id: "cadence-content", name: "Cadence Content Studio", role: "Studio sáng tạo nội dung đa bước (Cadence)", icon: "media" },
           { id: "code-architect", name: "Code Architect", role: "Kiến trúc sư phần mềm & Reviewer", icon: "router" },
@@ -1166,7 +1208,7 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/workspace/roots") {
       return sendJson(req, res, 200, {
         roots: [...workspaceRoots.values()].map(rootSummary),
-        readOnly: true,
+        readOnly: !WORKSPACE_WRITE_ENABLED,
       });
     }
 
@@ -1179,7 +1221,7 @@ const server = createServer(async (req, res) => {
         path: listed.relativePath,
         entries: listed.entries,
         truncated: listed.truncated,
-        readOnly: true,
+        readOnly: !WORKSPACE_WRITE_ENABLED,
       });
     }
 
@@ -1193,7 +1235,19 @@ const server = createServer(async (req, res) => {
         content: file.content,
         size: file.size,
         modifiedAt: file.modifiedAt,
-        readOnly: true,
+        readOnly: !WORKSPACE_WRITE_ENABLED,
+      });
+    }
+
+    if (req.method === "PUT" && url.pathname === "/api/workspace/file") {
+      const body = await readJson(req);
+      const saved = writeWorkspaceFile(body.root || "workspace", body.path || "", body.content, body.expectedModifiedAt || "");
+      return sendJson(req, res, 200, {
+        root: rootSummary(saved.root),
+        path: saved.relativePath,
+        size: saved.size,
+        modifiedAt: saved.modifiedAt,
+        saved: true,
       });
     }
 

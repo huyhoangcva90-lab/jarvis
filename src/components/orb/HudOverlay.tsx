@@ -15,6 +15,7 @@ import ObsidianVaultPanel from "./ObsidianVaultPanel";
 import UbuntuWorkspace from "./UbuntuWorkspace";
 import OpenclawDashboard from "../openclawDashboard.jsx";
 import NineRouterDashboard from "../nineRouterDashboard.jsx";
+import SpiderPersonalHub from "./SpiderPersonalHub";
 import {
   DEFAULT_HERMES_PROFILE_ID,
   HermesProfileId,
@@ -101,6 +102,7 @@ const paletteLabels: Record<Palette, string> = {
 
 const HERMES_PROFILE_PALETTES: Record<HermesProfileId, EnergyPalette> = {
   jarvis: "orange",
+  "ev-personal": "spider",
   "cadence-content": "violet",
   "code-architect": "blue",
   "security-auditor": "red",
@@ -565,6 +567,12 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   }, [activeHubId, advisorMode, handsFree, hubArtifacts, messages, palette, voiceReply, voiceStyle]);
 
   useEffect(() => onActivityChange(activity), [activity, onActivityChange]);
+  useEffect(() => {
+    if (palette !== "spider" || selectedHermesProfileId === "ev-personal") return;
+    setSelectedHermesProfileId("ev-personal");
+    saveStoredHermesProfileId("ev-personal");
+    updateData({ ai: { ...(data.ai || {}), hermesProfile: "ev-personal" } });
+  }, [palette]);
   useEffect(() => {
     setGatewayDraft(data.endpoints?.gateway || "");
     setGatewayTokenDraft(data.endpoints?.gatewayToken || "");
@@ -1308,6 +1316,21 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   ] as Array<{ id: string; label: string; code: string; icon: IconName } | null>)
     .filter((item): item is { id: string; label: string; code: string; icon: IconName } => Boolean(item));
 
+  if (palette === "spider") {
+    return (
+      <SpiderPersonalHub
+        currentTime={currentTime}
+        username={data?.username || "Operator"}
+        connections={connections}
+        messages={messages}
+        isSending={isSending}
+        onAskEv={(prompt) => void sendMessage(prompt)}
+        onExit={() => onPaletteChange("gold")}
+        onResetView={onResetView}
+      />
+    );
+  }
+
   return (
     <div className="hud-overlay" aria-label="J-Core AI interface">
       <div className={`system-signal ${activity}`} aria-hidden="true"><i /><i /><i /></div>
@@ -1689,8 +1712,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
       {routerOpen && (
         <OsWindow
-          title="Router Matrix & 9Router Control"
-          code="SPC://9ROUTER"
+          title="9Router Config & Provider Control"
+          code="SPC://9ROUTER-ADMIN"
           drag={routerDrag}
           minimized={routerMinimized}
           active={activeWindow === "router"}
@@ -1714,7 +1737,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                   disabled={routerDashboardState === "loading"}
                   onClick={() => void connectNineRouterDashboard()}
                 >
-                  {routerDashboardState === "loading" ? "Đang tải" : "Kết nối phiên native"}
+                  {routerDashboardState === "loading" ? "Đang tải" : "Mở cấu hình native"}
                 </button>
                 <button
                   className="primary"

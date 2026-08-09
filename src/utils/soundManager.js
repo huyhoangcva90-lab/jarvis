@@ -19,7 +19,7 @@ export const soundManager = {
 
   /**
    * Phát âm thanh theo loại
-   * @param {'click' | 'beep' | 'warning' | 'success'} type
+   * @param {'click' | 'beep' | 'warning' | 'success' | 'spider'} type
    */
   play(type) {
     if (!soundEnabled) return;
@@ -122,6 +122,30 @@ export const soundManager = {
           osc1.stop(now + 0.15);
           osc2.start(now + 0.08);
           osc2.stop(now + 0.22);
+          break;
+        }
+
+        case "spider": {
+          // Original heroic tracker sting for Spider Mode (not a copyrighted melody).
+          const master = audioCtx.createGain();
+          master.gain.setValueAtTime(0.0001, now);
+          master.gain.exponentialRampToValueAtTime(0.075, now + 0.025);
+          master.gain.exponentialRampToValueAtTime(0.001, now + 1.15);
+          master.connect(audioCtx.destination);
+          [146.83, 220, 293.66, 440].forEach((frequency, index) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = index < 2 ? "sawtooth" : "triangle";
+            osc.frequency.setValueAtTime(frequency, now + index * 0.13);
+            osc.frequency.exponentialRampToValueAtTime(frequency * 1.015, now + 0.7 + index * 0.08);
+            gain.gain.setValueAtTime(0.0001, now + index * 0.13);
+            gain.gain.exponentialRampToValueAtTime(index === 3 ? 0.22 : 0.13, now + 0.04 + index * 0.13);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.78 + index * 0.1);
+            osc.connect(gain);
+            gain.connect(master);
+            osc.start(now + index * 0.13);
+            osc.stop(now + 1.2);
+          });
           break;
         }
 
