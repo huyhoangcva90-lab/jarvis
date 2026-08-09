@@ -15,7 +15,12 @@ import ObsidianVaultPanel from "./ObsidianVaultPanel";
 import UbuntuWorkspace from "./UbuntuWorkspace";
 import OpenclawDashboard from "../openclawDashboard.jsx";
 import NineRouterDashboard from "../nineRouterDashboard.jsx";
-import { DEFAULT_HERMES_PROFILE_ID, HermesProfileId } from "../../utils/hermesProfiles";
+import {
+  DEFAULT_HERMES_PROFILE_ID,
+  HermesProfileId,
+  loadStoredHermesProfileId,
+  saveStoredHermesProfileId,
+} from "../../utils/hermesProfiles";
 import {
   HUB_TEMPLATES,
   createHubArtifact,
@@ -92,6 +97,13 @@ const paletteLabels: Record<Palette, string> = {
   violet: "Quantum Singularity",
   orange: "Stark / Jarvis",
   spider: "Spider 2099"
+};
+
+const HERMES_PROFILE_PALETTES: Record<HermesProfileId, EnergyPalette> = {
+  jarvis: "orange",
+  "cadence-content": "violet",
+  "code-architect": "blue",
+  "security-auditor": "red",
 };
 
 const activityLabels: Record<AiActivity, string> = {
@@ -306,7 +318,7 @@ const intelDocuments = [
     sections: [
       ["SCOPE", "Chỉ kiểm thử hệ thống, tài khoản và dữ liệu mà operator được phép truy cập."],
       ["SECRETS", "Không dán token, mật khẩu hoặc khóa riêng tư vào video, chat hay tài liệu công khai."],
-      ["TERMINAL", "Terminal trong J-Core là môi trường allowlist, không thực thi shell thật trên máy chủ."],
+      ["TERMINAL", "Terminal mặc định dùng allowlist; Private Ubuntu shell chỉ bật khi Gateway cho phép."],
     ],
   },
   {
@@ -465,6 +477,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [youtubeError, setYoutubeError] = useState("");
   const [terminalInput, setTerminalInput] = useState("");
   const [terminalBusy, setTerminalBusy] = useState(false);
+  const [privateTerminal, setPrivateTerminal] = useState(false);
   const [terminalLines, setTerminalLines] = useState([
     "J-CORE UBUNTU BROKER // phiên điều khiển chỉ đọc",
     "Lệnh chạy tại Gateway Ubuntu theo danh mục cho phép.",
@@ -487,7 +500,10 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [routerDashboardState, setRouterDashboardState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [routerDashboardError, setRouterDashboardError] = useState("");
   const [routerModels, setRouterModels] = useState<Array<{ id?: string }>>([]);
-  const [selectedHermesProfileId, setSelectedHermesProfileId] = useState<HermesProfileId>(DEFAULT_HERMES_PROFILE_ID);
+  const [selectedHermesProfileId, setSelectedHermesProfileId] = useState<HermesProfileId>(() => {
+    const configured = data?.ai?.hermesProfile;
+    return configured ? configured as HermesProfileId : loadStoredHermesProfileId();
+  });
   const [servicePanels, setServicePanels] = useState<Record<ServiceKey, ServicePanelState>>({
     hermes: { ...EMPTY_SERVICE_PANEL },
     claude: { ...EMPTY_SERVICE_PANEL },
@@ -642,7 +658,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           timeoutMs: 60000,
           signal: controller.signal,
           body: JSON.stringify({
-            profile: DEFAULT_HERMES_PROFILE_ID,
+            profile: selectedHermesProfileId,
             message: messageText,
             messages: requestMessages.map((message) => ({ role: message.role, content: message.text })),
             operator: data?.username || "Operator",
@@ -965,9 +981,38 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     }
   };
 
+  const runServiceDiagnostic = async (service: ServiceKey, action: string) => {
+    if (servicePanels[service].sending) return;
+    updateServicePanel(service, { sending: true, reply: "" });
+    try {
+      const result: any = await gatewayFetch(data, "/api/system/dashboard-command", {
+        method: "POST",
+        timeoutMs: 35000,
+        body: JSON.stringify({ service, action }),
+      });
+      updateServicePanel(service, {
+        sending: false,
+        reply: result.output || JSON.stringify(result, null, 2),
+      });
+    } catch (error: any) {
+      updateServicePanel(service, {
+        sending: false,
+        reply: error?.message || `Khong the chay ${service} ${action}.`,
+      });
+    }
+  };
+
   const selectNineRouterModel = (model: string) => {
     updateData({ endpoints: { ...data.endpoints, nineRouterModel: model } });
     setToast(`9Router model: ${model}`);
+  };
+
+  const selectHermesProfile = (profileId: HermesProfileId) => {
+    setSelectedHermesProfileId(profileId);
+    saveStoredHermesProfileId(profileId);
+    updateData({ ai: { ...(data.ai || {}), hermesProfile: profileId } });
+    onPaletteChange(HERMES_PROFILE_PALETTES[profileId] || HERMES_PROFILE_PALETTES.jarvis);
+    setToast(`Hermes profile: ${profileId}`);
   };
 
   const moduleStatus = useMemo(() => {
@@ -1125,14 +1170,14 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     const raw = terminalInput.trim();
     if (!raw || terminalBusy) return;
     const [command, ...args] = raw.toLowerCase().split(/\s+/);
-    pushTerminal(`operator@j-core:~$ ${raw}`);
+    pushTerminal(`${privateTerminal ? "ubuntu-private" : "operator"}@j-core:~$ ${raw}`);
     setTerminalInput("");
 
     if (command === "clear") {
       setTerminalLines([]);
       return;
     }
-    if (command === "status") {
+    if (!privateTerminal && command === "status") {
       pushTerminal([
         `gateway   ${connections.gateway ? "ONLINE" : "OFFLINE"}`,
         `hermes    ${connections.hermes ? "READY" : "OFFLINE"}`,
@@ -1142,15 +1187,15 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       ]);
       return;
     }
-    if (command === "whoami") {
-      pushTerminal(`${data.username || "Operator"} // authenticated local operator`);
+    if (!privateTerminal && command === "whoami") {
+      pushTerminal(privateTerminal ? "Local helper: use an external command such as id when private shell is enabled." : `${data.username || "Operator"} // authenticated local operator`);
       return;
     }
-    if (command === "date") {
+    if (!privateTerminal && command === "date") {
       pushTerminal(new Date().toLocaleString("vi-VN"));
       return;
     }
-    if (command === "open") {
+    if (!privateTerminal && command === "open") {
       const app = args[0] || "";
       const target = app === "gateway" ? "settings" : app;
       if (["system", "chat", "agents", "router", "hermes", "claude", "settings", "terminal", "intel", "workspace"].includes(target)) {
@@ -1161,7 +1206,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       }
       return;
     }
-    if (command === "scan") {
+    if (!privateTerminal && command === "scan") {
       pushTerminal("Scanning gateway...");
       try {
         const health: any = await gatewayFetch(data, "/health", { method: "GET", timeoutMs: 7000 });
@@ -1176,7 +1221,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     }
     setTerminalBusy(true);
     try {
-      const result: any = await gatewayFetch(data, "/api/system/terminal", {
+      const result: any = await gatewayFetch(data, privateTerminal ? "/api/system/private-terminal" : "/api/system/terminal", {
         method: "POST",
         body: JSON.stringify({ command: raw }),
         timeoutMs: 35000,
@@ -1252,7 +1297,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     coreMinimized ? { id: "core", label: "Lõi AI 3D", code: "CORE", icon: "hub" } : null,
     hubOpen && hubMinimized ? { id: "system", label: "System Monitor", code: "SYS", icon: "hub" } : null,
     historyOpen && historyMinimized ? { id: "chat", label: "Neural Chat", code: "CHAT", icon: "chat" } : null,
-    terminalOpen && terminalMinimized ? { id: "terminal", label: "Restricted Terminal", code: "TERM", icon: "terminal" } : null,
+    terminalOpen && terminalMinimized ? { id: "terminal", label: "Ubuntu Terminal", code: "TERM", icon: "terminal" } : null,
     agentsOpen && agentsMinimized ? { id: "agents", label: "Agent Matrix", code: "AGNT", icon: "agents" } : null,
     routerOpen && routerMinimized ? { id: "router", label: "Router Matrix", code: "ROUT", icon: "router" } : null,
     hermesOpen && hermesMinimized ? { id: "hermes", label: "Hermes Core", code: "HRMS", icon: "hermes" } : null,
@@ -1570,6 +1615,21 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => setTerminalOpen(false)}
           onToggleMinimize={() => setTerminalMinimized(true)}
         >
+          <label className="terminal-mode-toggle">
+            <span>
+              Private Ubuntu shell
+              <small>{privateTerminal ? "Gui lenh truc tiep toi shell Ubuntu qua Gateway" : "Dang dung broker allowlist an toan"}</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={privateTerminal}
+              disabled={terminalBusy}
+              onChange={(event) => {
+                setPrivateTerminal(event.target.checked);
+                pushTerminal(event.target.checked ? "PRIVATE SHELL REQUESTED // Gateway env must allow it." : "ALLOWLIST BROKER MODE // safe catalog restored.");
+              }}
+            />
+          </label>
           <div className="os-terminal-stream" aria-live="polite">
             {terminalLines.map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}
           </div>
@@ -1724,12 +1784,14 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             sending={servicePanels.hermes.sending}
             selectedProfileId={selectedHermesProfileId}
             onSelectProfile={(profileId) => {
-              setSelectedHermesProfileId(profileId);
+              selectHermesProfile(profileId);
               setToast(`Đã chuyển sang Hermes profile: ${profileId}`);
             }}
             onPromptChange={(prompt) => updateServicePanel("hermes", { prompt })}
             onRefresh={() => void refreshServicePanel("hermes")}
             onSubmit={() => void testServicePanel("hermes")}
+            diagnostics={["status", "doctor", "sessions", "cron"]}
+            onRunDiagnostic={(action) => void runServiceDiagnostic("hermes", action)}
           />
         </OsWindow>
       )}
@@ -1760,6 +1822,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             onPromptChange={(prompt) => updateServicePanel("claude", { prompt })}
             onRefresh={() => void refreshServicePanel("claude")}
             onSubmit={() => void testServicePanel("claude")}
+            diagnostics={["version", "status"]}
+            onRunDiagnostic={(action) => void runServiceDiagnostic("claude", action)}
           />
         </OsWindow>
       )}

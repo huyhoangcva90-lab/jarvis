@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { DEFAULT_HERMES_PROFILE_ID, HERMES_PROFILES, HermesProfileId } from "../../utils/hermesProfiles";
+import { DEFAULT_HERMES_PROFILE_ID, HERMES_PROFILES, type HermesProfileId } from "../../utils/hermesProfiles";
 
 type ServiceHealth = {
   latencyMs?: number;
@@ -21,6 +21,8 @@ type ServiceDashboardProps = {
   sending: boolean;
   selectedProfileId?: HermesProfileId;
   onSelectProfile?: (profileId: HermesProfileId) => void;
+  diagnostics?: string[];
+  onRunDiagnostic?: (action: string) => void;
   onPromptChange: (value: string) => void;
   onRefresh: () => void;
   onSubmit: () => void;
@@ -31,7 +33,7 @@ function readableValue(value: unknown) {
   if (typeof value === "string" || typeof value === "number") return String(value);
   if (Array.isArray(value)) return `${value.length} ITEMS`;
   if (value && typeof value === "object") return `${Object.keys(value).length} FIELDS`;
-  return "—";
+  return "-";
 }
 
 function capabilityRows(overview: any) {
@@ -67,6 +69,8 @@ export default function ServiceDashboard({
   sending,
   selectedProfileId = DEFAULT_HERMES_PROFILE_ID,
   onSelectProfile,
+  diagnostics = [],
+  onRunDiagnostic,
   onPromptChange,
   onRefresh,
   onSubmit,
@@ -100,7 +104,7 @@ export default function ServiceDashboard({
       {isHermes && (
         <section className="hermes-profile-selector-panel" aria-label="Profile Hermes">
           <header className="profile-panel-header">
-            <span>CHỌN PROFILE HERMES</span>
+            <span>Chọn profile Hermes</span>
             <small>Ubuntu · đang dùng: {selectedProfileId}</small>
           </header>
           <div className="profile-chips">
@@ -123,11 +127,11 @@ export default function ServiceDashboard({
         <article>
           <span>UPSTREAM</span>
           <b>{online ? "READY" : "NOT READY"}</b>
-          <small>HTTP {health?.status ?? overview?.upstreamStatus ?? "—"}</small>
+          <small>HTTP {health?.status ?? overview?.upstreamStatus ?? "-"}</small>
         </article>
         <article>
           <span>LATENCY</span>
-          <b>{health?.latencyMs ?? overview?.latencyMs ?? "—"}ms</b>
+          <b>{health?.latencyMs ?? overview?.latencyMs ?? "-"}ms</b>
           <small>Gateway probe</small>
         </article>
         <article>
@@ -151,32 +155,44 @@ export default function ServiceDashboard({
       ) : (
         <div className="service-capability-grid">
           <section>
-            <header><span>CAPABILITIES</span><b>{capabilities.length || "—"}</b></header>
+            <header><span>CAPABILITIES</span><b>{capabilities.length || "-"}</b></header>
             <div>
               {capabilities.length ? capabilities.map(([name, value]) => (
                 <p key={name}><span>{name}</span><b>{readableValue(value)}</b></p>
-              )) : <p className="empty"><span>Chưa có capability data</span><b>—</b></p>}
+              )) : <p className="empty"><span>Chưa có capability data</span><b>-</b></p>}
             </div>
           </section>
           <section>
-            <header><span>MODELS</span><b>{models.length || "—"}</b></header>
+            <header><span>MODELS</span><b>{models.length || "-"}</b></header>
             <div>
               {models.length ? models.map((model) => (
                 <p key={model}><span>{model}</span><b>AVAILABLE</b></p>
-              )) : <p className="empty"><span>Upstream chưa công bố model</span><b>—</b></p>}
+              )) : <p className="empty"><span>Upstream chưa công bố model</span><b>-</b></p>}
             </div>
           </section>
         </div>
       )}
 
+      {diagnostics.length > 0 && (
+        <section className="service-diagnostic-actions" aria-label={`Lệnh điều khiển ${label}`}>
+          {diagnostics.map((action) => (
+            <button type="button" key={action} disabled={sending} onClick={() => onRunDiagnostic?.(action)}>
+              {action}
+            </button>
+          ))}
+        </section>
+      )}
+
       <form className="service-test-console" onSubmit={submit}>
-        <label htmlFor={`${label.toLowerCase()}-test-prompt`}>{isHermes ? `Kiểm tra trực tiếp profile ${DEFAULT_HERMES_PROFILE_ID}` : "Kiểm tra dịch vụ trực tiếp"}</label>
+        <label htmlFor={`${label.toLowerCase()}-test-prompt`}>
+          {isHermes ? `Kiểm tra trực tiếp profile ${selectedProfileId}` : "Kiểm tra dịch vụ trực tiếp"}
+        </label>
         <div>
           <input
             id={`${label.toLowerCase()}-test-prompt`}
             value={prompt}
             onChange={(event) => onPromptChange(event.target.value)}
-            placeholder={isHermes ? `Gửi lệnh tới Hermes (${DEFAULT_HERMES_PROFILE_ID})` : `Gửi lệnh kiểm tra trực tiếp tới ${label}`}
+            placeholder={isHermes ? `Gửi lệnh tới Hermes (${selectedProfileId})` : `Gửi lệnh kiểm tra trực tiếp tới ${label}`}
             disabled={sending}
           />
           <button type="submit" disabled={sending || !prompt.trim()}>
@@ -184,7 +200,7 @@ export default function ServiceDashboard({
           </button>
         </div>
         <output aria-live="polite">
-          {reply || (isHermes ? `Mọi lệnh được định tuyến cố định tới profile ${DEFAULT_HERMES_PROFILE_ID} trên Ubuntu.` : `Chỉ gọi endpoint ${label}.`)}
+          {reply || (isHermes ? `Mọi lệnh được định tuyến tới profile ${selectedProfileId} trên Ubuntu.` : `Chỉ gọi endpoint ${label}.`)}
         </output>
       </form>
     </div>

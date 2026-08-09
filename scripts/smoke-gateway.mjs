@@ -65,13 +65,15 @@ const gateway = spawn(process.execPath, ["server/gateway.mjs"], {
     JCORE_GATEWAY_PORT: String(gatewayPort),
     JCORE_GATEWAY_TOKEN: token,
     JCORE_CORS_ORIGIN: "http://127.0.0.1:4173",
+    JCORE_WORKSPACE_ROOT: process.cwd(),
+    JCORE_TERMINAL_ENABLED: "true",
     HERMES_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
     HERMES_HEALTH_URL: `http://127.0.0.1:${upstreamPort}/v1/models`,
     HERMES_CHAT_URL: `http://127.0.0.1:${upstreamPort}/v1/chat/completions`,
     HERMES_API_KEY: "hermes-smoke-api-key",
     HERMES_DEFAULT_PROFILE: "jarvis",
-    HERMES_ALLOWED_PROFILES: "jarvis,cadence-content",
-    HERMES_MULTIPLEX_PROFILES: "true",
+    HERMES_ALLOWED_PROFILES: "jarvis",
+    HERMES_MULTIPLEX_PROFILES: "false",
     HERMES_SESSION_MODE: "web",
     HERMES_SESSION_ID: "jarvis-web-primary",
     HERMES_SESSION_KEY: "agent:jarvis:web:dm:owner",
@@ -116,6 +118,79 @@ try {
     throw new Error(`Models failed: ${JSON.stringify(modelsBody)}`);
   }
 
+  const roots = await fetch(`${base}/api/workspace/roots`, { headers: authHeaders });
+  const rootsBody = await roots.json();
+  if (!roots.ok || rootsBody.roots?.length !== 1 || rootsBody.roots[0]?.id !== "workspace") {
+    throw new Error(`Workspace roots failed: ${JSON.stringify(rootsBody)}`);
+  }
+  if (JSON.stringify(rootsBody).includes(process.cwd())) {
+    throw new Error("Workspace API leaked an absolute server path");
+  }
+
+  const workspaceTree = await fetch(`${base}/api/workspace/tree?root=workspace&path=`, { headers: authHeaders });
+  const workspaceTreeBody = await workspaceTree.json();
+  if (!workspaceTree.ok || !workspaceTreeBody.entries?.some((entry) => entry.path === "package.json")) {
+    throw new Error(`Workspace tree failed: ${JSON.stringify(workspaceTreeBody)}`);
+  }
+
+  const workspaceFile = await fetch(`${base}/api/workspace/file?root=workspace&path=package.json`, { headers: authHeaders });
+  const workspaceFileBody = await workspaceFile.json();
+  if (!workspaceFile.ok || !workspaceFileBody.content?.includes('"name": "j-core-console"')) {
+    throw new Error(`Workspace file failed: ${JSON.stringify(workspaceFileBody)}`);
+  }
+
+  const traversal = await fetch(`${base}/api/workspace/file?root=workspace&path=${encodeURIComponent("../package.json")}`, { headers: authHeaders });
+  if (traversal.status !== 403) {
+    throw new Error(`Workspace traversal should be rejected: ${traversal.status} ${await traversal.text()}`);
+  }
+
+  const terminalHelp = await fetch(`${base}/api/system/terminal`, {
+    method: "POST",
+    headers: { ...authHeaders, "content-type": "application/json" },
+    body: JSON.stringify({ command: "help" }),
+  });
+  const terminalHelpBody = await terminalHelp.json();
+  if (!terminalHelp.ok || terminalHelpBody.mode !== "read-only" || !terminalHelpBody.output?.includes("Ubuntu command broker")) {
+    throw new Error(`Terminal help failed: ${JSON.stringify(terminalHelpBody)}`);
+  }
+
+  const terminalInjection = await fetch(`${base}/api/system/terminal`, {
+    method: "POST",
+    headers: { ...authHeaders, "content-type": "application/json" },
+    body: JSON.stringify({ command: "ls ; whoami" }),
+  });
+  if (terminalInjection.status !== 400) {
+    throw new Error(`Terminal shell injection should be rejected: ${terminalInjection.status} ${await terminalInjection.text()}`);
+  }
+
+  const privateTerminalDisabled = await fetch(`${base}/api/system/private-terminal`, {
+    method: "POST",
+    headers: { ...authHeaders, "content-type": "application/json" },
+    body: JSON.stringify({ command: "whoami" }),
+  });
+  if (privateTerminalDisabled.status !== 403) {
+    throw new Error(`Private terminal must be disabled by default: ${privateTerminalDisabled.status} ${await privateTerminalDisabled.text()}`);
+  }
+
+  const dashboardCommand = await fetch(`${base}/api/system/dashboard-command`, {
+    method: "POST",
+    headers: { ...authHeaders, "content-type": "application/json" },
+    body: JSON.stringify({ service: "9router", action: "models" }),
+  });
+  const dashboardCommandBody = await dashboardCommand.json();
+  if (!dashboardCommand.ok || dashboardCommandBody.mode !== "dashboard-allowlist" || !dashboardCommandBody.output?.includes("Code")) {
+    throw new Error(`Dashboard command failed: ${JSON.stringify(dashboardCommandBody)}`);
+  }
+
+  const dashboardRejected = await fetch(`${base}/api/system/dashboard-command`, {
+    method: "POST",
+    headers: { ...authHeaders, "content-type": "application/json" },
+    body: JSON.stringify({ service: "openclaw", action: "restart" }),
+  });
+  if (dashboardRejected.status !== 400) {
+    throw new Error(`Dashboard command allowlist failed: ${dashboardRejected.status} ${await dashboardRejected.text()}`);
+  }
+
   const [hermesCapabilities, claudeCapabilities] = await Promise.all([
     fetch(`${base}/api/hermes/capabilities`, { headers: authHeaders }),
     fetch(`${base}/api/claude/capabilities`, { headers: authHeaders }),
@@ -129,6 +204,12 @@ try {
   }
   if (!claudeCapabilities.ok || !claudeBody.configured || claudeBody.models?.length !== 2) {
     throw new Error(`Claude capabilities failed: ${JSON.stringify(claudeBody)}`);
+  }
+
+  const profiles = await fetch(`${base}/api/hermes/profiles`, { headers: authHeaders });
+  const profilesBody = await profiles.json();
+  if (!profiles.ok || profilesBody.defaultProfile !== "jarvis" || profilesBody.profiles?.length !== 1 || profilesBody.profiles[0]?.id !== "jarvis") {
+    throw new Error(`Hermes single-profile default failed: ${JSON.stringify(profilesBody)}`);
   }
 
   const [hermesChat, claudeChat] = await Promise.all([
@@ -164,12 +245,14 @@ try {
     throw new Error(`Hermes-first routing failed: ${JSON.stringify(routedChatBody)}`);
   }
 
-  const cadenceChat = await fetch(`${base}/api/hermes/chat`, {
+  const secondaryProfile = await fetch(`${base}/api/hermes/chat`, {
     method: "POST",
     headers: { ...authHeaders, "content-type": "application/json" },
     body: JSON.stringify({ profile: "cadence-content", message: "cadence ping" }),
   });
-  if (!cadenceChat.ok) throw new Error(`Hermes multiplex profile failed: ${await cadenceChat.text()}`);
+  if (secondaryProfile.status !== 400) {
+    throw new Error(`Hermes secondary profile should be disabled: ${secondaryProfile.status} ${await secondaryProfile.text()}`);
+  }
   const invalidProfile = await fetch(`${base}/api/hermes/chat`, {
     method: "POST",
     headers: { ...authHeaders, "content-type": "application/json" },
@@ -179,9 +262,9 @@ try {
     throw new Error(`Hermes profile allowlist failed: ${invalidProfile.status} ${await invalidProfile.text()}`);
   }
   if (
-    hermesRequests.length !== 3 ||
+    hermesRequests.length !== 2 ||
     hermesRequests[0].url !== "/v1/chat/completions" ||
-    hermesRequests[2].url !== "/p/cadence-content/v1/chat/completions" ||
+    hermesRequests[1].url !== "/v1/chat/completions" ||
     hermesRequests.some((request) => request.headers["x-hermes-session-id"] !== "jarvis-web-primary") ||
     hermesRequests.some((request) => request.headers["x-hermes-session-key"] !== "agent:jarvis:web:dm:owner") ||
     hermesRequests.some((request) => "profile" in request.body || "session_id" in request.body)
@@ -220,7 +303,7 @@ try {
     throw new Error(`Native management API proxy failed: ${JSON.stringify(nativeSettingsBody)}`);
   }
 
-  console.log("Gateway smoke test passed: auth, Hermes-first profile/session routing, capabilities, credentialed dashboard session and native management API.");
+  console.log("Gateway smoke test passed: auth, safe workspace/terminal broker, Hermes-first routing, capabilities and native dashboard proxy.");
 } finally {
   gateway.kill();
   upstream.close();

@@ -17,6 +17,29 @@ export default function OpenclawDashboard({ data, addLog }) {
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
 
+  const runDiagnostic = async (action) => {
+    if (isSending) return;
+    setIsSending(true);
+    setResult("");
+    setError("");
+    soundManager.play("click");
+    try {
+      const response = await gatewayFetch(data, "/api/system/dashboard-command", {
+        method: "POST",
+        timeoutMs: 35000,
+        body: JSON.stringify({ service: "openclaw", action }),
+      });
+      setResult(response.output || JSON.stringify(response, null, 2));
+      addLog?.(`OpenClaw diagnostic ${action} completed.`);
+      soundManager.play("success");
+    } catch (requestError) {
+      setError(requestError?.message || `Khong the chay OpenClaw ${action}.`);
+      soundManager.play("warning");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const dispatchMission = async () => {
     const task = mission.trim();
     if (!task || isSending) return;
@@ -84,6 +107,20 @@ export default function OpenclawDashboard({ data, addLog }) {
                 onClick={() => setMission(item)}
               >
                 {item}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-4">
+            {["status", "doctor", "models", "tasks"].map((action) => (
+              <button
+                key={action}
+                type="button"
+                className="hud-button text-[10px] uppercase"
+                disabled={isSending}
+                onClick={() => runDiagnostic(action)}
+              >
+                {action}
               </button>
             ))}
           </div>

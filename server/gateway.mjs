@@ -1,7 +1,8 @@
 import { createServer, request as httpRequest } from "node:http";
 import { randomUUID } from "node:crypto";
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { spawn } from "node:child_process";
+import { existsSync, readFileSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { extname, isAbsolute, join, relative, resolve } from "node:path";
 
 const envPath = resolve(process.cwd(), ".env.local");
 if (existsSync(envPath)) {
@@ -32,7 +33,7 @@ const HERMES_BASE_URL = process.env.HERMES_BASE_URL || "http://127.0.0.1:8642";
 const HERMES_DEFAULT_PROFILE = process.env.HERMES_DEFAULT_PROFILE || "jarvis";
 const HERMES_MULTIPLEX_PROFILES = /^(1|true|yes|on)$/i.test(process.env.HERMES_MULTIPLEX_PROFILES || "false");
 const HERMES_ALLOWED_PROFILES = new Set(
-  (process.env.HERMES_ALLOWED_PROFILES || "jarvis,cadence-content,code-architect,security-auditor")
+  (process.env.HERMES_ALLOWED_PROFILES || "jarvis")
     .split(",")
     .map((profile) => profile.trim())
     .filter(Boolean),
@@ -41,6 +42,30 @@ HERMES_ALLOWED_PROFILES.add(HERMES_DEFAULT_PROFILE);
 const HERMES_SESSION_MODE = process.env.HERMES_SESSION_MODE === "telegram" ? "telegram" : "web";
 const HERMES_SESSION_ID = process.env.HERMES_SESSION_ID || "jarvis-web-primary";
 const HERMES_SESSION_KEY = process.env.HERMES_SESSION_KEY || "agent:jarvis:web:dm:owner";
+const WORKSPACE_ROOT = resolve(process.env.JCORE_WORKSPACE_ROOT || process.cwd());
+const OBSIDIAN_ROOT = process.env.JCORE_OBSIDIAN_ROOT ? resolve(process.env.JCORE_OBSIDIAN_ROOT) : "";
+const TERMINAL_ENABLED = !/^(0|false|no|off)$/i.test(process.env.JCORE_TERMINAL_ENABLED || "true");
+const TERMINAL_PRIVATE_MODE = /^(1|true|yes|on)$/i.test(process.env.JCORE_TERMINAL_PRIVATE_MODE || "false");
+const TERMINAL_TIMEOUT_MS = Math.min(30000, Math.max(1000, Number(process.env.JCORE_TERMINAL_TIMEOUT_MS || 10000)));
+const TERMINAL_OUTPUT_LIMIT = Math.min(1024 * 1024, Math.max(16384, Number(process.env.JCORE_TERMINAL_OUTPUT_LIMIT || 262144)));
+const MANAGED_SERVICES = new Set(
+  (process.env.JCORE_MANAGED_SERVICES || "j-core-gateway,hermes,openclaw,9router")
+    .split(",")
+    .map((name) => name.trim())
+    .filter((name) => /^[a-zA-Z0-9_.@-]{1,80}$/.test(name)),
+);
+const TEXT_FILE_EXTENSIONS = new Set([
+  ".c", ".conf", ".cpp", ".css", ".csv", ".go", ".h", ".html", ".ini", ".java", ".js", ".json",
+  ".jsx", ".log", ".md", ".mjs", ".py", ".rs", ".scss", ".sh", ".sql", ".svg", ".toml", ".ts",
+  ".tsx", ".txt", ".vue", ".xml", ".yaml", ".yml",
+]);
+const FILE_READ_LIMIT = 512 * 1024;
+const DIRECTORY_ENTRY_LIMIT = 500;
+
+const workspaceRoots = new Map([
+  ["workspace", { id: "workspace", label: "Ubuntu Workspace", path: WORKSPACE_ROOT }],
+  ...(OBSIDIAN_ROOT ? [["obsidian", { id: "obsidian", label: "Obsidian Vault", path: OBSIDIAN_ROOT }]] : []),
+]);
 
 const gatewayStats = {
   requests: 0,
@@ -167,6 +192,448 @@ async function readJson(req) {
   const raw = Buffer.concat(chunks).toString("utf8");
   if (!raw) return {};
   return JSON.parse(raw);
+}
+
+function pathIsInside(rootPath, targetPath) {
+  const rel = relative(rootPath, targetPath);
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+function rootSummary(root) {
+  return {
+    id: root.id,
+    label: root.label,
+    available: existsSync(root.path),
+    writable: false,
+  };
+}
+
+function getWorkspaceRoot(rootId = "workspace") {
+  const root = workspaceRoots.get(String(rootId || "workspace"));
+  if (!root) {
+    const error = new Error("unknown_workspace_root");
+    error.statusCode = 404;
+    throw error;
+  }
+  if (!existsSync(root.path)) {
+    const error = new Error("workspace_root_unavailable");
+    error.statusCode = 503;
+    throw error;
+  }
+  return root;
+}
+
+function resolveWorkspacePath(rootId, requestedPath = "") {
+  const root = getWorkspaceRoot(rootId);
+  const rootRealPath = realpathSync(root.path);
+  const normalizedRequestedPath = String(requestedPath || "").replace(/\\/g, "/");
+  const candidate = resolve(root.path, normalizedRequestedPath || ".");
+  if (!pathIsInside(root.path, candidate)) {
+    const error = new Error("workspace_access_denied");
+    error.statusCode = 403;
+    throw error;
+  }
+  if (!existsSync(candidate)) {
+    const error = new Error("workspace_path_not_found");
+    error.statusCode = 404;
+    throw error;
+  }
+  const targetRealPath = realpathSync(candidate);
+  if (!pathIsInside(rootRealPath, targetRealPath)) {
+    const error = new Error("workspace_access_denied");
+    error.statusCode = 403;
+    throw error;
+  }
+  return {
+    root,
+    targetPath: targetRealPath,
+    relativePath: relative(rootRealPath, targetRealPath).replace(/\\/g, "/"),
+  };
+}
+
+function hiddenOrSensitiveName(name) {
+  const lower = name.toLowerCase();
+  return name.startsWith(".") || lower === "node_modules" || lower === "dist" || lower === "coverage"
+    || /(?:^|\.)(?:pem|key|p12|pfx|crt|cer|keystore)$/.test(lower);
+}
+
+function listWorkspaceDirectory(rootId, requestedPath = "") {
+  const resolvedPath = resolveWorkspacePath(rootId, requestedPath);
+  const stat = statSync(resolvedPath.targetPath);
+  if (!stat.isDirectory()) {
+    const error = new Error("workspace_not_a_directory");
+    error.statusCode = 400;
+    throw error;
+  }
+  const entries = readdirSync(resolvedPath.targetPath, { withFileTypes: true })
+    .filter((entry) => !hiddenOrSensitiveName(entry.name) && !entry.isSymbolicLink())
+    .slice(0, DIRECTORY_ENTRY_LIMIT)
+    .map((entry) => {
+      const entryPath = join(resolvedPath.targetPath, entry.name);
+      const entryStat = statSync(entryPath);
+      return {
+        name: entry.name,
+        path: relative(realpathSync(resolvedPath.root.path), entryPath).replace(/\\/g, "/"),
+        type: entry.isDirectory() ? "directory" : "file",
+        size: entry.isFile() ? entryStat.size : null,
+        modifiedAt: entryStat.mtime.toISOString(),
+      };
+    })
+    .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "directory" ? -1 : 1));
+  return { ...resolvedPath, entries, truncated: entries.length >= DIRECTORY_ENTRY_LIMIT };
+}
+
+function readWorkspaceFile(rootId, requestedPath) {
+  if (!requestedPath) {
+    const error = new Error("missing_path");
+    error.statusCode = 400;
+    throw error;
+  }
+  const resolvedPath = resolveWorkspacePath(rootId, requestedPath);
+  const stat = statSync(resolvedPath.targetPath);
+  if (!stat.isFile()) {
+    const error = new Error("workspace_not_a_file");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (stat.size > FILE_READ_LIMIT) {
+    const error = new Error("workspace_file_too_large");
+    error.statusCode = 413;
+    throw error;
+  }
+  if (!TEXT_FILE_EXTENSIONS.has(extname(resolvedPath.targetPath).toLowerCase())) {
+    const error = new Error("workspace_file_type_not_allowed");
+    error.statusCode = 415;
+    throw error;
+  }
+  return {
+    ...resolvedPath,
+    content: readFileSync(resolvedPath.targetPath, "utf8"),
+    size: stat.size,
+    modifiedAt: stat.mtime.toISOString(),
+  };
+}
+
+function collectObsidianNotes() {
+  const root = getWorkspaceRoot("obsidian");
+  const rootRealPath = realpathSync(root.path);
+  const notes = [];
+  const queue = [rootRealPath];
+  let totalBytes = 0;
+  while (queue.length && notes.length < 200 && totalBytes < 4 * 1024 * 1024) {
+    const directory = queue.shift();
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (hiddenOrSensitiveName(entry.name) || entry.isSymbolicLink()) continue;
+      const entryPath = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        queue.push(entryPath);
+        continue;
+      }
+      if (!entry.isFile() || extname(entry.name).toLowerCase() !== ".md") continue;
+      const stat = statSync(entryPath);
+      if (stat.size > FILE_READ_LIMIT || totalBytes + stat.size > 4 * 1024 * 1024) continue;
+      notes.push({
+        path: relative(rootRealPath, entryPath).replace(/\\/g, "/"),
+        content: readFileSync(entryPath, "utf8"),
+        modifiedAt: stat.mtime.toISOString(),
+      });
+      totalBytes += stat.size;
+      if (notes.length >= 200) break;
+    }
+  }
+  return { notes, totalBytes, truncated: queue.length > 0 || notes.length >= 200 };
+}
+
+function tokenizeTerminalCommand(input) {
+  const raw = String(input || "").trim();
+  if (!raw || raw.length > 512 || /[;&|><`$\r\n\0]/.test(raw)) {
+    const error = new Error("terminal_command_rejected");
+    error.statusCode = 400;
+    throw error;
+  }
+  const tokens = [];
+  const matcher = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^']*)'|([^\s]+)/g;
+  let match;
+  while ((match = matcher.exec(raw))) tokens.push(match[1] ?? match[2] ?? match[3]);
+  if (!tokens.length || tokens.join(" ").length === 0) {
+    const error = new Error("terminal_command_rejected");
+    error.statusCode = 400;
+    throw error;
+  }
+  return tokens;
+}
+
+function parseRootPathSpec(spec = "") {
+  const value = String(spec || "");
+  const separator = value.indexOf(":");
+  if (separator > 0 && workspaceRoots.has(value.slice(0, separator))) {
+    return { rootId: value.slice(0, separator), path: value.slice(separator + 1) };
+  }
+  return { rootId: "workspace", path: value };
+}
+
+function runProcess(executable, args, cwd = WORKSPACE_ROOT) {
+  return new Promise((resolveProcess) => {
+    const startedAt = Date.now();
+    let stdout = "";
+    let stderr = "";
+    let limited = false;
+    let timedOut = false;
+    let finished = false;
+    const child = spawn(executable, args, {
+      cwd,
+      shell: false,
+      windowsHide: true,
+      env: { ...process.env, NO_COLOR: "1", TERM: "dumb" },
+    });
+    const append = (target, chunk) => {
+      const next = target + chunk.toString("utf8");
+      if (Buffer.byteLength(next) <= TERMINAL_OUTPUT_LIMIT) return next;
+      limited = true;
+      child.kill();
+      return next.slice(0, TERMINAL_OUTPUT_LIMIT);
+    };
+    child.stdout.on("data", (chunk) => { stdout = append(stdout, chunk); });
+    child.stderr.on("data", (chunk) => { stderr = append(stderr, chunk); });
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, TERMINAL_TIMEOUT_MS);
+    const finish = (exitCode, error = "") => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timeout);
+      resolveProcess({
+        output: [stdout.trimEnd(), stderr.trimEnd(), error].filter(Boolean).join("\n"),
+        exitCode,
+        durationMs: Date.now() - startedAt,
+        timedOut,
+        truncated: limited,
+      });
+    };
+    child.once("error", (error) => finish(127, error.code === "ENOENT" ? `${executable}: command not available` : String(error.message || error)));
+    child.once("close", (code) => finish(Number.isInteger(code) ? code : 1));
+  });
+}
+
+function terminalHelp() {
+  return [
+    "J-Core Ubuntu command broker (read-only)",
+    TERMINAL_PRIVATE_MODE ? "private mode available: POST /api/system/private-terminal" : "private mode disabled: set JCORE_TERMINAL_PRIVATE_MODE=true on Ubuntu",
+    "help | pwd | roots",
+    "ls [path]                 e.g. ls src or ls obsidian:",
+    "cat <path>                e.g. cat package.json",
+    "find <name> [path]        search names inside an allowed root",
+    "system uptime|disk|memory",
+    "service <name> status | logs <name> [lines]",
+    "hermes status|doctor|sessions|cron",
+    "openclaw status|doctor|models|tasks",
+    "claude version",
+    "9router models",
+  ].join("\n");
+}
+
+function findWorkspaceEntries(rootId, requestedPath, query) {
+  const start = resolveWorkspacePath(rootId, requestedPath);
+  if (!statSync(start.targetPath).isDirectory()) return [];
+  const matches = [];
+  const queue = [start.targetPath];
+  let visited = 0;
+  while (queue.length && matches.length < 100 && visited < 1000) {
+    const directory = queue.shift();
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      visited += 1;
+      if (hiddenOrSensitiveName(entry.name) || entry.isSymbolicLink()) continue;
+      const entryPath = join(directory, entry.name);
+      if (entry.name.toLowerCase().includes(query.toLowerCase())) {
+        matches.push(relative(realpathSync(start.root.path), entryPath).replace(/\\/g, "/"));
+      }
+      if (entry.isDirectory() && visited < 1000) queue.push(entryPath);
+      if (matches.length >= 100 || visited >= 1000) break;
+    }
+  }
+  return matches;
+}
+
+async function executeTerminalCommand(rawCommand) {
+  if (!TERMINAL_ENABLED) {
+    const error = new Error("terminal_disabled");
+    error.statusCode = 503;
+    throw error;
+  }
+  const tokens = tokenizeTerminalCommand(rawCommand);
+  const command = tokens[0].toLowerCase();
+  const args = tokens.slice(1);
+
+  if (command === "help") return { output: terminalHelp(), exitCode: 0, durationMs: 0 };
+  if (command === "pwd") return { output: "workspace:/", exitCode: 0, durationMs: 0 };
+  if (command === "roots") {
+    const output = [...workspaceRoots.values()].map((root) => `${root.id.padEnd(10)} ${existsSync(root.path) ? "READY" : "UNAVAILABLE"}  read-only`).join("\n");
+    return { output, exitCode: 0, durationMs: 0 };
+  }
+  if (command === "ls") {
+    const spec = parseRootPathSpec(args[0] || "");
+    const listed = listWorkspaceDirectory(spec.rootId, spec.path);
+    const output = listed.entries.map((entry) => `${entry.type === "directory" ? "d" : "-"} ${String(entry.size ?? "-").padStart(9)}  ${entry.path}`).join("\n");
+    return { output: output || "(empty)", exitCode: 0, durationMs: 0 };
+  }
+  if (command === "cat") {
+    const spec = parseRootPathSpec(args[0] || "");
+    const file = readWorkspaceFile(spec.rootId, spec.path);
+    return { output: file.content, exitCode: 0, durationMs: 0 };
+  }
+  if (command === "find") {
+    if (!args[0]) {
+      const error = new Error("terminal_missing_argument");
+      error.statusCode = 400;
+      throw error;
+    }
+    const spec = parseRootPathSpec(args[1] || "");
+    const matches = findWorkspaceEntries(spec.rootId, spec.path, args[0]);
+    return { output: matches.join("\n") || "No matching paths.", exitCode: 0, durationMs: 0 };
+  }
+  if (command === "system") {
+    if (process.platform !== "linux") return { output: "System metrics commands run on the Ubuntu gateway host.", exitCode: 1, durationMs: 0 };
+    const systemCommands = {
+      uptime: ["uptime", []],
+      disk: ["df", ["-h", "--output=source,size,used,avail,pcent,target"]],
+      memory: ["free", ["-h"]],
+    };
+    const processSpec = systemCommands[String(args[0] || "").toLowerCase()];
+    if (!processSpec) {
+      const error = new Error("terminal_command_not_allowed");
+      error.statusCode = 400;
+      throw error;
+    }
+    return runProcess(processSpec[0], processSpec[1]);
+  }
+  if (command === "service" || command === "logs") {
+    if (process.platform !== "linux") return { output: "systemd commands run on the Ubuntu gateway host.", exitCode: 1, durationMs: 0 };
+    const serviceName = command === "service" ? args[0] : args[0];
+    if (!MANAGED_SERVICES.has(serviceName)) {
+      const error = new Error("terminal_service_not_allowed");
+      error.statusCode = 403;
+      throw error;
+    }
+    if (command === "service" && String(args[1] || "status").toLowerCase() !== "status") {
+      const error = new Error("terminal_command_not_allowed");
+      error.statusCode = 400;
+      throw error;
+    }
+    if (command === "service") return runProcess("systemctl", ["status", "--no-pager", "--lines=30", serviceName]);
+    const lines = Math.min(200, Math.max(10, Number(args[1] || 60) || 60));
+    return runProcess("journalctl", ["-u", serviceName, "--no-pager", "-n", String(lines)]);
+  }
+  if (command === "hermes") {
+    const actions = {
+      status: ["gateway", "status"],
+      doctor: ["doctor"],
+      sessions: ["sessions", "list"],
+      cron: ["cron", "list"],
+    };
+    const action = actions[String(args[0] || "status").toLowerCase()];
+    if (!action) {
+      const error = new Error("terminal_command_not_allowed");
+      error.statusCode = 400;
+      throw error;
+    }
+    return runProcess(process.env.JCORE_HERMES_CLI || "jarvis", action);
+  }
+  if (command === "openclaw") {
+    const actions = {
+      status: ["status"],
+      doctor: ["doctor"],
+      models: ["models", "list"],
+      tasks: ["tasks", "list"],
+    };
+    const action = actions[String(args[0] || "status").toLowerCase()];
+    if (!action) {
+      const error = new Error("terminal_command_not_allowed");
+      error.statusCode = 400;
+      throw error;
+    }
+    return runProcess(process.env.JCORE_OPENCLAW_CLI || "openclaw", action);
+  }
+  if (command === "claude" && String(args[0] || "version").toLowerCase() === "version") {
+    return runProcess(process.env.JCORE_CLAUDE_CLI || "claude", ["--version"]);
+  }
+  if (command === "9router" && String(args[0] || "models").toLowerCase() === "models") {
+    const result = await fetchJson(`${services.nineRouter.base.replace(/\/+$/, "")}/v1/models`, services.nineRouter.apiKey);
+    const models = Array.isArray(result.data?.data) ? result.data.data.map((model) => model.id || model.name).filter(Boolean) : [];
+    return { output: models.join("\n") || normalizeReply(result.data) || `9Router returned HTTP ${result.status}`, exitCode: result.ok ? 0 : 1, durationMs: result.latencyMs };
+  }
+  const error = new Error("terminal_command_not_allowed");
+  error.statusCode = 400;
+  throw error;
+}
+
+async function executePrivateTerminalCommand(rawCommand) {
+  if (!TERMINAL_ENABLED || !TERMINAL_PRIVATE_MODE) {
+    const error = new Error("terminal_private_mode_disabled");
+    error.statusCode = 403;
+    throw error;
+  }
+  if (process.platform !== "linux") {
+    const error = new Error("terminal_private_mode_requires_ubuntu");
+    error.statusCode = 409;
+    throw error;
+  }
+  const raw = String(rawCommand || "").trim();
+  if (!raw || raw.length > 4096 || /[\0\r]/.test(raw)) {
+    const error = new Error("terminal_command_rejected");
+    error.statusCode = 400;
+    throw error;
+  }
+  const shell = process.env.JCORE_TERMINAL_SHELL || process.env.SHELL || "/bin/bash";
+  return runProcess(shell, ["-lc", raw]);
+}
+
+async function executeDashboardCommand(body = {}) {
+  const service = String(body.service || "").trim().toLowerCase();
+  const action = String(body.action || "status").trim().toLowerCase();
+  const lines = Math.min(200, Math.max(10, Number(body.lines || 60) || 60));
+  const commandCatalog = {
+    hermes: {
+      status: "hermes status",
+      doctor: "hermes doctor",
+      sessions: "hermes sessions",
+      cron: "hermes cron",
+    },
+    openclaw: {
+      status: "openclaw status",
+      doctor: "openclaw doctor",
+      models: "openclaw models",
+      tasks: "openclaw tasks",
+    },
+    claude: {
+      version: "claude version",
+      status: "claude version",
+    },
+    "9router": {
+      models: "9router models",
+      status: "9router models",
+    },
+    ninerouter: {
+      models: "9router models",
+      status: "9router models",
+    },
+    system: {
+      uptime: "system uptime",
+      disk: "system disk",
+      memory: "system memory",
+    },
+  };
+  if (service === "logs") {
+    const serviceName = String(body.name || "").trim();
+    return executeTerminalCommand(`logs ${serviceName} ${lines}`);
+  }
+  const command = commandCatalog[service]?.[action];
+  if (!command) {
+    const error = new Error("dashboard_command_not_allowed");
+    error.statusCode = 400;
+    throw error;
+  }
+  return executeTerminalCommand(command);
 }
 
 async function probe(url, apiKey = "") {
@@ -696,43 +1163,96 @@ const server = createServer(async (req, res) => {
       });
     }
 
+    if (req.method === "GET" && url.pathname === "/api/workspace/roots") {
+      return sendJson(req, res, 200, {
+        roots: [...workspaceRoots.values()].map(rootSummary),
+        readOnly: true,
+      });
+    }
+
     if (req.method === "GET" && url.pathname === "/api/workspace/tree") {
-      try {
-        const rootDir = process.cwd();
-        const readDirRecursive = (dir, depth = 0) => {
-          if (depth > 3) return [];
-          const entries = readdirSync(dir, { withFileTypes: true });
-          const items = [];
-          for (const entry of entries) {
-            if (entry.name.startsWith(".") || entry.name === "node_modules" || entry.name === "dist") continue;
-            const fullPath = join(dir, entry.name);
-            const relPath = relative(rootDir, fullPath).replace(/\\/g, "/");
-            if (entry.isDirectory()) {
-              items.push({ name: entry.name, path: relPath, type: "directory", children: readDirRecursive(fullPath, depth + 1) });
-            } else {
-              items.push({ name: entry.name, path: relPath, type: "file" });
-            }
-          }
-          return items;
-        };
-        return sendJson(req, res, 200, { root: rootDir, tree: readDirRecursive(rootDir) });
-      } catch (err) {
-        return sendJson(req, res, 500, { error: "failed_to_read_tree", details: String(err) });
-      }
+      const rootId = url.searchParams.get("root") || "workspace";
+      const requestedPath = url.searchParams.get("path") || "";
+      const listed = listWorkspaceDirectory(rootId, requestedPath);
+      return sendJson(req, res, 200, {
+        root: rootSummary(listed.root),
+        path: listed.relativePath,
+        entries: listed.entries,
+        truncated: listed.truncated,
+        readOnly: true,
+      });
     }
 
     if (req.method === "GET" && url.pathname === "/api/workspace/file") {
-      try {
-        const rootDir = process.cwd();
-        const fileRel = url.searchParams.get("path");
-        if (!fileRel) return sendJson(req, res, 400, { error: "missing_path" });
-        const targetPath = resolve(rootDir, fileRel);
-        if (!targetPath.startsWith(rootDir)) return sendJson(req, res, 403, { error: "access_denied" });
-        const content = readFileSync(targetPath, "utf-8");
-        return sendJson(req, res, 200, { path: fileRel, content });
-      } catch (err) {
-        return sendJson(req, res, 404, { error: "file_not_found", details: String(err) });
-      }
+      const rootId = url.searchParams.get("root") || "workspace";
+      const requestedPath = url.searchParams.get("path") || "";
+      const file = readWorkspaceFile(rootId, requestedPath);
+      return sendJson(req, res, 200, {
+        root: rootSummary(file.root),
+        path: file.relativePath,
+        content: file.content,
+        size: file.size,
+        modifiedAt: file.modifiedAt,
+        readOnly: true,
+      });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/obsidian/notes") {
+      const vault = collectObsidianNotes();
+      return sendJson(req, res, 200, {
+        root: rootSummary(getWorkspaceRoot("obsidian")),
+        notes: vault.notes,
+        totalBytes: vault.totalBytes,
+        truncated: vault.truncated,
+        readOnly: true,
+      });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/system/terminal") {
+      const body = await readJson(req);
+      const command = String(body.command || "").trim();
+      if (!command) return sendJson(req, res, 400, { error: "terminal_missing_command" });
+      const result = await executeTerminalCommand(command);
+      return sendJson(req, res, 200, {
+        command,
+        output: result.output || "",
+        exitCode: result.exitCode,
+        durationMs: result.durationMs,
+        timedOut: Boolean(result.timedOut),
+        truncated: Boolean(result.truncated),
+        mode: "read-only",
+      });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/system/private-terminal") {
+      const body = await readJson(req);
+      const command = String(body.command || "").trim();
+      if (!command) return sendJson(req, res, 400, { error: "terminal_missing_command" });
+      const result = await executePrivateTerminalCommand(command);
+      return sendJson(req, res, 200, {
+        command,
+        output: result.output || "",
+        exitCode: result.exitCode,
+        durationMs: result.durationMs,
+        timedOut: Boolean(result.timedOut),
+        truncated: Boolean(result.truncated),
+        mode: "private-ubuntu-shell",
+      });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/system/dashboard-command") {
+      const body = await readJson(req);
+      const result = await executeDashboardCommand(body);
+      return sendJson(req, res, 200, {
+        service: String(body.service || ""),
+        action: String(body.action || "status"),
+        output: result.output || "",
+        exitCode: result.exitCode,
+        durationMs: result.durationMs,
+        timedOut: Boolean(result.timedOut),
+        truncated: Boolean(result.truncated),
+        mode: "dashboard-allowlist",
+      });
     }
 
     if (req.method === "POST" && url.pathname === "/api/9router/chat") {

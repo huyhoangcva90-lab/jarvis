@@ -21,6 +21,29 @@ export default function NineRouterDashboard({ data, addLog }) {
   const [result, setResult] = useState("");
   const [error, setError] = useState("");
 
+  const runRouterCommand = async (action = "models") => {
+    if (isSending) return;
+    setIsSending(true);
+    setResult("");
+    setError("");
+    soundManager.play("click");
+    try {
+      const response = await gatewayFetch(data, "/api/system/dashboard-command", {
+        method: "POST",
+        timeoutMs: 35000,
+        body: JSON.stringify({ service: "9router", action }),
+      });
+      setResult(response.output || JSON.stringify(response, null, 2));
+      addLog?.(`9Router ${action} command completed.`);
+      soundManager.play("success");
+    } catch (requestError) {
+      setError(requestError?.message || `Khong the chay 9Router ${action}.`);
+      soundManager.play("warning");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const sendPrompt = async () => {
     const message = prompt.trim();
     if (!message || isSending) return;
@@ -88,6 +111,25 @@ export default function NineRouterDashboard({ data, addLog }) {
                 <span className="mt-1 block text-[10px] opacity-70">{item.description}</span>
               </button>
             ))}
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              className="hud-button text-[10px] uppercase"
+              disabled={isSending}
+              onClick={() => runRouterCommand("models")}
+            >
+              Doc model that
+            </button>
+            <button
+              type="button"
+              className="hud-button text-[10px] uppercase"
+              disabled={isSending}
+              onClick={() => runRouterCommand("status")}
+            >
+              Trang thai router
+            </button>
           </div>
 
           <textarea

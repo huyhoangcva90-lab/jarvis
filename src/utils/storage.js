@@ -90,9 +90,13 @@ export const defaultData = {
     gatewayToken: '',
     nineRouterModel: DEFAULT_NINEROUTER_MODEL,
   },
+  ai: {
+    hermesProfile: 'jarvis',
+  },
   auth: {
-    pinEnabled: false,
-    pinCode: '1234',
+    loginEnabled: true,
+    username: 'admin',
+    password: '123456',
   },
   soundEnabled: true,
   activeDeck: 'command',  // 'command' or 'mission-control'
@@ -144,6 +148,7 @@ function mergeData(base, saved) {
     memory: { ...base.memory, ...(saved.memory || {}) },
     toolUrls: { ...base.toolUrls, ...(saved.toolUrls || {}) },
     endpoints: { ...base.endpoints, ...(saved.endpoints || {}), gateway: gateway || base.endpoints.gateway },
+    ai: { ...base.ai, ...(saved.ai || {}) },
     auth: { ...base.auth, ...(saved.auth || {}) },
     activeDeck: saved.activeDeck || base.activeDeck,
     sectors: Array.isArray(saved.sectors) ? saved.sectors : base.sectors,

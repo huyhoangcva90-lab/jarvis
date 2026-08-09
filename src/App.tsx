@@ -15,7 +15,7 @@ export default function App() {
   const [booting, setBooting] = useState(true);
   const [data, setData] = useState(() => loadData());
   const [now, setNow] = useState(() => new Date());
-  const [authenticated, setAuthenticated] = useState(!data.auth?.pinEnabled);
+  const [authenticated, setAuthenticated] = useState(data.auth?.loginEnabled === false);
   const [activity, setActivity] = useState<AiActivity>("idle");
   const [energyPalette, setEnergyPalette] = useState<EnergyPalette>(loadStoredEnergyPalette);
   const [resetViewSignal, setResetViewSignal] = useState(0);

@@ -1,154 +1,99 @@
-import React, { useState, useEffect } from 'react';
-import { soundManager } from '../utils/soundManager.js';
+import React, { useEffect, useState } from "react";
+import { soundManager } from "../utils/soundManager.js";
 
 export default function AuthScreen({ data, onUnlock }) {
-  const [pin, setPin] = useState('');
-  const [error, setError] = useState(false);
+  const [username, setUsername] = useState(data?.auth?.username || "admin");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [attempts, setAttempts] = useState(0);
 
-  const PIN_LENGTH = 4;
-  const CORRECT_PIN = data?.auth?.pinCode || '1234';
+  const expectedUsername = data?.auth?.username || "admin";
+  const expectedPassword = data?.auth?.password || "123456";
+  const locked = attempts >= 5;
 
   useEffect(() => {
-    // Cập nhật trạng thái bật/tắt âm thanh trong soundManager
     soundManager.setEnabled(data?.soundEnabled !== false);
-  }, [data]);
+  }, [data?.soundEnabled]);
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (attempts >= 3) return;
-      if (e.key >= '0' && e.key <= '9') {
-        handleNumClick(e.key);
-      } else if (e.key === 'Backspace') {
-        handleBack();
-      } else if (e.key === 'Escape' || e.key === 'Delete') {
-        handleClear();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pin, attempts]);
-
-  useEffect(() => {
-    if (pin.length === PIN_LENGTH) {
-      if (pin === CORRECT_PIN) {
-        soundManager.play('success');
-        onUnlock();
-      } else {
-        soundManager.play('warning');
-        setError(true);
-        setAttempts(a => a + 1);
-        setTimeout(() => {
-          setPin('');
-          setError(false);
-        }, 500);
-      }
+  const submit = (event) => {
+    event.preventDefault();
+    if (locked) return;
+    if (username.trim() === expectedUsername && password === expectedPassword) {
+      soundManager.play("success");
+      onUnlock();
+      return;
     }
-  }, [pin]);
-
-  const handleNumClick = (num) => {
-    if (pin.length < PIN_LENGTH && !error) {
-      setPin(prev => prev + num);
-    }
+    soundManager.play("warning");
+    setAttempts((value) => value + 1);
+    setError("Sai tai khoan hoac mat khau.");
+    setPassword("");
   };
-
-  const handleBack = () => {
-    if (!error) setPin(prev => prev.slice(0, -1));
-  };
-
-  const handleClear = () => {
-    if (!error) setPin('');
-  };
-
-  if (attempts >= 3) {
-    return (
-      <div className="fixed inset-0 bg-void flex items-center justify-center z-50 text-dangerCore font-mono text-center p-6">
-        <div className="max-w-md rounded-xl border border-dangerCore/40 bg-slate-950/90 p-8 shadow-[0_0_40px_rgba(239,68,68,0.2)]">
-          <div className="text-4xl mb-4">⚠️ SYSTEM LOCKED</div>
-          <div className="text-sm text-cyan-100/70 mb-6">Maximum security attempts exceeded. Re-authentication required.</div>
-          <button
-            type="button"
-            className="hud-button danger w-full uppercase py-3 text-xs font-bold"
-            onClick={() => {
-              soundManager.play("click");
-              setAttempts(0);
-              setPin("");
-              setError(false);
-            }}
-          >
-            Reset Security Lock & Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="fixed inset-0 bg-void flex items-center justify-center z-50 overflow-hidden">
-      {/* Cyberpunk grid bg */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(34,211,238,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.05)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)] pointer-events-none"></div>
-      
-      <div className="relative z-10 w-full max-w-sm bg-panel border border-cyanCore/30 p-8 rounded-xl shadow-[0_0_50px_rgba(34,211,238,0.1)] flex flex-col items-center">
-        
-        {/* Logo */}
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-3 h-3 rounded-full bg-greenCore shadow-[0_0_10px_#4ade80] animate-pulse"></div>
-          <h1 className="text-2xl font-mono text-white font-bold tracking-widest">JARVIS</h1>
-        </div>
-        <div className="text-[10px] text-cyanCore/70 font-mono tracking-[0.3em] uppercase mb-8">
-          Infinity Core
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-void px-5">
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(34,211,238,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.05)_1px,transparent_1px)] bg-[size:42px_42px] opacity-25 [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_82%)]" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-cyan-300/10 to-transparent" />
+
+      <form
+        onSubmit={submit}
+        className="relative z-10 w-full max-w-sm rounded-xl border border-cyanCore/30 bg-slate-950/92 p-7 shadow-[0_0_50px_rgba(34,211,238,0.12)]"
+      >
+        <div className="mb-7 text-center">
+          <div className="mx-auto mb-4 h-3 w-3 rounded-full bg-greenCore shadow-[0_0_14px_#4ade80]" />
+          <h1 className="font-mono text-2xl font-bold tracking-[0.28em] text-white">JARVIS</h1>
+          <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.24em] text-cyanCore/70">
+            Hermes profile gateway
+          </p>
         </div>
 
-        {/* Subtitle */}
-        <div className="text-gray-400 text-sm font-mono mb-4 text-center h-5">
-          {error ? <span className="text-dangerCore">INVALID PIN</span> : 'ENTER SECURITY PIN'}
+        <div className="space-y-4 font-mono">
+          <label className="field-label">
+            Tai khoan
+            <input
+              className="hud-input text-sm"
+              autoComplete="username"
+              value={username}
+              disabled={locked}
+              onChange={(event) => {
+                setUsername(event.target.value);
+                setError("");
+              }}
+            />
+          </label>
+          <label className="field-label">
+            Mat khau
+            <input
+              className="hud-input text-sm"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              disabled={locked}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setError("");
+              }}
+            />
+          </label>
         </div>
 
-        {/* Dots */}
-        <div className={`flex gap-4 mb-8 ${error ? 'animate-bounce' : ''}`}>
-          {[...Array(PIN_LENGTH)].map((_, i) => (
-            <div 
-              key={i} 
-              className={`pin-dot w-4 h-4 rounded-full border-2 transition-all duration-200 ${
-                i < pin.length 
-                  ? 'filled bg-cyanCore border-cyanCore shadow-[0_0_10px_rgba(34,211,238,0.8)]' 
-                  : 'bg-transparent border-gray-600'
-              }`}
-            ></div>
-          ))}
+        <div className="mt-5 min-h-5 text-center font-mono text-xs">
+          {locked ? (
+            <span className="text-dangerCore">Tam khoa dang nhap. Tai lai trang de thu lai.</span>
+          ) : error ? (
+            <span className="text-dangerCore">{error}</span>
+          ) : (
+            <span className="text-cyan-100/55">Dang nhap de mo bang dieu khien cuc bo.</span>
+          )}
         </div>
 
-        {/* Numpad */}
-        <div className="grid grid-cols-3 gap-3 w-full max-w-[240px]">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-            <button
-              key={num}
-              onClick={() => handleNumClick(num.toString())}
-              className="aspect-square flex items-center justify-center text-xl font-mono text-white bg-white/5 hover:bg-cyanCore/20 border border-white/10 hover:border-cyanCore/50 rounded transition-all active:scale-95"
-            >
-              {num}
-            </button>
-          ))}
-          <button
-            onClick={handleClear}
-            className="aspect-square flex items-center justify-center text-sm font-mono text-gray-400 bg-white/5 hover:bg-dangerCore/20 border border-white/10 hover:border-dangerCore/50 rounded transition-all active:scale-95"
-          >
-            CLR
-          </button>
-          <button
-            onClick={() => handleNumClick('0')}
-            className="aspect-square flex items-center justify-center text-xl font-mono text-white bg-white/5 hover:bg-cyanCore/20 border border-white/10 hover:border-cyanCore/50 rounded transition-all active:scale-95"
-          >
-            0
-          </button>
-          <button
-            onClick={handleBack}
-            className="aspect-square flex items-center justify-center text-sm font-mono text-gray-400 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 rounded transition-all active:scale-95"
-          >
-            DEL
-          </button>
-        </div>
-      </div>
+        <button
+          type="submit"
+          className="hud-button primary mt-6 w-full py-3 text-xs uppercase"
+          disabled={locked}
+        >
+          Mo J-Core Dashboard
+        </button>
+      </form>
     </div>
   );
 }

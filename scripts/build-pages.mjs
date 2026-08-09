@@ -10,7 +10,7 @@ const distAssets = join(root, "dist", "assets");
 const deployAssets = join(root, "assets");
 const previousIndex = existsSync(deployIndex) ? readFileSync(deployIndex, "utf8") : "";
 
-function pruneGeneratedAssetHistory(directory, currentFiles, generationsToKeep = 2) {
+function pruneGeneratedAssetHistory(directory, currentFiles, generationsToKeep = 1) {
   const groups = new Map();
   const hashedAsset = /^(.*)-[A-Za-z0-9_-]{8,}\.(js|css|svg)$/;
 

@@ -1,176 +1,154 @@
-# J-Core local + online tunnel runbook
+# J-Core local and online runbook
 
-## 1. Clone về máy
+## 1. Local setup
 
 ```powershell
-git clone https://github.com/huyhoangcva90-lab/jarvis.git
-cd jarvis
 pnpm install
-```
-
-## 2. Tạo file cấu hình local
-
-```powershell
 Copy-Item .env.example .env.local
 notepad .env.local
 ```
 
-Điền URL thật của Hermes, OpenClaw và 9Router vào `.env.local`. Không commit file `.env.local`.
-
-## 3. Chạy local gateway
-
-Terminal 1:
+Run the gateway:
 
 ```powershell
 pnpm run gateway
 ```
 
-Kiểm tra:
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:8787/health
-```
-
-## 4. Chạy web local
-
-Terminal 2:
+Run the web UI:
 
 ```powershell
 pnpm run dev
 ```
 
-Mở URL Vite in ra. Trong Settings của J-Core, đặt:
-
-- Gateway URL: `http://127.0.0.1:8787`
-- Hermes: `http://127.0.0.1:8080`
-- OpenClaw: `http://127.0.0.1:18789`
-- 9Router: `http://127.0.0.1:9000`
-
-## 5. Tunnel lên online
-
-Khuyến nghị an toàn:
-
-- Tailscale Funnel nếu chỉ bạn dùng.
-- Cloudflare Tunnel + Access nếu muốn domain riêng và có login.
-- Ngrok chỉ nên dùng test nhanh.
-
-Không expose trực tiếp Hermes/OpenClaw/9Router ra Internet. Chỉ expose gateway `8787`, và nên bật `JCORE_GATEWAY_TOKEN`.
-
-## 6. Luồng đúng
+Set the Gateway URL in J-Core to:
 
 ```text
-Browser / Vercel web
-  -> HTTPS tunnel
-  -> J-Core Local Gateway
-  -> Hermes / OpenClaw / 9Router trên máy local
+http://127.0.0.1:8787
 ```
 
-## 7. Cấu hình production hiện tại
+## 2. Production gateway
 
-Frontend mặc định dùng:
-
-```text
-https://jarvisidhuykl.huykl.id.vn
-```
-
-Trên Ubuntu, `JCORE_CORS_ORIGIN` phải chứa origin của web J-Core và các origin
-dev được phép, không kèm đường dẫn:
+Only expose the J-Core gateway, not Hermes/OpenClaw/9Router/Claude directly.
 
 ```env
 JCORE_GATEWAY_HOST=0.0.0.0
-JCORE_GATEWAY_TOKEN=<device-token-dai-va-ngau-nhien>
+JCORE_GATEWAY_PORT=8787
+JCORE_GATEWAY_TOKEN=<long-random-token>
 JCORE_CORS_ORIGIN=https://jarvis.huykl.id.vn
 JCORE_DASHBOARD_SESSION_TTL_MS=1800000
 ```
 
-Gateway sẽ từ chối khởi động trên `0.0.0.0` nếu chưa đặt
-`JCORE_GATEWAY_TOKEN`. Đây là cơ chế fail-closed để tránh vô tình mở API ra
-Internet mà không có xác thực.
+The gateway refuses to start on `0.0.0.0` without `JCORE_GATEWAY_TOKEN`.
 
-Có thể cho phép cả local dev bằng danh sách phân cách bởi dấu phẩy:
+Use a private tunnel when possible:
 
-```env
-JCORE_CORS_ORIGIN=http://127.0.0.1:5173,https://jarvis.huykl.id.vn,https://huyhoangcva90-lab.github.io
-```
+- Cloudflare Tunnel + Access for public domain access.
+- Tailscale/Funnel for private personal access.
+- Ngrok only for short testing.
 
-Sau khi cập nhật code và `.env.local`, restart gateway rồi kiểm tra:
+## 3. Hermes-first chat
 
-```powershell
-curl.exe -H "Authorization: Bearer <jarvis-token>" https://jarvisidhuykl.huykl.id.vn/health
-```
-
-`services.*.online` cho biết tiến trình upstream có chạy hay không.
-`services.*.configured` cho biết gateway đã có URL chat/task thật hay chưa.
-`services.*.circuit.state` cho biết upstream đang `closed`, `degraded` hay
-`open`. Mặc định circuit sẽ mở sau 3 lần lỗi liên tục và thử lại sau 30 giây;
-có thể điều chỉnh bằng:
+Default production profile:
 
 ```env
-JCORE_CIRCUIT_FAILURE_THRESHOLD=3
-JCORE_CIRCUIT_OPEN_MS=30000
+HERMES_BASE_URL=http://127.0.0.1:8642
+HERMES_HEALTH_URL=http://127.0.0.1:8642/v1/models
+HERMES_CHAT_URL=http://127.0.0.1:8642/v1/chat/completions
+HERMES_API_KEY=<matches-hermes-api-server-key>
+HERMES_MODEL=hermes-agent
+HERMES_DEFAULT_PROFILE=jarvis
+HERMES_ALLOWED_PROFILES=jarvis
+HERMES_MULTIPLEX_PROFILES=false
+HERMES_SESSION_MODE=web
+HERMES_SESSION_ID=jarvis-web-primary
+HERMES_SESSION_KEY=agent:jarvis:web:dm:owner
 ```
 
-Mỗi response có header `x-request-id`; khi chat qua router thành công có thêm
-`x-jcore-upstream` và `server-timing`. Dùng request ID hiển thị trong UI để
-đối chiếu log gateway khi chẩn đoán lỗi.
+The UI sends the active Hermes profile with `/api/hermes/chat`. Profile switching in the UI changes the orb palette and persists the selected profile locally.
 
-## 8. Bật phản hồi AI thật
-
-Cửa sổ chat chính gửi thẳng tới `/api/hermes/chat` và mặc định dùng Hermes
-profile `jarvis`. Endpoint tương thích cũ `/api/ai/chat` cũng thử Hermes trước,
-sau đó mới fallback theo thứ tự 9Router, OpenClaw và Claude bridge. Vì vậy một
-lỗi Hermes không bị che giấu trong cửa sổ chat chính, còn client cũ vẫn có đường
-phục hồi có kiểm soát.
-
-Để Hermes giữ phiên giống Telegram, `HERMES_API_KEY` phải khớp
-`API_SERVER_KEY` của Hermes. Chi tiết hai chế độ phiên web/Telegram và checklist
-profile `jarvis` nằm trong `docs/HERMES_FIRST_ARCHITECTURE.md`.
-
-OpenClaw
-có endpoint tương thích OpenAI nhưng mặc định bị tắt. Bật bằng:
-
-```bash
-openclaw config set gateway.http.endpoints.chatCompletions.enabled true
-openclaw gateway restart
-```
-
-Sau đó cấu hình `OPENCLAW_CHAT_URL=http://127.0.0.1:18789/v1/chat/completions`
-và `OPENCLAW_MODEL=openclaw/default`. `OPENCLAW_TASK_URL` vẫn dành cho một
-endpoint nhiệm vụ riêng nếu bạn tự cài thêm.
-
-Ví dụ cấu hình tối thiểu nếu 9Router cung cấp API tương thích OpenAI:
+## 4. OpenClaw, 9Router and Claude
 
 ```env
+OPENCLAW_BASE_URL=http://127.0.0.1:18789
+OPENCLAW_HEALTH_URL=http://127.0.0.1:18789/v1/models
+OPENCLAW_CHAT_URL=http://127.0.0.1:18789/v1/chat/completions
+OPENCLAW_TASK_URL=
+OPENCLAW_MODEL=openclaw/default
+
 NINEROUTER_BASE_URL=http://127.0.0.1:20128
 NINEROUTER_HEALTH_URL=http://127.0.0.1:20128/v1/models
 NINEROUTER_CHAT_URL=http://127.0.0.1:20128/v1/chat/completions
-# Có thể để trống nếu 9Router chỉ bind loopback và REQUIRE_API_KEY=false.
-NINEROUTER_API_KEY=
 NINEROUTER_MODEL=Code
+
+CLAUDE_BASE_URL=http://127.0.0.1:3001
+CLAUDE_HEALTH_URL=http://127.0.0.1:3001/health
+CLAUDE_CHAT_URL=
 ```
 
-Dashboard native 9Router được J-Core Gateway reverse-proxy sau khi xác thực
-Jarvis token. Không expose port `20128` ra Internet. Nếu muốn người dùng chỉ
-nhập đúng một Jarvis token, tắt login riêng của dashboard 9Router trong cấu
-hình local; lớp bảo vệ public lúc đó là phiên `HttpOnly` tạm do J-Core Gateway
-cấp. Nếu vẫn bật login 9Router, dashboard nhúng sẽ hiển thị màn hình login
-native của 9Router.
+Dashboard diagnostics use `POST /api/system/dashboard-command` with an allowlist. This gives the UI real status/model/task checks without exposing an unrestricted shell.
 
-Claude Code CLI không tự mở HTTP API. Không cho gateway public chạy trực tiếp
-lệnh shell `claude`. Nếu cần dùng Claude Code, hãy dựng một local bridge có xác
-thực ở `127.0.0.1`, sau đó mới điền `CLAUDE_*`.
+## 5. Ubuntu Files and Obsidian
 
-Sau khi sửa `.env.local` trên Ubuntu:
+```env
+JCORE_WORKSPACE_ROOT=/srv/j-core
+JCORE_OBSIDIAN_ROOT=/home/<ubuntu-user>/Documents/ObsidianVault
+```
+
+The gateway returns relative paths only. It skips dotfiles, secrets, symlinks and oversized files. File viewing is read-only.
+
+## 6. Terminal modes
+
+Safe broker mode is the default:
+
+```env
+JCORE_TERMINAL_ENABLED=true
+JCORE_TERMINAL_PRIVATE_MODE=false
+JCORE_TERMINAL_SHELL=/bin/bash
+JCORE_TERMINAL_TIMEOUT_MS=10000
+JCORE_TERMINAL_OUTPUT_LIMIT=262144
+JCORE_MANAGED_SERVICES=j-core-gateway,hermes,openclaw,9router
+JCORE_HERMES_CLI=jarvis
+JCORE_OPENCLAW_CLI=openclaw
+JCORE_CLAUDE_CLI=claude
+```
+
+Broker commands include:
+
+- `help`, `pwd`, `roots`
+- `ls`, `cat`, `find`
+- `system uptime|disk|memory`
+- `service <name> status`, `logs <name> [lines]`
+- `hermes status|doctor|sessions|cron`
+- `openclaw status|doctor|models|tasks`
+- `claude version`
+- `9router models`
+
+Private shell mode is for a trusted Ubuntu gateway only:
+
+```env
+JCORE_TERMINAL_PRIVATE_MODE=true
+JCORE_TERMINAL_SHELL=/bin/bash
+```
+
+When the UI toggle `Private Ubuntu shell` is enabled, commands go to:
+
+```text
+POST /api/system/private-terminal
+```
+
+Do not enable private shell on a public gateway unless it is behind strong access control.
+
+## 7. Verify
 
 ```bash
-git pull origin main
-sudo systemctl restart j-core-gateway
 curl -H "Authorization: Bearer $JCORE_GATEWAY_TOKEN" \
   https://jarvisidhuykl.huykl.id.vn/health
 ```
 
-Kết quả sẵn sàng phải có ít nhất một dịch vụ chat với:
+At least one chat service should show:
 
 ```json
 { "online": true, "configured": true }
 ```
+
+Every response includes `x-request-id`; use it to match UI errors with gateway logs.
