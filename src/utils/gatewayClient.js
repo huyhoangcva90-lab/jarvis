@@ -36,16 +36,27 @@ const GATEWAY_ERROR_MESSAGES = {
   voice_text_invalid: "Nội dung cần đọc không hợp lệ hoặc quá dài.",
   upstream_timeout: "Dịch vụ phía sau gateway phản hồi quá chậm.",
   upstream_offline: "Dịch vụ phía sau gateway đang offline.",
+  app_config_not_configured: "Chưa khai báo file cấu hình của app trên Ubuntu.",
+  app_config_not_found: "Không tìm thấy file cấu hình trên Ubuntu.",
+  app_config_not_a_file: "Đường dẫn cấu hình không phải file.",
+  app_config_type_not_allowed: "Chỉ hỗ trợ JSON, YAML, TOML, INI và CONF.",
+  app_config_too_large: "File cấu hình vượt quá 512 KB.",
+  app_config_write_disabled: "Quyền sửa cấu hình app đang tắt trên Ubuntu.",
+  app_config_changed: "File đã thay đổi; hãy tải lại trước khi lưu.",
 };
 
 export function getGatewayConfig(data) {
-  const gateway = data?.endpoints?.gateway || DEFAULT_GATEWAY_URL;
+  const sameOrigin = data?.auth?.sessionMode === "same-origin";
+  const gateway = sameOrigin && typeof window !== "undefined"
+    ? window.location.origin
+    : data?.endpoints?.gateway || DEFAULT_GATEWAY_URL;
   const token = String(data?.endpoints?.gatewayToken || "")
     .trim()
     .replace(/^Bearer\s+/i, "");
   return {
     gateway: String(gateway).trim().replace(/\/+$/, ""),
-    token,
+    token: sameOrigin ? "" : token,
+    sameOrigin,
   };
 }
 
@@ -77,6 +88,7 @@ export async function gatewayFetch(data, path, options = {}) {
   try {
     const response = await fetch(`${gateway}${path}`, {
       ...fetchOptions,
+      credentials: fetchOptions.credentials || "include",
       headers,
       signal: controller.signal,
     });
@@ -133,7 +145,7 @@ export async function gatewayBinaryFetch(data, path, options = {}) {
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`${gateway}${path}`, { ...fetchOptions, headers, signal: controller.signal });
+    const response = await fetch(`${gateway}${path}`, { ...fetchOptions, credentials: fetchOptions.credentials || "include", headers, signal: controller.signal });
     if (!response.ok) {
       let details = {};
       try { details = await response.json(); } catch { details = {}; }

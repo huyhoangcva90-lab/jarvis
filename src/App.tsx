@@ -16,6 +16,7 @@ export default function App() {
   const [data, setData] = useState(() => loadData());
   const [now, setNow] = useState(() => new Date());
   const [authenticated, setAuthenticated] = useState(data.auth?.loginEnabled === false);
+  const [authChecking, setAuthChecking] = useState(true);
   const [activity, setActivity] = useState<AiActivity>("idle");
   const [energyPalette, setEnergyPalette] = useState<EnergyPalette>(loadStoredEnergyPalette);
   const [resetViewSignal, setResetViewSignal] = useState(0);
@@ -30,6 +31,27 @@ export default function App() {
       window.clearTimeout(bootTimer);
       window.clearInterval(clockTimer);
     };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/session", { credentials: "include", headers: { accept: "application/json" } })
+      .then(async (response) => {
+        if (!(response.headers.get("content-type") || "").includes("application/json")) return null;
+        return response.json();
+      })
+      .then((session) => {
+        if (!active || !session?.authenticated) return;
+        setData((current: any) => ({
+          ...current,
+          auth: { ...current.auth, username: session.user?.username || current.auth?.username, sessionMode: "same-origin" },
+          endpoints: { ...current.endpoints, gateway: window.location.origin, gatewayToken: "" },
+        }));
+        setAuthenticated(true);
+      })
+      .catch(() => {})
+      .finally(() => { if (active) setAuthChecking(false); });
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -103,8 +125,23 @@ export default function App() {
     setData((current: any) => ({ ...current, ...patch }));
   };
 
+  const handleUnlock = (session: any) => {
+    if (!session?.preview) {
+      setData((current: any) => ({
+        ...current,
+        auth: { ...current.auth, username: session?.user?.username || current.auth?.username, sessionMode: "same-origin" },
+        endpoints: { ...current.endpoints, gateway: window.location.origin, gatewayToken: "" },
+      }));
+    }
+    setAuthenticated(true);
+  };
+
+  if (authChecking) {
+    return <main className="auth-session-probe"><i /><span>J—CORE</span><small>VERIFYING LOCAL SESSION</small></main>;
+  }
+
   if (!authenticated) {
-    return <AuthScreen data={data} onUnlock={() => setAuthenticated(true)} />;
+    return <AuthScreen data={data} onUnlock={handleUnlock} />;
   }
 
   return (

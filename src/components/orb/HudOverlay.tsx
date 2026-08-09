@@ -11,6 +11,7 @@ import {
 } from "../../utils/storage.js";
 import DynamicHub from "./DynamicHub";
 import ServiceDashboard from "./ServiceDashboard";
+import AppConfigEditor from "./AppConfigEditor";
 import ObsidianVaultPanel from "./ObsidianVaultPanel";
 import UbuntuWorkspace from "./UbuntuWorkspace";
 import OpenclawDashboard from "../openclawDashboard.jsx";
@@ -427,6 +428,7 @@ type HudOverlayProps = {
 };
 
 export default function HudOverlay({ currentTime, data, palette, updateData, onActivityChange, onPaletteChange, onResetView, coreMinimized, onCoreMinimizedChange }: HudOverlayProps) {
+  const sameOriginSession = getGatewayConfig(data).sameOrigin;
   const initial = useMemo(() => (typeof window === "undefined" ? null : loadState()), []);
   const { connections } = useStoneState() as {
     connections: {
@@ -1112,6 +1114,10 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     }
   };
 
+  const logoutProjectSession = async () => {
+    try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } finally { window.location.reload(); }
+  };
+
   const runServiceDiagnostic = async (service: ServiceKey, action: string) => {
     if (servicePanels[service].sending) return;
     updateServicePanel(service, { sending: true, reply: "" });
@@ -1176,7 +1182,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     const gatewayDetail = [
       Number.isFinite(connections.latencyMs) ? `${connections.latencyMs}ms` : null,
       connections.requestId ? `req: ${connections.requestId.slice(0, 8)}` : null,
-      data.endpoints?.gateway || "Chưa cấu hình",
+      sameOriginSession ? "PHIÊN DỰ ÁN TỰ ĐỘNG" : "LOCAL PREVIEW",
     ].filter(Boolean).join(" · ");
 
     const coreServices = [
@@ -1208,7 +1214,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       { label: "CHẾ ĐỘ LÕI", value: paletteLabels[palette].toUpperCase(), detail: "Màu và cấu trúc 3D độc lập", tone: "online" },
       { label: "BỘ NHỚ", value: `${messages.length} BẢN GHI`, detail: "Lưu cục bộ trong trình duyệt", tone: "online" }
     ];
-  }, [advisorMode, connections, data.endpoints?.gateway, messages.length, nineRouterModel, palette, voiceMode, voiceStyle]);
+  }, [advisorMode, connections, messages.length, nineRouterModel, palette, sameOriginSession, voiceMode, voiceStyle]);
 
   const pushTerminal = (lines: string | string[]) => {
     const nextLines = Array.isArray(lines) ? lines : [lines];
@@ -1644,7 +1650,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               <button type="button" aria-label="Đóng cài đặt" onClick={() => setSettingsOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
-          <section className="settings-block gateway-settings">
+          <section className={`settings-block gateway-settings ${sameOriginSession ? "is-same-origin" : ""}`}>
             <div className="settings-block-head">
               <span>Gateway Ubuntu</span>
               <button
@@ -1655,6 +1661,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               >
                 {gatewayTest === "testing" ? "Đang thử" : "Kiểm tra"}
               </button>
+            </div>
+            <div className="gateway-session-card">
+              <i />
+              <div><b>LOCAL PROJECT SESSION</b><span>J-Core tự kết nối dịch vụ trong dự án sau đăng nhập. Không có URL, API key hay token cần nhập.</span></div>
+              {sameOriginSession && <button type="button" onClick={() => void logoutProjectSession()}>Đăng xuất</button>}
             </div>
             <label className="gateway-field">
               <span>Gateway URL</span>
@@ -1889,6 +1900,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           </div>
           <div className="mt-3">
             <OpenclawDashboard data={data} addLog={(msg: string) => setToast(msg)} />
+            <AppConfigEditor data={data} service="openclaw" />
           </div>
         </OsWindow>
       )}
@@ -1935,6 +1947,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
             <div className="p-3 border-b border-cyan-300/15">
               <NineRouterDashboard data={data} addLog={(msg: string) => setToast(msg)} />
+              <AppConfigEditor data={data} service="9router" />
             </div>
 
             {routerDashboardState === "ready" && routerDashboardUrl ? (
@@ -1978,6 +1991,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onToggleMinimize={() => setHermesMinimized(true)}
         >
           <ServiceDashboard
+            data={data}
             label="HERMES"
             description="Reasoning orchestrator · capability and direct-chat diagnostics"
             online={connections.hermes}
@@ -2016,6 +2030,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onToggleMinimize={() => setClaudeMinimized(true)}
         >
           <ServiceDashboard
+            data={data}
             label="CLAUDE"
             description="Local Claude Code bridge · health and direct-chat diagnostics"
             online={connections.claude}

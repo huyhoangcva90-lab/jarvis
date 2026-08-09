@@ -1,8 +1,8 @@
 import { createServer, request as httpRequest } from "node:http";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
-import { extname, isAbsolute, join, relative, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { basename, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { WebSocketServer } from "ws";
 
 const envPath = resolve(process.cwd(), ".env.local");
@@ -30,6 +30,11 @@ const STARTED_AT = Date.now();
 const CIRCUIT_FAILURE_THRESHOLD = Number(process.env.JCORE_CIRCUIT_FAILURE_THRESHOLD || 3);
 const CIRCUIT_OPEN_MS = Number(process.env.JCORE_CIRCUIT_OPEN_MS || 30000);
 const DASHBOARD_SESSION_TTL_MS = Number(process.env.JCORE_DASHBOARD_SESSION_TTL_MS || 30 * 60 * 1000);
+const AUTH_USERNAME = process.env.JCORE_AUTH_USERNAME || "admin";
+const AUTH_PASSWORD = process.env.JCORE_AUTH_PASSWORD || "123456";
+const AUTH_SESSION_TTL_MS = Math.min(30 * 24 * 60 * 60 * 1000, Math.max(15 * 60 * 1000, Number(process.env.JCORE_AUTH_SESSION_TTL_MS || 7 * 24 * 60 * 60 * 1000)));
+const WEB_ROOT = resolve(process.env.JCORE_WEB_ROOT || join(process.cwd(), "dist"));
+const APP_CONFIG_WRITE_ENABLED = /^(1|true|yes|on)$/i.test(process.env.JCORE_APP_CONFIG_WRITE_ENABLED || "true");
 const HERMES_BASE_URL = process.env.HERMES_BASE_URL || "http://127.0.0.1:8642";
 const HERMES_DEFAULT_PROFILE = process.env.HERMES_DEFAULT_PROFILE || "jarvis";
 const HERMES_MULTIPLEX_PROFILES = /^(1|true|yes|on)$/i.test(process.env.HERMES_MULTIPLEX_PROFILES || "false");
@@ -81,11 +86,32 @@ const TEXT_FILE_EXTENSIONS = new Set([
 ]);
 const FILE_READ_LIMIT = 512 * 1024;
 const DIRECTORY_ENTRY_LIMIT = 500;
+const JCORE_CONFIG_ROOT = resolve(process.env.JCORE_CONFIG_ROOT || join(process.cwd(), ".jcore", "apps"));
+
+const managedConfigDefaults = {
+  hermes: { service: "hermes", enabled: true, profile: HERMES_DEFAULT_PROFILE, model: process.env.HERMES_MODEL || "hermes-agent" },
+  openclaw: { service: "openclaw", enabled: true, model: "openclaw/default", taskMode: "local" },
+  "9router": { service: "9router", enabled: true, model: "Code", routing: "local" },
+  claude: { service: "claude", enabled: true, bridge: "local", permissions: "project" },
+};
 
 const workspaceRoots = new Map([
   ["workspace", { id: "workspace", label: "Ubuntu Workspace", path: WORKSPACE_ROOT }],
   ...(OBSIDIAN_ROOT ? [["obsidian", { id: "obsidian", label: "Obsidian Vault", path: OBSIDIAN_ROOT }]] : []),
 ]);
+
+const appConfigPaths = new Map([
+  ["hermes", { service: "hermes", label: "Hermes", envName: "JCORE_HERMES_CONFIG_PATH", managed: !process.env.JCORE_HERMES_CONFIG_PATH, path: resolve(process.env.JCORE_HERMES_CONFIG_PATH || join(JCORE_CONFIG_ROOT, "hermes.json")) }],
+  ["openclaw", { service: "openclaw", label: "OpenClaw", envName: "JCORE_OPENCLAW_CONFIG_PATH", managed: !process.env.JCORE_OPENCLAW_CONFIG_PATH, path: resolve(process.env.JCORE_OPENCLAW_CONFIG_PATH || join(JCORE_CONFIG_ROOT, "openclaw.json")) }],
+  ["9router", { service: "9router", label: "9Router", envName: "JCORE_9ROUTER_CONFIG_PATH", managed: !process.env.JCORE_9ROUTER_CONFIG_PATH, path: resolve(process.env.JCORE_9ROUTER_CONFIG_PATH || join(JCORE_CONFIG_ROOT, "9router.json")) }],
+  ["claude", { service: "claude", label: "Claude", envName: "JCORE_CLAUDE_CONFIG_PATH", managed: !process.env.JCORE_CLAUDE_CONFIG_PATH, path: resolve(process.env.JCORE_CLAUDE_CONFIG_PATH || join(JCORE_CONFIG_ROOT, "claude.json")) }],
+]);
+
+mkdirSync(JCORE_CONFIG_ROOT, { recursive: true });
+for (const config of appConfigPaths.values()) {
+  if (!config.managed || existsSync(config.path)) continue;
+  writeFileSync(config.path, `${JSON.stringify(managedConfigDefaults[config.service], null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+}
 
 const gatewayStats = {
   requests: 0,
@@ -98,9 +124,11 @@ const upstreamCircuits = new Map();
 const dashboardSessions = new Map();
 const terminalTickets = new Map();
 const terminalAudit = [];
+const authSessions = new Map();
+const loginAttempts = new Map();
 
-if (!TOKEN && !IS_LOOPBACK) {
-  throw new Error("JCORE_GATEWAY_TOKEN is required when the gateway listens beyond localhost.");
+if (!TOKEN && !AUTH_PASSWORD && !IS_LOOPBACK) {
+  throw new Error("JCORE_AUTH_PASSWORD or JCORE_GATEWAY_TOKEN is required when the gateway listens beyond localhost.");
 }
 
 const services = {
@@ -174,9 +202,97 @@ function sendBuffer(req, res, status, payload, contentType = "application/octet-
   res.end(payload);
 }
 
+function sameSecret(left, right) {
+  const leftHash = createHash("sha256").update(String(left)).digest();
+  const rightHash = createHash("sha256").update(String(right)).digest();
+  return timingSafeEqual(leftHash, rightHash);
+}
+
+function authSession(req) {
+  const sessionId = cookieValue(req, "jcore_session");
+  const session = authSessions.get(sessionId);
+  if (!session || session.expiresAt <= Date.now()) {
+    if (sessionId) authSessions.delete(sessionId);
+    return null;
+  }
+  session.expiresAt = Date.now() + AUTH_SESSION_TTL_MS;
+  return session;
+}
+
+function issueAuthCookie(req, username) {
+  const sessionId = randomUUID();
+  authSessions.set(sessionId, { username, expiresAt: Date.now() + AUTH_SESSION_TTL_MS });
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const secure = forwardedProto === "https";
+  return [
+    `jcore_session=${encodeURIComponent(sessionId)}`,
+    "Path=/",
+    "HttpOnly",
+    `Max-Age=${Math.floor(AUTH_SESSION_TTL_MS / 1000)}`,
+    secure ? "SameSite=Strict" : "SameSite=Lax",
+    ...(secure ? ["Secure"] : []),
+  ].join("; ");
+}
+
+function clearAuthCookie(req) {
+  const sessionId = cookieValue(req, "jcore_session");
+  if (sessionId) authSessions.delete(sessionId);
+  return "jcore_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax";
+}
+
+function loginAllowed(req) {
+  const key = String(req.socket.remoteAddress || "unknown");
+  const current = loginAttempts.get(key);
+  if (!current || current.resetAt <= Date.now()) {
+    loginAttempts.set(key, { count: 0, resetAt: Date.now() + 15 * 60 * 1000 });
+    return true;
+  }
+  return current.count < 5;
+}
+
+function recordLoginFailure(req) {
+  const key = String(req.socket.remoteAddress || "unknown");
+  const current = loginAttempts.get(key) || { count: 0, resetAt: Date.now() + 15 * 60 * 1000 };
+  current.count += 1;
+  loginAttempts.set(key, current);
+  return Math.max(0, 5 - current.count);
+}
+
+const STATIC_CONTENT_TYPES = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+  ".woff2": "font/woff2",
+  ".json": "application/json; charset=utf-8",
+};
+
+function serveWebAsset(req, res, pathname) {
+  if (!existsSync(WEB_ROOT)) return false;
+  const requested = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
+  const candidate = resolve(WEB_ROOT, requested);
+  if (!pathIsInside(WEB_ROOT, candidate) || !existsSync(candidate) || !statSync(candidate).isFile()) {
+    if (extname(requested)) return false;
+    const fallback = resolve(WEB_ROOT, "index.html");
+    if (!existsSync(fallback)) return false;
+    const payload = readFileSync(fallback);
+    sendBuffer(req, res, 200, payload, "text/html; charset=utf-8", { "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob:; connect-src 'self' ws: wss: https:; frame-src https://www.youtube-nocookie.com 'self'" });
+    return true;
+  }
+  const payload = readFileSync(candidate);
+  const contentType = STATIC_CONTENT_TYPES[extname(candidate).toLowerCase()] || "application/octet-stream";
+  sendBuffer(req, res, 200, payload, contentType, { "cache-control": requested === "index.html" ? "no-cache" : "public, max-age=31536000, immutable" });
+  return true;
+}
+
 function authorized(req) {
-  if (!TOKEN) return true;
-  return req.headers.authorization === `Bearer ${TOKEN}`;
+  if (TOKEN && req.headers.authorization === `Bearer ${TOKEN}`) return true;
+  if (authSession(req)) return true;
+  return !TOKEN && !AUTH_PASSWORD;
 }
 
 function cookieValue(req, name) {
@@ -404,6 +520,88 @@ function writeWorkspaceFile(rootId, requestedPath, content, expectedModifiedAt =
   }
   const updated = statSync(resolvedPath.targetPath);
   return { ...resolvedPath, size: updated.size, modifiedAt: updated.mtime.toISOString() };
+}
+
+const APP_CONFIG_EXTENSIONS = new Set([".conf", ".ini", ".json", ".toml", ".yaml", ".yml"]);
+
+function configuredApp(serviceName) {
+  const config = appConfigPaths.get(String(serviceName || "").toLowerCase());
+  if (!config) {
+    const error = new Error("app_config_unknown_service");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!config.path) {
+    const error = new Error("app_config_not_configured");
+    error.statusCode = 503;
+    error.details = { service: config.service, requiredEnv: config.envName };
+    throw error;
+  }
+  if (!existsSync(config.path)) {
+    const error = new Error("app_config_not_found");
+    error.statusCode = 404;
+    error.details = { service: config.service, requiredEnv: config.envName };
+    throw error;
+  }
+  const stats = statSync(config.path);
+  if (!stats.isFile()) {
+    const error = new Error("app_config_not_a_file");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!APP_CONFIG_EXTENSIONS.has(extname(config.path).toLowerCase())) {
+    const error = new Error("app_config_type_not_allowed");
+    error.statusCode = 415;
+    throw error;
+  }
+  if (stats.size > FILE_READ_LIMIT) {
+    const error = new Error("app_config_too_large");
+    error.statusCode = 413;
+    throw error;
+  }
+  return { config, stats };
+}
+
+function readAppConfig(serviceName) {
+  const { config, stats } = configuredApp(serviceName);
+  return {
+    service: config.service,
+    label: config.label,
+    fileName: basename(config.path),
+    format: extname(config.path).slice(1).toLowerCase(),
+    managed: config.managed,
+    content: readFileSync(config.path, "utf8"),
+    modifiedAt: stats.mtime.toISOString(),
+    writable: APP_CONFIG_WRITE_ENABLED,
+  };
+}
+
+function writeAppConfig(serviceName, content, expectedModifiedAt = "") {
+  if (!APP_CONFIG_WRITE_ENABLED) {
+    const error = new Error("app_config_write_disabled");
+    error.statusCode = 403;
+    throw error;
+  }
+  const { config, stats } = configuredApp(serviceName);
+  if (expectedModifiedAt && Math.abs(new Date(expectedModifiedAt).getTime() - stats.mtimeMs) > 1) {
+    const error = new Error("app_config_changed");
+    error.statusCode = 409;
+    throw error;
+  }
+  const nextContent = String(content ?? "");
+  if (Buffer.byteLength(nextContent, "utf8") > FILE_READ_LIMIT) {
+    const error = new Error("app_config_too_large");
+    error.statusCode = 413;
+    throw error;
+  }
+  const temporaryPath = `${config.path}.jcore-tmp`;
+  try {
+    writeFileSync(temporaryPath, nextContent, { encoding: "utf8", mode: stats.mode });
+    renameSync(temporaryPath, config.path);
+  } finally {
+    if (existsSync(temporaryPath)) unlinkSync(temporaryPath);
+  }
+  return readAppConfig(config.service);
 }
 
 function collectObsidianNotes() {
@@ -1149,6 +1347,42 @@ const server = createServer(async (req, res) => {
 
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host}`);
+
+    if (req.method === "POST" && url.pathname === "/api/auth/login") {
+      if (!loginAllowed(req)) return sendJson(req, res, 429, { error: "login_rate_limited" });
+      const body = await readJson(req);
+      const valid = sameSecret(body.username || "", AUTH_USERNAME) && sameSecret(body.password || "", AUTH_PASSWORD);
+      if (!valid) {
+        const remaining = recordLoginFailure(req);
+        return sendJson(req, res, 401, { error: "invalid_credentials", remaining });
+      }
+      loginAttempts.delete(String(req.socket.remoteAddress || "unknown"));
+      return sendJson(req, res, 200, {
+        authenticated: true,
+        user: { username: AUTH_USERNAME },
+        connection: { mode: "same-origin", automatic: true },
+      }, { "set-cookie": issueAuthCookie(req, AUTH_USERNAME) });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/auth/session") {
+      const session = authSession(req);
+      return sendJson(req, res, 200, {
+        authenticated: Boolean(session),
+        user: session ? { username: session.username } : null,
+        connection: { mode: "same-origin", automatic: true },
+      });
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/auth/logout") {
+      const sessionId = cookieValue(req, "jcore_session");
+      if (sessionId) authSessions.delete(sessionId);
+      return sendJson(req, res, 200, { authenticated: false }, { "set-cookie": clearAuthCookie(req) });
+    }
+
+    if ((req.method === "GET" || req.method === "HEAD") && !url.pathname.startsWith("/api/") && url.pathname !== "/health" && url.pathname !== "/dashboard") {
+      if (serveWebAsset(req, res, url.pathname)) return;
+    }
+
     const hasGatewayAuthorization = authorized(req);
     const hasDashboardSession = authorizedDashboardSession(req);
 
@@ -1477,6 +1711,16 @@ const server = createServer(async (req, res) => {
       });
     }
 
+    if (req.method === "GET" && url.pathname === "/api/apps/config") {
+      return sendJson(req, res, 200, readAppConfig(url.searchParams.get("service") || ""));
+    }
+
+    if (req.method === "PUT" && url.pathname === "/api/apps/config") {
+      const body = await readJson(req);
+      const saved = writeAppConfig(body.service, body.content, body.expectedModifiedAt || "");
+      return sendJson(req, res, 200, { ...saved, saved: true });
+    }
+
     if (req.method === "GET" && url.pathname === "/api/obsidian/notes") {
       const vault = collectObsidianNotes();
       return sendJson(req, res, 200, {
@@ -1602,7 +1846,7 @@ const server = createServer(async (req, res) => {
     return sendJson(req, res, 404, { error: "not_found" });
   } catch (error) {
     const status = Number(error?.statusCode) || (error instanceof SyntaxError ? 400 : 500);
-    return sendJson(req, res, status, { error: error?.message || "gateway_error" });
+    return sendJson(req, res, status, { error: error?.message || "gateway_error", ...(error?.details || {}) });
   }
 });
 

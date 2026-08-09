@@ -1,5 +1,15 @@
 # J-Core Console
 
+## Ubuntu local appliance
+
+Sau khi Windows đã bật WSL và khởi động lại, mở Ubuntu rồi chạy:
+
+```bash
+bash /mnt/d/test/j-core-console/scripts/install-ubuntu.sh
+```
+
+Installer hỏi tài khoản/mật khẩu J-Core, build giao diện và chạy một user service tại `http://127.0.0.1:8787`. Giao diện và server dùng cùng origin; đăng nhập tạo cookie HttpOnly nên không cần nhập URL hoặc API token. Các dashboard Hermes, OpenClaw, 9Router và Claude có editor ghi vào đúng file được khai báo bởi `JCORE_*_CONFIG_PATH`.
+
 A browser-based personal AI console inspired by fictional supercomputer and mission-control interfaces.
 
 ## Run Locally

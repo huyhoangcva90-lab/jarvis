@@ -1,11 +1,17 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { once } from "node:events";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const gatewayPort = 18787;
 const upstreamPort = 20129;
 const token = "jcore-smoke-token";
 const hermesRequests = [];
+const configDirectory = mkdtempSync(join(tmpdir(), "jcore-config-smoke-"));
+const configPath = join(configDirectory, "openclaw.json");
+writeFileSync(configPath, '{"mode":"before"}\n', "utf8");
 
 const upstream = createServer(async (req, res) => {
   if (req.url === "/v1/models") {
@@ -69,6 +75,10 @@ const gateway = spawn(process.execPath, ["server/gateway.mjs"], {
     JCORE_GATEWAY_HOST: "127.0.0.1",
     JCORE_GATEWAY_PORT: String(gatewayPort),
     JCORE_GATEWAY_TOKEN: token,
+    JCORE_AUTH_USERNAME: "smoke-admin",
+    JCORE_AUTH_PASSWORD: "smoke-password",
+    JCORE_OPENCLAW_CONFIG_PATH: configPath,
+    JCORE_APP_CONFIG_WRITE_ENABLED: "true",
     JCORE_CORS_ORIGIN: "http://127.0.0.1:4173",
     JCORE_WORKSPACE_ROOT: process.cwd(),
     JCORE_TERMINAL_ENABLED: "true",
@@ -109,6 +119,38 @@ try {
   const base = `http://127.0.0.1:${gatewayPort}`;
   const unauthorized = await fetch(`${base}/health`);
   if (unauthorized.status !== 401) throw new Error(`Expected health 401, received ${unauthorized.status}`);
+
+  const rejectedLogin = await fetch(`${base}/api/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "smoke-admin", password: "wrong" }),
+  });
+  if (rejectedLogin.status !== 401) throw new Error(`Expected login 401, received ${rejectedLogin.status}`);
+
+  const acceptedLogin = await fetch(`${base}/api/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "smoke-admin", password: "smoke-password" }),
+  });
+  const loginBody = await acceptedLogin.json();
+  const authCookie = acceptedLogin.headers.get("set-cookie")?.split(";")[0] || "";
+  if (!acceptedLogin.ok || !loginBody.authenticated || !authCookie) throw new Error(`Login failed: ${JSON.stringify(loginBody)}`);
+
+  const authenticatedSession = await fetch(`${base}/api/auth/session`, { headers: { cookie: authCookie } });
+  const authenticatedSessionBody = await authenticatedSession.json();
+  if (!authenticatedSessionBody.authenticated || authenticatedSessionBody.connection?.mode !== "same-origin") {
+    throw new Error(`Session lookup failed: ${JSON.stringify(authenticatedSessionBody)}`);
+  }
+
+  const configRead = await fetch(`${base}/api/apps/config?service=openclaw`, { headers: { cookie: authCookie } });
+  const configBody = await configRead.json();
+  if (!configRead.ok || !configBody.content?.includes("before")) throw new Error(`Config read failed: ${JSON.stringify(configBody)}`);
+  const configWrite = await fetch(`${base}/api/apps/config`, {
+    method: "PUT",
+    headers: { cookie: authCookie, "content-type": "application/json" },
+    body: JSON.stringify({ service: "openclaw", content: '{"mode":"after"}\n', expectedModifiedAt: configBody.modifiedAt }),
+  });
+  if (!configWrite.ok || !readFileSync(configPath, "utf8").includes("after")) throw new Error(`Config write failed: ${await configWrite.text()}`);
 
   const authHeaders = { authorization: `Bearer ${token}` };
   const health = await fetch(`${base}/health`, { headers: authHeaders });
@@ -319,7 +361,7 @@ try {
     throw new Error(`Native management API proxy failed: ${JSON.stringify(nativeSettingsBody)}`);
   }
 
-  console.log("Gateway smoke test passed: auth, workspace, terminal guards, Hermes profile metadata, voice fallback, routing and dashboard proxy.");
+  console.log("Gateway smoke test passed: login session, live app config, workspace, terminal guards, Hermes metadata, routing and dashboard proxy.");
 } finally {
   gateway.kill();
   upstream.close();
@@ -327,4 +369,5 @@ try {
     once(gateway, "exit"),
     new Promise((resolve) => setTimeout(resolve, 1000)),
   ]);
+  rmSync(configDirectory, { recursive: true, force: true });
 }

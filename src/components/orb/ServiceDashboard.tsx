@@ -1,5 +1,6 @@
 import type { FormEvent } from "react";
 import { DEFAULT_HERMES_PROFILE_ID, HERMES_PROFILES, type HermesProfile, type HermesProfileId } from "../../utils/hermesProfiles";
+import AppConfigEditor from "./AppConfigEditor";
 
 type ServiceHealth = {
   latencyMs?: number;
@@ -9,6 +10,7 @@ type ServiceHealth = {
 };
 
 type ServiceDashboardProps = {
+  data?: any;
   label: string;
   description: string;
   online: boolean;
@@ -58,6 +60,7 @@ function modelNames(overview: any): string[] {
 }
 
 export default function ServiceDashboard({
+  data,
   label,
   description,
   online,
@@ -185,6 +188,8 @@ export default function ServiceDashboard({
           ))}
         </section>
       )}
+
+      {data && <AppConfigEditor data={data} service={isHermes ? "hermes" : "claude"} />}
 
       <form className="service-test-console" onSubmit={submit}>
         <label htmlFor={`${label.toLowerCase()}-test-prompt`}>

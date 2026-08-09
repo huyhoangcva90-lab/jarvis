@@ -1,4 +1,5 @@
 node_modules/
+.jcore/
 .pnpm-store/
 dist/
 .env
