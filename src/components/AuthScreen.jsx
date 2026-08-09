@@ -6,94 +6,85 @@ export default function AuthScreen({ data, onUnlock }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [attempts, setAttempts] = useState(0);
+  const [phase, setPhase] = useState("standby");
 
   const expectedUsername = data?.auth?.username || "admin";
   const expectedPassword = data?.auth?.password || "123456";
   const locked = attempts >= 5;
 
-  useEffect(() => {
-    soundManager.setEnabled(data?.soundEnabled !== false);
-  }, [data?.soundEnabled]);
+  useEffect(() => soundManager.setEnabled(data?.soundEnabled !== false), [data?.soundEnabled]);
 
   const submit = (event) => {
     event.preventDefault();
-    if (locked) return;
-    if (username.trim() === expectedUsername && password === expectedPassword) {
-      soundManager.play("success");
-      onUnlock();
-      return;
-    }
-    soundManager.play("warning");
-    setAttempts((value) => value + 1);
-    setError("Sai tai khoan hoac mat khau.");
-    setPassword("");
+    if (locked || phase === "granting") return;
+    setPhase("scanning");
+    window.setTimeout(() => {
+      if (username.trim() === expectedUsername && password === expectedPassword) {
+        setPhase("granting");
+        setError("");
+        soundManager.play("spider");
+        window.setTimeout(onUnlock, 900);
+        return;
+      }
+      soundManager.play("warning");
+      setAttempts((value) => value + 1);
+      setPhase("denied");
+      setError("ĐỊNH DANH KHÔNG KHỚP · KIỂM TRA LẠI QUYỀN TRUY CẬP");
+      setPassword("");
+    }, 520);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-void px-5">
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(34,211,238,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.05)_1px,transparent_1px)] bg-[size:42px_42px] opacity-25 [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_82%)]" />
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-cyan-300/10 to-transparent" />
+    <main className={`stark-auth ${phase}`}>
+      <div className="stark-auth-grid" aria-hidden="true" />
+      <div className="stark-auth-scan" aria-hidden="true" />
+      <div className="stark-auth-corners" aria-hidden="true"><i /><i /><i /><i /></div>
 
-      <form
-        onSubmit={submit}
-        className="relative z-10 w-full max-w-sm rounded-xl border border-cyanCore/30 bg-slate-950/92 p-7 shadow-[0_0_50px_rgba(34,211,238,0.12)]"
-      >
-        <div className="mb-7 text-center">
-          <div className="mx-auto mb-4 h-3 w-3 rounded-full bg-greenCore shadow-[0_0_14px_#4ade80]" />
-          <h1 className="font-mono text-2xl font-bold tracking-[0.28em] text-white">JARVIS</h1>
-          <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.24em] text-cyanCore/70">
-            Hermes profile gateway
-          </p>
+      <header className="stark-auth-topline">
+        <div><span>J</span><b>J-CORE</b><small>PRIVATE INTELLIGENCE SYSTEM</small></div>
+        <p><i /> LOCAL ENCRYPTION ACTIVE</p>
+        <code>MK VII // {new Date().getFullYear()}</code>
+      </header>
+
+      <section className="stark-auth-console">
+        <div className="stark-auth-reactor" aria-hidden="true">
+          <div className="reactor-orbit orbit-a"><i /><i /><i /></div>
+          <div className="reactor-orbit orbit-b"><i /><i /><i /><i /></div>
+          <div className="reactor-brackets"><i /><i /><i /><i /></div>
+          <div className="reactor-core"><span>J</span><small>{phase === "granting" ? "OPEN" : phase === "scanning" ? "SCAN" : "AI"}</small></div>
+          <svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="72" /><circle cx="100" cy="100" r="88" /></svg>
+          <p>ARC IDENTITY REACTOR</p>
         </div>
 
-        <div className="space-y-4 font-mono">
-          <label className="field-label">
-            Tai khoan
-            <input
-              className="hud-input text-sm"
-              autoComplete="username"
-              value={username}
-              disabled={locked}
-              onChange={(event) => {
-                setUsername(event.target.value);
-                setError("");
-              }}
-            />
+        <form className="stark-auth-form" onSubmit={submit}>
+          <div className="stark-auth-heading">
+            <span>SECURE ACCESS // LEVEL 07</span>
+            <h1>WELCOME BACK,<br /><b>{(username || "OPERATOR").toUpperCase()}</b></h1>
+            <p>Xác thực danh tính để kết nối J-Core, Hermes và mạng tác nhân cá nhân.</p>
+          </div>
+
+          <label className="stark-field">
+            <span>OPERATOR ID</span>
+            <div><i>01</i><input autoComplete="username" value={username} disabled={locked || phase === "granting"} onChange={(event) => { setUsername(event.target.value); setError(""); setPhase("standby"); }} /><b>VERIFIED</b></div>
           </label>
-          <label className="field-label">
-            Mat khau
-            <input
-              className="hud-input text-sm"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              disabled={locked}
-              onChange={(event) => {
-                setPassword(event.target.value);
-                setError("");
-              }}
-            />
+          <label className="stark-field">
+            <span>ACCESS KEY</span>
+            <div><i>02</i><input type="password" autoComplete="current-password" value={password} disabled={locked || phase === "granting"} placeholder="••••••••••••" onChange={(event) => { setPassword(event.target.value); setError(""); setPhase("standby"); }} /><b>{password ? "ENCRYPTED" : "WAITING"}</b></div>
           </label>
-        </div>
 
-        <div className="mt-5 min-h-5 text-center font-mono text-xs">
-          {locked ? (
-            <span className="text-dangerCore">Tam khoa dang nhap. Tai lai trang de thu lai.</span>
-          ) : error ? (
-            <span className="text-dangerCore">{error}</span>
-          ) : (
-            <span className="text-cyan-100/55">Dang nhap de mo bang dieu khien cuc bo.</span>
-          )}
-        </div>
+          <div className="stark-auth-status" role="status">
+            <i />
+            <span>{locked ? "ACCESS LOCKED · RELOAD REQUIRED" : error || (phase === "scanning" ? "SCANNING BIOMETRIC SIGNATURE…" : phase === "granting" ? "IDENTITY CONFIRMED · OPENING CORE…" : "SYSTEM READY · AWAITING CREDENTIALS")}</span>
+            <small>{String(5 - Math.min(attempts, 5)).padStart(2, "0")} ATTEMPTS</small>
+          </div>
 
-        <button
-          type="submit"
-          className="hud-button primary mt-6 w-full py-3 text-xs uppercase"
-          disabled={locked}
-        >
-          Mo J-Core Dashboard
-        </button>
-      </form>
-    </div>
+          <button className="stark-auth-submit" type="submit" disabled={locked || phase === "scanning" || phase === "granting"}>
+            <span>{phase === "granting" ? "ACCESS GRANTED" : phase === "scanning" ? "AUTHENTICATING" : "INITIALIZE J-CORE"}</span><b>→</b>
+          </button>
+        </form>
+      </section>
+
+      <footer className="stark-auth-footer"><span>HERMES GATEWAY</span><i /><span>OPENCLAW LINK</span><i /><span>9ROUTER MATRIX</span><b>ALL SYSTEMS STANDBY</b></footer>
+    </main>
   );
 }

@@ -49,6 +49,7 @@ export default function SpiderPersonalHub({ currentTime, username, connections, 
   const [note, setNote] = useState("");
   const [evPrompt, setEvPrompt] = useState("");
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [evOpen, setEvOpen] = useState(false);
 
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(nodes)), [nodes]);
   const selected = nodes.find((node) => node.id === selectedId) || null;
@@ -83,13 +84,13 @@ export default function SpiderPersonalHub({ currentTime, username, connections, 
     <div className="spider-personal-shell">
       <div className="spider-scanlines" aria-hidden="true" />
       <header className="spider-topbar">
-        <button className="spider-identity" type="button" onClick={() => setTab("personal")}>
-          <span className="spider-mask">◉</span>
-          <span><small>PERSONAL LINK // E.V</small><b>{username.toUpperCase()} TRACKER</b></span>
+        <button className="spider-identity" type="button" onClick={() => { setTab("personal"); setEvOpen(true); }}>
+          <span className="spider-mask">◉</span><span><small>OPERATOR</small><b>{username.toUpperCase()}</b></span>
         </button>
+        <div className="spider-tracker-brand"><small>PERSONAL</small><b>SPIDER <i /> LINK</b><em>LIVE PLANNING NETWORK</em></div>
         <nav aria-label="Spider Personal navigation">
           {([['map', 'WEB MAP'], ['personal', 'PERSONAL'], ['missions', 'MISSIONS'], ['links', 'LINKS']] as const).map(([id, label]) => (
-            <button className={tab === id ? "active" : ""} type="button" key={id} onClick={() => setTab(id)}>{label}</button>
+            <button className={tab === id ? "active" : ""} type="button" key={id} onClick={() => { setTab(id); if (id === "personal") setEvOpen(true); }}>{label}</button>
           ))}
         </nav>
         <div className="spider-top-actions">
@@ -167,8 +168,10 @@ export default function SpiderPersonalHub({ currentTime, username, connections, 
         </form>
       </main>
 
-      <aside className="spider-ev-panel">
-        <header><span><i /> E.V PROFILE</span><small>{isSending ? "THINKING" : connections.hermes ? "ONLINE" : "LOCAL MODE"}</small></header>
+      <button className={`spider-message-launch ${evOpen ? "active" : ""}`} type="button" onClick={() => setEvOpen((open) => !open)}><i /><span>MESSAGE<br />CENTER</span><b>{messages.length}</b></button>
+
+      <aside className={`spider-ev-panel ${evOpen ? "is-open" : ""}`}>
+        <header><span><i /> E.V PROFILE</span><small>{isSending ? "THINKING" : connections.hermes ? "ONLINE" : "LOCAL MODE"}</small><button type="button" onClick={() => setEvOpen(false)}>CLOSE ×</button></header>
         <div className="spider-ev-copy">
           <b>Kế hoạch trở nên hữu hình.</b>
           <p>{latestEv?.text || "Nói mục tiêu của bạn. Tôi sẽ nối địa điểm, công việc và các bước tiếp theo thành một web map."}</p>
