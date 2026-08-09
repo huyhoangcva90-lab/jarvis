@@ -2679,6 +2679,131 @@ body[data-activity="speaking"] .prompt-shell {
   }
 }
 
+/* Focused dashboard route: each tool becomes a calm, dedicated workspace. */
+.dashboard-focus-header {
+  pointer-events: auto;
+  position: absolute;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 76px;
+  display: grid;
+  grid-template-columns: minmax(150px, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 0 22px;
+  border-bottom: 1px solid rgba(var(--accent-rgb), .22);
+  background:
+    linear-gradient(90deg, rgba(var(--accent-rgb), .1), transparent 28%),
+    rgba(2, 5, 8, .97);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .46);
+  backdrop-filter: blur(18px);
+}
+
+.dashboard-back {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 1px solid rgba(var(--accent-rgb), .34);
+  border-radius: 4px;
+  padding: 0 14px;
+  color: rgba(255, 245, 225, .72);
+  background: rgba(var(--accent-rgb), .06);
+  font: 700 10px/1 "JetBrains Mono", monospace;
+  letter-spacing: .1em;
+  cursor: pointer;
+}
+
+.dashboard-back > span { color: var(--hot); font-size: 18px; }
+.dashboard-back:hover,
+.dashboard-back:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; color: var(--hot); background: rgba(var(--accent-rgb), .14); }
+
+.dashboard-focus-title { min-width: 0; display: grid; gap: 4px; }
+.dashboard-focus-title > span { color: var(--accent); font: 700 8px/1 "JetBrains Mono", monospace; letter-spacing: .16em; }
+.dashboard-focus-title h1 { overflow: hidden; margin: 0; color: #fff8ea; font: 700 17px/1.2 Inter, system-ui, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+
+.dashboard-local-session {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 4px 8px;
+  color: #68efa0;
+  font: 700 8px/1 "JetBrains Mono", monospace;
+  letter-spacing: .1em;
+}
+.dashboard-local-session i { grid-row: 1 / span 2; }
+.dashboard-local-session time { color: rgba(255, 245, 225, .46); font-size: 10px; }
+
+.hud-overlay.is-dashboard-focus > .os-taskbar,
+.hud-overlay.is-dashboard-focus > .system-signal,
+.hud-overlay.is-dashboard-focus > .os-minimized-dock,
+.hud-overlay.is-dashboard-focus > .activity-hub,
+.hud-overlay.is-dashboard-focus > .history-panel,
+.hud-overlay.is-dashboard-focus > .settings-panel,
+.hud-overlay.is-dashboard-focus > .hud-bottom {
+  display: none !important;
+}
+
+.hud-overlay.is-dashboard-focus > .os-window { display: none; }
+.hud-overlay[data-focus-dashboard="workspace"] > .workspace-os-window,
+.hud-overlay[data-focus-dashboard="terminal"] > .terminal-os-window,
+.hud-overlay[data-focus-dashboard="agents"] > .agents-os-window,
+.hud-overlay[data-focus-dashboard="router"] > .router-os-window,
+.hud-overlay[data-focus-dashboard="hermes"] > .hermes-os-window,
+.hud-overlay[data-focus-dashboard="claude"] > .claude-os-window,
+.hud-overlay[data-focus-dashboard="intel"] > .intel-os-window {
+  display: grid;
+  top: 88px !important;
+  left: 18px !important;
+  right: 18px !important;
+  bottom: 18px !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: none !important;
+  max-height: none !important;
+  z-index: 24;
+  transform: none !important;
+  grid-template-rows: minmax(0, 1fr);
+  border-color: rgba(var(--accent-rgb), .3);
+  border-radius: 7px;
+  background: rgba(2, 5, 8, .97);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .58), inset 0 0 44px rgba(var(--accent-rgb), .025);
+  animation: dashboard-enter 220ms ease-out both;
+}
+
+.hud-overlay.is-dashboard-focus > .os-window > .os-window-head { display: none; }
+.hud-overlay.is-dashboard-focus > .os-window > .os-window-body { min-height: 0; }
+
+@keyframes dashboard-enter {
+  from { opacity: 0; transform: translateY(8px) scale(.995); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (max-width: 760px) {
+  .dashboard-focus-header {
+    height: 66px;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    padding: 0 10px;
+  }
+  .dashboard-back { min-width: 44px; padding: 0 10px; }
+  .dashboard-back b { display: none; }
+  .dashboard-focus-title h1 { font-size: 14px; }
+  .dashboard-local-session { display: none; }
+  .hud-overlay[data-focus-dashboard] > .os-window {
+    top: 74px !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: 8px !important;
+  }
+  .ubuntu-local-steps { grid-template-columns: minmax(0, 1fr); }
+  .ubuntu-local-steps li { min-height: 50px; border-right: 0; border-bottom: 1px solid rgba(102, 242, 162, .08); }
+  .workspace-local-actions > span { display: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .system-signal i { animation: none; }
 }
@@ -6767,6 +6892,132 @@ body[data-activity="speaking"] .prompt-shell {
   background: rgba(1, 5, 10, 0.88);
 }
 
+.ubuntu-local-onboarding {
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(46, 231, 134, 0.14), transparent 32%),
+    linear-gradient(135deg, rgba(20, 184, 166, 0.05), transparent 45%),
+    #030708;
+}
+
+.ubuntu-local-hero {
+  width: min(680px, calc(100% - 32px));
+  margin: auto;
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  padding: 42px 24px;
+  text-align: center;
+}
+
+.ubuntu-local-hero > svg {
+  width: 52px;
+  height: 52px;
+  fill: none;
+  stroke: #66f2a2;
+  stroke-width: 1.25;
+  filter: drop-shadow(0 0 18px rgba(46, 231, 134, 0.35));
+}
+
+.local-kicker,
+.workspace-local-actions > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #76f6aa;
+  font: 700 9px/1 "JetBrains Mono", monospace;
+  letter-spacing: .16em;
+}
+
+.local-kicker i,
+.workspace-local-actions i,
+.dashboard-local-session i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #35e984;
+  box-shadow: 0 0 12px rgba(53, 233, 132, .72);
+}
+
+.ubuntu-local-hero h2 {
+  margin: 0;
+  color: #f1fff6;
+  font: 700 clamp(22px, 3vw, 36px)/1.1 Inter, system-ui, sans-serif;
+  letter-spacing: -.03em;
+}
+
+.ubuntu-local-hero p {
+  max-width: 620px;
+  margin: 0;
+  color: rgba(226, 250, 235, .64);
+  font: 500 13px/1.7 Inter, system-ui, sans-serif;
+}
+
+.ubuntu-local-hero > button,
+.workspace-local-actions button {
+  min-height: 42px;
+  border: 1px solid rgba(102, 242, 162, .58);
+  border-radius: 3px;
+  padding: 0 18px;
+  color: #03150b;
+  background: #66f2a2;
+  font: 800 9px/1 "JetBrains Mono", monospace;
+  letter-spacing: .12em;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(53, 233, 132, .16);
+}
+
+.ubuntu-local-hero > button:hover,
+.ubuntu-local-hero > button:focus-visible,
+.workspace-local-actions button:hover,
+.workspace-local-actions button:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+  background: #93ffc0;
+}
+
+.ubuntu-local-hero small {
+  color: #ff9aae;
+  font-size: 10px;
+}
+
+.ubuntu-local-steps {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid rgba(102, 242, 162, .14);
+  padding: 0;
+  list-style: none;
+}
+
+.ubuntu-local-steps li {
+  min-height: 68px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-right: 1px solid rgba(102, 242, 162, .1);
+  color: rgba(226, 250, 235, .6);
+  font-size: 11px;
+}
+
+.ubuntu-local-steps b { color: #66f2a2; font-family: "JetBrains Mono", monospace; }
+.ubuntu-local-steps code { color: #d9ffe7; font-size: 9px; }
+
+.workspace-local-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.workspace-local-actions button {
+  min-height: 32px;
+  padding: 0 10px;
+  color: #bfffd9;
+  background: rgba(53, 233, 132, .08);
+}
+
 .workspace-toolbar,
 .workspace-pathbar {
   display: flex;
@@ -7068,6 +7319,27 @@ body[data-activity="speaking"] .prompt-shell {
 
 .obsidian-vault-state.loading svg {
   animation: hubStatusPulse 800ms ease-in-out infinite alternate;
+}
+
+@media (max-width: 760px) {
+  .ubuntu-local-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ubuntu-local-steps li {
+    min-height: 46px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(102, 242, 162, .08);
+    padding: 9px 14px;
+  }
+
+  .ubuntu-local-hero {
+    padding-block: 30px;
+  }
+
+  .workspace-local-actions > span {
+    display: none;
+  }
 }
 
 .mindmap-controls input {

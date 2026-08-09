@@ -1,31 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { gatewayFetch } from "../../utils/gatewayClient.js";
+import { useMemo, useState } from "react";
 import Icon from "./Icon";
 
-type WorkspaceRoot = {
-  id: string;
-  label: string;
-  available: boolean;
-  writable: boolean;
+type LocalHandle = any;
+
+type LocalEntry = {
+  name: string;
+  kind: "directory" | "file";
+  handle: LocalHandle;
+  size: number | null;
 };
 
-type WorkspaceEntry = {
+type OpenFile = {
   name: string;
   path: string;
-  type: "directory" | "file";
-  size: number | null;
-  modifiedAt: string;
+  handle: LocalHandle;
+  content: string;
+  originalContent: string;
+  size: number;
 };
-
-type UbuntuWorkspaceProps = {
-  data: any;
-};
-
-function parentPath(path: string) {
-  const parts = path.split("/").filter(Boolean);
-  parts.pop();
-  return parts.join("/");
-}
 
 function formatBytes(value: number | null) {
   if (value === null) return "DIR";
@@ -34,180 +26,169 @@ function formatBytes(value: number | null) {
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export default function UbuntuWorkspace({ data }: UbuntuWorkspaceProps) {
-  const [roots, setRoots] = useState<WorkspaceRoot[]>([]);
-  const [rootId, setRootId] = useState("workspace");
-  const [path, setPath] = useState("");
-  const [entries, setEntries] = useState<WorkspaceEntry[]>([]);
-  const [selectedFile, setSelectedFile] = useState<{ path: string; content: string; originalContent: string; size: number; modifiedAt: string } | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-  const [error, setError] = useState("");
+function isTextFile(name: string, type: string) {
+  if (type.startsWith("text/")) return true;
+  return /\.(?:txt|md|mdx|json|jsonc|ya?ml|toml|ini|conf|env|log|csv|tsv|js|jsx|mjs|cjs|ts|tsx|css|scss|html|xml|svg|py|sh|bash|zsh|fish|ps1|go|rs|java|c|h|cpp|hpp|sql|graphql|dockerfile)$/i.test(name);
+}
 
-  const loadDirectory = useCallback(async (nextRootId: string, nextPath: string) => {
+export default function UbuntuWorkspace() {
+  const [rootHandle, setRootHandle] = useState<LocalHandle | null>(null);
+  const [stack, setStack] = useState<Array<{ name: string; handle: LocalHandle }>>([]);
+  const [entries, setEntries] = useState<LocalEntry[]>([]);
+  const [selectedFile, setSelectedFile] = useState<OpenFile | null>(null);
+  const [state, setState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const path = useMemo(() => stack.map((item) => item.name).join(" / "), [stack]);
+  const dirty = Boolean(selectedFile && selectedFile.content !== selectedFile.originalContent);
+  const pickerSupported = typeof window !== "undefined" && "showDirectoryPicker" in window;
+
+  const loadDirectory = async (handle: LocalHandle, nextStack: Array<{ name: string; handle: LocalHandle }>) => {
     setState("loading");
     setError("");
     try {
-      const payload: any = await gatewayFetch(
-        data,
-        `/api/workspace/tree?root=${encodeURIComponent(nextRootId)}&path=${encodeURIComponent(nextPath)}`,
-        { method: "GET", timeoutMs: 10000 },
-      );
-      setRootId(nextRootId);
-      setPath(String(payload.path || ""));
-      setEntries(Array.isArray(payload.entries) ? payload.entries : []);
+      const nextEntries: LocalEntry[] = [];
+      for await (const [, entryHandle] of handle.entries()) {
+        let size: number | null = null;
+        if (entryHandle.kind === "file") {
+          try { size = (await entryHandle.getFile()).size; } catch { size = 0; }
+        }
+        nextEntries.push({ name: entryHandle.name, kind: entryHandle.kind, handle: entryHandle, size });
+      }
+      nextEntries.sort((a, b) => a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "directory" ? -1 : 1);
+      setEntries(nextEntries);
+      setStack(nextStack);
       setSelectedFile(null);
       setState("ready");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Không đọc được thư mục từ Ubuntu.");
+      setError(requestError instanceof Error ? requestError.message : "Không thể đọc thư mục local.");
       setState("error");
     }
-  }, [data]);
+  };
 
-  useEffect(() => {
-    let active = true;
-    gatewayFetch(data, "/api/workspace/roots", { method: "GET", timeoutMs: 10000 })
-      .then((payload: any) => {
-        if (!active) return;
-        const nextRoots = Array.isArray(payload.roots) ? payload.roots : [];
-        setRoots(nextRoots);
-        const initialRoot = nextRoots.find((root: WorkspaceRoot) => root.id === "workspace" && root.available)?.id
-          || nextRoots.find((root: WorkspaceRoot) => root.available)?.id;
-        if (!initialRoot) throw new Error("Chưa có workspace root khả dụng trên Gateway.");
-        return loadDirectory(initialRoot, "");
-      })
-      .catch((requestError) => {
-        if (!active) return;
-        setError(requestError instanceof Error ? requestError.message : "Không tải được danh sách workspace.");
-        setState("error");
-      });
-    return () => { active = false; };
-  }, [data, loadDirectory]);
+  const mountFolder = async () => {
+    if (!pickerSupported) {
+      setError("Trình duyệt này chưa hỗ trợ mở thư mục trực tiếp. Hãy dùng Chrome hoặc Edge bản mới.");
+      setState("error");
+      return;
+    }
+    try {
+      const handle = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+      setRootHandle(handle);
+      await loadDirectory(handle, [{ name: handle.name, handle }]);
+    } catch (requestError: any) {
+      if (requestError?.name === "AbortError") return;
+      setError(requestError instanceof Error ? requestError.message : "Không thể cấp quyền thư mục.");
+      setState("error");
+    }
+  };
 
-  const openEntry = async (entry: WorkspaceEntry) => {
-    if (entry.type === "directory") {
-      await loadDirectory(rootId, entry.path);
+  const openEntry = async (entry: LocalEntry) => {
+    if (entry.kind === "directory") {
+      await loadDirectory(entry.handle, [...stack, { name: entry.name, handle: entry.handle }]);
       return;
     }
     setState("loading");
     setError("");
     try {
-      const payload: any = await gatewayFetch(
-        data,
-        `/api/workspace/file?root=${encodeURIComponent(rootId)}&path=${encodeURIComponent(entry.path)}`,
-        { method: "GET", timeoutMs: 10000 },
-      );
-      setSelectedFile({ path: payload.path, content: payload.content, originalContent: payload.content, size: payload.size, modifiedAt: payload.modifiedAt });
+      const file = await entry.handle.getFile();
+      if (file.size > 4 * 1024 * 1024) throw new Error("File lớn hơn 4 MB; trình chỉnh sửa local chỉ mở file văn bản nhỏ.");
+      if (!isTextFile(file.name, file.type)) throw new Error("Đây không phải file văn bản có thể chỉnh sửa an toàn trong trình duyệt.");
+      const content = await file.text();
+      setSelectedFile({ name: file.name, path: `${path} / ${file.name}`, handle: entry.handle, content, originalContent: content, size: file.size });
       setState("ready");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Không đọc được file.");
+      setError(requestError instanceof Error ? requestError.message : "Không thể đọc file.");
       setState("error");
     }
   };
 
-  const availableRoots = useMemo(() => roots.filter((root) => root.available), [roots]);
-  const activeRoot = roots.find((root) => root.id === rootId);
-  const dirty = Boolean(selectedFile && selectedFile.content !== selectedFile.originalContent);
-
   const saveSelectedFile = async () => {
-    if (!selectedFile || !activeRoot?.writable || !dirty || saving) return;
+    if (!selectedFile || !dirty || saving) return;
     setSaving(true);
     setError("");
     try {
-      const payload: any = await gatewayFetch(data, "/api/workspace/file", {
-        method: "PUT",
-        timeoutMs: 15000,
-        body: JSON.stringify({ root: rootId, path: selectedFile.path, content: selectedFile.content, expectedModifiedAt: selectedFile.modifiedAt }),
-      });
-      setSelectedFile((current) => current ? { ...current, originalContent: current.content, size: payload.size, modifiedAt: payload.modifiedAt } : current);
+      const writable = await selectedFile.handle.createWritable();
+      await writable.write(selectedFile.content);
+      await writable.close();
+      const file = await selectedFile.handle.getFile();
+      setSelectedFile((current) => current ? { ...current, originalContent: current.content, size: file.size } : current);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Không lưu được file.");
+      setError(requestError instanceof Error ? requestError.message : "Không thể lưu file local.");
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <section className="ubuntu-workspace" role="tabpanel" aria-label="Ubuntu Files">
-      <header className="workspace-toolbar">
-        <div>
-          <Icon name="document" />
-          <span><b>UBUNTU FILES</b><small>{activeRoot?.writable ? "SAFE EDIT BROKER" : "READ-ONLY BROKER"}</small></span>
+  const goUp = async () => {
+    if (stack.length <= 1) return;
+    const nextStack = stack.slice(0, -1);
+    await loadDirectory(nextStack[nextStack.length - 1].handle, nextStack);
+  };
+
+  const disconnect = () => {
+    setRootHandle(null);
+    setStack([]);
+    setEntries([]);
+    setSelectedFile(null);
+    setError("");
+    setState("idle");
+  };
+
+  if (!rootHandle) {
+    return (
+      <section className="ubuntu-workspace ubuntu-local-onboarding" role="tabpanel" aria-label="Ubuntu local files">
+        <div className="ubuntu-local-hero">
+          <span className="local-kicker"><i /> LOCAL DIRECT / NO API</span>
+          <Icon name="external" />
+          <h2>Kết nối Ubuntu local</h2>
+          <p>Mở thẳng một thư mục WSL trên máy này. J-Core chỉ đọc hoặc ghi sau khi bạn chủ động cấp quyền; dữ liệu không đi qua Gateway và không được tải lên.</p>
+          <button type="button" onClick={() => void mountFolder()}>CHỌN THƯ MỤC UBUNTU</button>
+          {!pickerSupported && <small>Yêu cầu Chrome hoặc Edge bản mới.</small>}
         </div>
-        <label>
-          <span>Root</span>
-          <select
-            value={rootId}
-            onChange={(event) => void loadDirectory(event.target.value, "")}
-            disabled={state === "loading"}
-          >
-            {availableRoots.map((root) => <option key={root.id} value={root.id}>{root.label}</option>)}
-          </select>
-        </label>
+        <ol className="ubuntu-local-steps">
+          <li><b>01</b><span>Đăng nhập J-Core</span></li>
+          <li><b>02</b><span>Chọn <code>\\wsl.localhost\Ubuntu\home\...</code></span></li>
+          <li><b>03</b><span>Chỉnh sửa tại chỗ, không API</span></li>
+        </ol>
+      </section>
+    );
+  }
+
+  return (
+    <section className="ubuntu-workspace" role="tabpanel" aria-label="Ubuntu local files">
+      <header className="workspace-toolbar">
+        <div><Icon name="document" /><span><b>UBUNTU LOCAL</b><small>DIRECT FILE ACCESS · NO API</small></span></div>
+        <div className="workspace-local-actions"><span><i /> PHIÊN LOCAL</span><button type="button" onClick={disconnect}>NGẮT THƯ MỤC</button></div>
       </header>
 
       <div className="workspace-pathbar">
-        <button
-          type="button"
-          aria-label="Lên thư mục cha"
-          disabled={!path || state === "loading"}
-          onClick={() => void loadDirectory(rootId, parentPath(path))}
-        >
-          ← LÊN
-        </button>
-        <code>{rootId}:/{path}</code>
-        <button type="button" disabled={state === "loading"} onClick={() => void loadDirectory(rootId, path)}>
-          {state === "loading" ? "ĐANG TẢI" : "LÀM MỚI"}
-        </button>
+        <button type="button" disabled={stack.length <= 1 || state === "loading"} onClick={() => void goUp()}>← LÊN</button>
+        <code>{path}</code>
+        <button type="button" disabled={state === "loading"} onClick={() => void loadDirectory(stack[stack.length - 1].handle, stack)}>{state === "loading" ? "ĐANG TẢI" : "LÀM MỚI"}</button>
       </div>
 
-      {error && (
-        <div className="workspace-feedback error" role="alert">
-          <b>Không truy cập được dữ liệu</b>
-          <span>{error}</span>
-          <button type="button" onClick={() => void loadDirectory(rootId, path)}>Thử lại</button>
-        </div>
-      )}
+      {error && <div className="workspace-feedback error" role="alert"><b>Không thể hoàn tất</b><span>{error}</span><button type="button" onClick={() => setError("")}>ĐÓNG</button></div>}
 
-      {!error && (
-        <div className="workspace-browser">
-          <nav className="workspace-entry-list" aria-label={`Nội dung ${rootId}:/${path}`}>
-            {entries.length === 0 && state !== "loading" && <p>Thư mục trống.</p>}
-            {entries.map((entry) => (
-              <button type="button" key={entry.path} onClick={() => void openEntry(entry)}>
-                <span className={`workspace-entry-icon ${entry.type}`} aria-hidden="true">{entry.type === "directory" ? "▱" : "·"}</span>
-                <span><b>{entry.name}</b><small>{formatBytes(entry.size)}</small></span>
-              </button>
-            ))}
-          </nav>
-          <article className="workspace-file-viewer" aria-live="polite">
-            {selectedFile ? (
-              <>
-                <header>
-                  <span>{activeRoot?.writable ? "FILE EDITOR" : "FILE VIEWER"}</span>
-                  <b>{selectedFile.path}</b>
-                  <small>{dirty ? "UNSAVED" : formatBytes(selectedFile.size)}</small>
-                  {activeRoot?.writable && <button type="button" disabled={!dirty || saving} onClick={() => void saveSelectedFile()}>{saving ? "ĐANG LƯU" : "LƯU FILE"}</button>}
-                </header>
-                {activeRoot?.writable ? (
-                  <textarea
-                    className="workspace-code-editor"
-                    value={selectedFile.content}
-                    spellCheck={false}
-                    onChange={(event) => setSelectedFile((current) => current ? { ...current, content: event.target.value } : current)}
-                  />
-                ) : <pre><code>{selectedFile.content}</code></pre>}
-              </>
-            ) : (
-              <div className="workspace-empty-viewer">
-                <Icon name="document" />
-                <b>{state === "loading" ? "Đang đồng bộ Ubuntu…" : "Chọn một file văn bản để đọc"}</b>
-                <span>Gateway không cấp quyền ghi, xóa hoặc chạy file từ màn này.</span>
-              </div>
-            )}
-          </article>
-        </div>
-      )}
+      <div className="workspace-browser">
+        <nav className="workspace-entry-list" aria-label={`Nội dung ${path}`}>
+          {entries.length === 0 && state !== "loading" && <p>Thư mục trống.</p>}
+          {entries.map((entry) => (
+            <button type="button" key={`${entry.kind}-${entry.name}`} onClick={() => void openEntry(entry)}>
+              <span className={`workspace-entry-icon ${entry.kind}`} aria-hidden="true">{entry.kind === "directory" ? "◇" : "·"}</span>
+              <span><b>{entry.name}</b><small>{formatBytes(entry.size)}</small></span>
+            </button>
+          ))}
+        </nav>
+        <article className="workspace-file-viewer" aria-live="polite">
+          {selectedFile ? (
+            <><header><span>LOCAL EDITOR</span><b>{selectedFile.path}</b><small>{dirty ? "CHƯA LƯU" : formatBytes(selectedFile.size)}</small><button type="button" disabled={!dirty || saving} onClick={() => void saveSelectedFile()}>{saving ? "ĐANG LƯU" : "LƯU FILE"}</button></header><textarea className="workspace-code-editor" value={selectedFile.content} spellCheck={false} onChange={(event) => setSelectedFile((current) => current ? { ...current, content: event.target.value } : current)} /></>
+          ) : (
+            <div className="workspace-empty-viewer"><Icon name="document" /><b>Chọn file văn bản để đọc hoặc sửa</b><span>Quyền nằm trong phiên trình duyệt hiện tại. J-Core không giữ đường dẫn hay tải nội dung lên máy chủ.</span></div>
+          )}
+        </article>
+      </div>
     </section>
   );
 }

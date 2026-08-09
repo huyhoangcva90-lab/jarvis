@@ -43,6 +43,17 @@ type Message = {
 type Palette = EnergyPalette;
 type VoiceStyle = "female" | "male";
 type ServiceKey = "hermes" | "claude";
+type DashboardId = "workspace" | "terminal" | "agents" | "router" | "hermes" | "claude" | "intel";
+
+const DASHBOARD_META: Record<DashboardId, { eyebrow: string; title: string }> = {
+  workspace: { eyebrow: "JARVIS://HUB-RUNTIME", title: "Không gian hoạch định" },
+  terminal: { eyebrow: "LOCAL://UBUNTU", title: "Ubuntu local" },
+  agents: { eyebrow: "PWR://OPENCLAW", title: "OpenClaw & tác nhân" },
+  router: { eyebrow: "SPC://9ROUTER", title: "9Router Control" },
+  hermes: { eyebrow: "AI://HERMES", title: "Hermes Core" },
+  claude: { eyebrow: "AI://CLAUDE", title: "Claude Bridge" },
+  intel: { eyebrow: "NET://KNOWLEDGE", title: "Thư viện & Ubuntu Files" },
+};
 type ServicePanelState = {
   state: "idle" | "loading" | "ready" | "error";
   overview: any;
@@ -463,6 +474,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [claudeMinimized, setClaudeMinimized] = useState(false);
   const [intelMinimized, setIntelMinimized] = useState(false);
   const [workspaceMinimized, setWorkspaceMinimized] = useState(false);
+  const [focusedDashboard, setFocusedDashboard] = useState<DashboardId | null>(null);
   const [hubArtifacts, setHubArtifacts] = useState<HubArtifact[]>(() =>
     (initial?.hubArtifacts ?? []).map((artifact) =>
       artifact.status === "loading"
@@ -478,12 +490,10 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [youtubeVideoId, setYoutubeVideoId] = useState("ciNHn38EyRc");
   const [youtubeError, setYoutubeError] = useState("");
   const [terminalInput, setTerminalInput] = useState("");
-  const [terminalBusy, setTerminalBusy] = useState(false);
-  const [privateTerminal, setPrivateTerminal] = useState(false);
   const [terminalLines, setTerminalLines] = useState([
-    "J-CORE UBUNTU BROKER // phiên điều khiển chỉ đọc",
-    "Lệnh chạy tại Gateway Ubuntu theo danh mục cho phép.",
-    "Gõ 'help' để xem lệnh.",
+    "J-CORE LOCAL CONSOLE // không API",
+    "Phiên này điều khiển giao diện local; file Ubuntu mở bằng quyền thư mục của trình duyệt.",
+    "Gõ 'files' để kết nối Ubuntu, hoặc 'help' để xem lệnh.",
   ]);
 
   const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
@@ -950,6 +960,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
   const openServicePanel = (service: ServiceKey) => {
     setActiveWindow(service);
+    setFocusedDashboard(service);
     if (service === "hermes") {
       setHermesOpen(true);
       setHermesMinimized(false);
@@ -1093,6 +1104,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
   const openOsWindow = useCallback((windowId: string) => {
     setActiveWindow(windowId);
+    if (windowId in DASHBOARD_META) setFocusedDashboard(windowId as DashboardId);
     if (windowId === "core") onCoreMinimizedChange(false);
     if (windowId === "system") {
       setHubOpen(true);
@@ -1136,6 +1148,10 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     }
   }, [onCoreMinimizedChange]);
 
+  const exitDashboard = useCallback(() => {
+    setFocusedDashboard(null);
+  }, []);
+
   const createTemplateHub = useCallback((kind: HubKind) => {
     const template = hubTemplate(kind);
     const artifact = createHubArtifact(`${template.label} Hub`, kind);
@@ -1176,18 +1192,29 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const runTerminal = async (event: FormEvent) => {
     event.preventDefault();
     const raw = terminalInput.trim();
-    if (!raw || terminalBusy) return;
+    if (!raw) return;
     const [command, ...args] = raw.toLowerCase().split(/\s+/);
-    pushTerminal(`${privateTerminal ? "ubuntu-private" : "operator"}@j-core:~$ ${raw}`);
+    pushTerminal(`operator@j-core:~$ ${raw}`);
     setTerminalInput("");
 
     if (command === "clear") {
       setTerminalLines([]);
       return;
     }
-    if (!privateTerminal && command === "status") {
+    if (command === "help") {
+      pushTerminal(["help     danh sách lệnh local", "files    mở Ubuntu Files trực tiếp", "status   trạng thái phiên", "open     mở dashboard", "whoami   tài khoản hiện tại", "date     thời gian local", "clear    xóa màn hình"]);
+      return;
+    }
+    if (command === "files") {
+      setIntelMode("files");
+      openOsWindow("intel");
+      pushTerminal("Ubuntu Files opened // browser permission required once per mounted folder.");
+      return;
+    }
+    if (command === "status" || command === "scan") {
       pushTerminal([
-        `gateway   ${connections.gateway ? "ONLINE" : "OFFLINE"}`,
+        "session   AUTHENTICATED LOCAL",
+        "files     DIRECT ACCESS / NO API",
         `hermes    ${connections.hermes ? "READY" : "OFFLINE"}`,
         `openclaw  ${connections.openclaw ? "ONLINE" : "OFFLINE"}`,
         `9router   ${connections.nineRouter ? "ONLINE" : "OFFLINE"}`,
@@ -1195,15 +1222,15 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       ]);
       return;
     }
-    if (!privateTerminal && command === "whoami") {
-      pushTerminal(privateTerminal ? "Local helper: use an external command such as id when private shell is enabled." : `${data.username || "Operator"} // authenticated local operator`);
+    if (command === "whoami") {
+      pushTerminal(`${data.username || "Operator"} // authenticated local operator`);
       return;
     }
-    if (!privateTerminal && command === "date") {
+    if (command === "date") {
       pushTerminal(new Date().toLocaleString("vi-VN"));
       return;
     }
-    if (!privateTerminal && command === "open") {
+    if (command === "open") {
       const app = args[0] || "";
       const target = app === "gateway" ? "settings" : app;
       if (["system", "chat", "agents", "router", "hermes", "claude", "settings", "terminal", "intel", "workspace"].includes(target)) {
@@ -1214,37 +1241,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       }
       return;
     }
-    if (!privateTerminal && command === "scan") {
-      pushTerminal("Scanning gateway...");
-      try {
-        const health: any = await gatewayFetch(data, "/health", { method: "GET", timeoutMs: 7000 });
-        const rows = Object.entries(health.services || {}).map(([name, service]: [string, any]) =>
-          `${name.padEnd(10)} ${service.online && service.configured !== false ? "READY" : "NOT READY"}  ${service.latencyMs ?? "-"}ms`
-        );
-        pushTerminal(rows.length ? rows : "Gateway returned no service data.");
-      } catch (error) {
-        pushTerminal(`SCAN FAILED: ${error instanceof Error ? error.message : "unknown error"}`);
-      }
-      return;
-    }
-    setTerminalBusy(true);
-    try {
-      const result: any = await gatewayFetch(data, privateTerminal ? "/api/system/private-terminal" : "/api/system/terminal", {
-        method: "POST",
-        body: JSON.stringify({ command: raw }),
-        timeoutMs: 35000,
-      });
-      const output = String(result.output || "(không có output)").split(/\r?\n/);
-      pushTerminal([
-        ...output,
-        `[exit ${result.exitCode ?? "?"}] ${result.durationMs ?? 0}ms${result.truncated ? " · output đã rút gọn" : ""}`,
-      ]);
-    } catch (error: any) {
-      const requestId = error?.requestId ? ` · request ${error.requestId}` : "";
-      pushTerminal(`BROKER ERROR: ${error instanceof Error ? error.message : "unknown error"}${requestId}`);
-    } finally {
-      setTerminalBusy(false);
-    }
+    pushTerminal("Lệnh shell hệ thống không được chạy từ website. Dùng 'files' để sửa dữ liệu Ubuntu local, hoặc mở Ubuntu Terminal của máy nếu cần thực thi lệnh.");
   };
 
   useEffect(() => {
@@ -1332,7 +1329,23 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   }
 
   return (
-    <div className="hud-overlay" aria-label="J-Core AI interface">
+    <div
+      className={`hud-overlay ${focusedDashboard ? "is-dashboard-focus" : ""}`}
+      data-focus-dashboard={focusedDashboard || undefined}
+      aria-label="J-Core AI interface"
+    >
+      {focusedDashboard && (
+        <header className="dashboard-focus-header">
+          <button type="button" className="dashboard-back" onClick={exitDashboard} aria-label="Quay lại J-Core Hub">
+            <span aria-hidden="true">←</span><b>J-CORE HUB</b>
+          </button>
+          <div className="dashboard-focus-title">
+            <span>{DASHBOARD_META[focusedDashboard].eyebrow}</span>
+            <h1>{DASHBOARD_META[focusedDashboard].title}</h1>
+          </div>
+          <div className="dashboard-local-session"><i /><span>LOCAL SESSION</span><time>{currentTime}</time></div>
+        </header>
+      )}
       <div className={`system-signal ${activity}`} aria-hidden="true"><i /><i /><i /></div>
       <nav className="os-taskbar" aria-label="J-Core OS taskbar">
         <button className={`os-start ${coreMinimized ? "" : "active"}`} type="button" aria-label={coreMinimized ? "Khôi phục Lõi AI 3D" : "Thu nhỏ Lõi AI 3D"} aria-pressed={!coreMinimized} onClick={() => onCoreMinimizedChange(!coreMinimized)}>
@@ -1372,11 +1385,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           </button>
           <button className={intelOpen ? "active" : ""} type="button" aria-label="Mở thư viện tình báo" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Thư viện</span></button>
           <button className={workspaceOpen ? "active" : ""} type="button" aria-label="Mở không gian làm việc" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Không gian</span></button>
-          <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở cài đặt Gateway" onClick={toggleSettings}><Icon name="settings" /><span>Kết nối</span></button>
+          <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở cài đặt J-Core" onClick={toggleSettings}><Icon name="settings" /><span>Cài đặt</span></button>
         </div>
         <div className="os-tray">
           <button type="button" aria-label="Reset góc nhìn lõi" onClick={onResetView}><Icon name="reset" /></button>
-          <span className={connections.gateway ? "online" : "offline"}>{connections.gateway ? "ĐÃ NỐI" : "MẤT NỐI"}</span>
+          <span className="online">LOCAL SESSION</span>
           <time>{currentTime}</time>
         </div>
       </nav>
@@ -1613,7 +1626,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           active={activeWindow === "workspace"}
           className="workspace-os-window"
           onActivate={() => setActiveWindow("workspace")}
-          onClose={() => setWorkspaceOpen(false)}
+          onClose={() => { setWorkspaceOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setWorkspaceMinimized(true)}
         >
           <DynamicHub
@@ -1635,24 +1648,16 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           active={activeWindow === "terminal"}
           className="terminal-os-window"
           onActivate={() => setActiveWindow("terminal")}
-          onClose={() => setTerminalOpen(false)}
+          onClose={() => { setTerminalOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setTerminalMinimized(true)}
         >
-          <label className="terminal-mode-toggle">
+          <div className="terminal-mode-toggle">
             <span>
-              Private Ubuntu shell
-              <small>{privateTerminal ? "Gui lenh truc tiep toi shell Ubuntu qua Gateway" : "Dang dung broker allowlist an toan"}</small>
+              Local browser console
+              <small>Đăng nhập bảo vệ J-Core · Ubuntu Files dùng quyền thư mục trực tiếp · không API</small>
             </span>
-            <input
-              type="checkbox"
-              checked={privateTerminal}
-              disabled={terminalBusy}
-              onChange={(event) => {
-                setPrivateTerminal(event.target.checked);
-                pushTerminal(event.target.checked ? "PRIVATE SHELL REQUESTED // Gateway env must allow it." : "ALLOWLIST BROKER MODE // safe catalog restored.");
-              }}
-            />
-          </label>
+            <button type="button" onClick={() => { setIntelMode("files"); openOsWindow("intel"); }}>MỞ UBUNTU FILES</button>
+          </div>
           <div className="os-terminal-stream" aria-live="polite">
             {terminalLines.map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}
           </div>
@@ -1664,10 +1669,9 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               aria-label="Lệnh Ubuntu"
               autoComplete="off"
               spellCheck={false}
-              disabled={terminalBusy}
             />
-            <button type="submit" aria-label="Chạy lệnh Ubuntu" disabled={terminalBusy || !terminalInput.trim()}>
-              {terminalBusy ? "RUNNING" : "RUN"}
+            <button type="submit" aria-label="Chạy lệnh local" disabled={!terminalInput.trim()}>
+              RUN
             </button>
           </form>
         </OsWindow>
@@ -1682,7 +1686,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           active={activeWindow === "agents"}
           className="agents-os-window"
           onActivate={() => setActiveWindow("agents")}
-          onClose={() => setAgentsOpen(false)}
+          onClose={() => { setAgentsOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setAgentsMinimized(true)}
         >
           <div className="os-status-banner">
@@ -1719,7 +1723,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           active={activeWindow === "router"}
           className="router-os-window"
           onActivate={() => setActiveWindow("router")}
-          onClose={() => setRouterOpen(false)}
+          onClose={() => { setRouterOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setRouterMinimized(true)}
         >
           <div className="native-router-shell">
@@ -1791,7 +1795,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           active={activeWindow === "hermes"}
           className="service-os-window hermes-os-window"
           onActivate={() => setActiveWindow("hermes")}
-          onClose={() => setHermesOpen(false)}
+          onClose={() => { setHermesOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setHermesMinimized(true)}
         >
           <ServiceDashboard
@@ -1828,7 +1832,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           active={activeWindow === "claude"}
           className="service-os-window claude-os-window"
           onActivate={() => setActiveWindow("claude")}
-          onClose={() => setClaudeOpen(false)}
+          onClose={() => { setClaudeOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setClaudeMinimized(true)}
         >
           <ServiceDashboard
@@ -1860,7 +1864,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           active={activeWindow === "intel"}
           className="intel-os-window"
           onActivate={() => setActiveWindow("intel")}
-          onClose={() => setIntelOpen(false)}
+          onClose={() => { setIntelOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setIntelMinimized(true)}
         >
           <div className="intel-shell">
@@ -1998,7 +2002,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 </article>
               </section>
             ) : intelMode === "files" ? (
-              <UbuntuWorkspace data={data} />
+              <UbuntuWorkspace />
             ) : (
               <ObsidianVaultPanel data={data} />
             )}
