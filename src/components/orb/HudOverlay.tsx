@@ -11,11 +11,8 @@ import {
 } from "../../utils/storage.js";
 import DynamicHub from "./DynamicHub";
 import ServiceDashboard from "./ServiceDashboard";
-import AppConfigEditor from "./AppConfigEditor";
 import ObsidianVaultPanel from "./ObsidianVaultPanel";
 import UbuntuWorkspace from "./UbuntuWorkspace";
-import OpenclawDashboard from "../openclawDashboard.jsx";
-import NineRouterDashboard from "../nineRouterDashboard.jsx";
 import SpiderPersonalHub from "./SpiderPersonalHub";
 import {
   DEFAULT_HERMES_PROFILE_ID,
@@ -48,6 +45,7 @@ type Palette = EnergyPalette;
 type VoiceStyle = "female" | "male";
 type ServiceKey = "hermes" | "claude";
 type DashboardId = "workspace" | "terminal" | "agents" | "router" | "hermes" | "claude" | "intel";
+type NativeDashboards = { hermes: string; openclaw: string; nineRouter: string };
 
 const DASHBOARD_META: Record<DashboardId, { eyebrow: string; title: string }> = {
   workspace: { eyebrow: "JARVIS://HUB-RUNTIME", title: "Không gian hoạch định" },
@@ -300,6 +298,37 @@ function OsWindow({
   );
 }
 
+function NativeDashboardFrame({
+  label,
+  url,
+  online,
+}: {
+  label: string;
+  url: string;
+  online: boolean;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div className="native-dashboard-stage">
+      {!loaded && (
+        <div className="native-dashboard-loader" role="status">
+          <i className={online ? "online" : "offline"} />
+          <b>{online ? `Đang mở ${label}` : `${label} chưa sẵn sàng`}</b>
+          <span>{online ? "Đang nối phiên local được bảo vệ…" : "Kiểm tra dịch vụ Ubuntu rồi thử lại."}</span>
+        </div>
+      )}
+      {url && (
+        <iframe
+          className="native-dashboard-frame"
+          src={url}
+          title={`${label} native dashboard`}
+          onLoad={() => setLoaded(true)}
+        />
+      )}
+    </div>
+  );
+}
+
 function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -516,10 +545,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [gatewayTokenDraft, setGatewayTokenDraft] = useState(data.endpoints?.gatewayToken || "");
   const [rememberGatewayToken, setRememberGatewayToken] = useState(() => isGatewayTokenRemembered());
   const [showGatewayToken, setShowGatewayToken] = useState(false);
-  const [routerDashboardUrl, setRouterDashboardUrl] = useState("");
-  const [routerDashboardState, setRouterDashboardState] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [routerDashboardError, setRouterDashboardError] = useState("");
-  const [routerModels, setRouterModels] = useState<Array<{ id?: string }>>([]);
+  const [nativeDashboards, setNativeDashboards] = useState<NativeDashboards | null>(null);
   const [selectedHermesProfileId, setSelectedHermesProfileId] = useState<HermesProfileId>(() => {
     const configured = data?.ai?.hermesProfile;
     return configured ? configured as HermesProfileId : loadStoredHermesProfileId();
@@ -530,18 +556,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     claude: { ...EMPTY_SERVICE_PANEL },
   });
   const nineRouterModel = getNineRouterModel(data);
-  const routerModelOptions = useMemo(() => {
-    const discovered = routerModels
-      .map((model) => String(model.id || "").trim())
-      .filter(Boolean)
-      .map((id) => ({ id, label: id, detail: "Model từ 9Router" }));
-    const seen = new Set<string>();
-    return [...discovered, ...NINEROUTER_MODELS].filter((model) => {
-      if (seen.has(model.id)) return false;
-      seen.add(model.id);
-      return true;
-    });
-  }, [routerModels]);
+  const routerModelOptions = NINEROUTER_MODELS;
   const recognitionRef = useRef<any>(null);
   const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const terminalSocketRef = useRef<WebSocket | null>(null);
@@ -605,6 +620,15 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         if (active) setVoiceCapabilities({ stt: Boolean(payload?.stt?.configured), tts: Boolean(payload?.tts?.configured) });
       })
       .catch(() => { if (active) setVoiceCapabilities({ stt: false, tts: false }); });
+    return () => { active = false; };
+  }, [data.endpoints?.gateway, data.endpoints?.gatewayToken]);
+  useEffect(() => {
+    let active = true;
+    gatewayFetch(data, "/api/native-dashboards", { method: "GET", credentials: "include", timeoutMs: 5000 })
+      .then((payload: any) => {
+        if (active && payload?.dashboards) setNativeDashboards(payload.dashboards as NativeDashboards);
+      })
+      .catch(() => { if (active) setNativeDashboards(null); });
     return () => { active = false; };
   }, [data.endpoints?.gateway, data.endpoints?.gatewayToken]);
   useEffect(() => { activityRef.current = activity; }, [activity]);
@@ -997,49 +1021,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       },
     });
     setToast("Đã xóa Jarvis token khỏi trình duyệt.");
-  };
-
-  const connectNineRouterDashboard = async (openInNewTab = false) => {
-    if (routerDashboardState === "loading") return;
-    const dashboardTab = openInNewTab ? window.open("", "_blank") : null;
-    const normalizedToken = gatewayTokenDraft.trim().replace(/^Bearer\s+/i, "");
-    const endpoints = {
-      ...data.endpoints,
-      gateway: gatewayDraft.trim(),
-      gatewayToken: normalizedToken,
-    };
-    updateData({ endpoints });
-    saveGatewayToken(normalizedToken, rememberGatewayToken);
-    setRouterDashboardState("loading");
-    setRouterDashboardError("");
-    try {
-      const [session, models]: [any, any] = await Promise.all([
-        gatewayFetch({ ...data, endpoints }, "/api/session/9router", {
-          method: "POST",
-          credentials: "include",
-          timeoutMs: 7000,
-        }),
-        gatewayFetch({ ...data, endpoints }, "/api/9router/models", {
-          method: "GET",
-          timeoutMs: 7000,
-        }).catch(() => ({ models: [] })),
-      ]);
-      const dashboardUrl = String(session.dashboardUrl || `${getGatewayConfig({ ...data, endpoints }).gateway}/dashboard`);
-      setRouterModels(Array.isArray(models.models) ? models.models : []);
-      setRouterDashboardUrl(dashboardUrl);
-      setRouterDashboardState("ready");
-      if (dashboardTab) {
-        dashboardTab.opener = null;
-        dashboardTab.location.href = dashboardUrl;
-      }
-    } catch (error: any) {
-      dashboardTab?.close();
-      const message = error?.status === 401
-        ? "Jarvis token không hợp lệ nên chưa mở được 9Router."
-        : error?.message || "Không thể tạo phiên điều khiển 9Router.";
-      setRouterDashboardError(message);
-      setRouterDashboardState("error");
-    }
   };
 
   const updateServicePanel = (service: ServiceKey, patch: Partial<ServicePanelState>) => {
@@ -1504,13 +1485,20 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     );
   }
 
+  const isNativeDashboardFocus = focusedDashboard === "agents" || focusedDashboard === "router" || focusedDashboard === "hermes";
+
   return (
     <div
-      className={`hud-overlay ${focusedDashboard ? "is-dashboard-focus" : ""}`}
+      className={`hud-overlay ${focusedDashboard ? "is-dashboard-focus" : ""} ${isNativeDashboardFocus ? "is-native-dashboard-focus" : ""}`}
       data-focus-dashboard={focusedDashboard || undefined}
       aria-label="J-Core AI interface"
     >
-      {focusedDashboard && (
+      {focusedDashboard && isNativeDashboardFocus && (
+        <button type="button" className="native-dashboard-back" onClick={exitDashboard} aria-label="Quay lại J-Core Hub">
+          <span aria-hidden="true">←</span><b>J-CORE</b>
+        </button>
+      )}
+      {focusedDashboard && !isNativeDashboardFocus && (
         <header className="dashboard-focus-header">
           <button type="button" className="dashboard-back" onClick={exitDashboard} aria-label="Quay lại J-Core Hub">
             <span aria-hidden="true">←</span><b>J-CORE HUB</b>
@@ -1536,10 +1524,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             className={routerOpen ? "active" : ""}
             type="button"
             aria-label="Mở bảng điều khiển 9Router"
-            onClick={() => {
-              openOsWindow("router");
-              void connectNineRouterDashboard();
-            }}
+            onClick={() => openOsWindow("router")}
           >
             <Icon name="router" /><span>9Router</span>
           </button>
@@ -1879,29 +1864,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setAgentsOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setAgentsMinimized(true)}
         >
-          <div className="os-status-banner">
-            <i className={connections.openclaw ? "online" : "offline"} />
-            <div><span>WORKFORCE LINK</span><b>{connections.openclaw ? "OPERATIONAL" : "NOT READY"}</b></div>
-          </div>
-          <div className="os-data-grid">
-            {[
-              ["FRIDAY", "Orchestration", connections.hermes],
-              ["OPENCLAW", "Agent runtime", connections.openclaw],
-              ["HERMES", "Reasoning core", connections.hermes],
-              ["CLAUDE", "Code/reasoning bridge", connections.claude],
-              ["GATEWAY", "Secure transport", connections.gateway],
-            ].map(([name, role, online]) => (
-              <article className={online ? "online" : "offline"} key={String(name)}>
-                <span>{String(role)}</span>
-                <b>{String(name)}</b>
-                <small>{online ? "READY" : "OFFLINE"}</small>
-              </article>
-            ))}
-          </div>
-          <div className="mt-3">
-            <OpenclawDashboard data={data} addLog={(msg: string) => setToast(msg)} />
-            <AppConfigEditor data={data} service="openclaw" />
-          </div>
+          <NativeDashboardFrame
+            label="OpenClaw Control UI"
+            url={nativeDashboards?.openclaw || ""}
+            online={connections.openclaw}
+          />
         </OsWindow>
       )}
 
@@ -1917,64 +1884,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setRouterOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setRouterMinimized(true)}
         >
-          <div className="native-router-shell">
-            <header className="native-router-toolbar">
-              <div>
-                <i className={connections.nineRouter ? "online" : "offline"} />
-                <span>
-                  <b>{connections.nineRouter ? "9ROUTER ONLINE" : "9ROUTER OFFLINE"}</b>
-                  <small>{routerModels.length ? `${routerModels.length} models · ${nineRouterModel}` : `Model ${nineRouterModel}`}</small>
-                </span>
-              </div>
-              <nav aria-label="Điều khiển 9Router">
-                <button
-                  type="button"
-                  disabled={routerDashboardState === "loading"}
-                  onClick={() => void connectNineRouterDashboard()}
-                >
-                  {routerDashboardState === "loading" ? "Đang tải" : "Mở cấu hình native"}
-                </button>
-                <button
-                  className="primary"
-                  type="button"
-                  disabled={!routerDashboardUrl}
-                  onClick={() => void connectNineRouterDashboard(true)}
-                >
-                  <Icon name="external" /> Mở toàn màn hình
-                </button>
-              </nav>
-            </header>
-
-            <div className="p-3 border-b border-cyan-300/15">
-              <NineRouterDashboard data={data} addLog={(msg: string) => setToast(msg)} />
-              <AppConfigEditor data={data} service="9router" />
-            </div>
-
-            {routerDashboardState === "ready" && routerDashboardUrl ? (
-              <iframe
-                className="native-router-frame"
-                src={routerDashboardUrl}
-                title="9Router native dashboard"
-                referrerPolicy="no-referrer"
-                onLoad={() => setRouterDashboardState("ready")}
-              />
-            ) : (
-              <div className={`native-router-state ${routerDashboardState}`} role={routerDashboardState === "error" ? "alert" : "status"}>
-                <Icon name="router" />
-                <b>
-                  {routerDashboardState === "loading"
-                    ? "Đang tạo phiên điều khiển an toàn"
-                    : routerDashboardState === "error"
-                    ? "Không mở được dashboard 9Router"
-                    : "Dashboard 9Router chưa được kết nối"}
-                </b>
-                <p>{routerDashboardError || "Jarvis token sẽ mở một phiên tạm thời; port 20128 vẫn chỉ chạy nội bộ trên Ubuntu."}</p>
-                <button type="button" onClick={() => void connectNineRouterDashboard()}>
-                  Thử kết nối phiên iframe native
-                </button>
-              </div>
-            )}
-          </div>
+          <NativeDashboardFrame
+            label="9Router Admin"
+            url={nativeDashboards?.nineRouter || ""}
+            online={connections.nineRouter}
+          />
         </OsWindow>
       )}
 
@@ -1990,29 +1904,10 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setHermesOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setHermesMinimized(true)}
         >
-          <ServiceDashboard
-            data={data}
-            label="HERMES"
-            description="Reasoning orchestrator · capability and direct-chat diagnostics"
+          <NativeDashboardFrame
+            label="Hermes Dashboard"
+            url={nativeDashboards?.hermes || ""}
             online={connections.hermes}
-            state={servicePanels.hermes.state}
-            health={connections.services?.hermes}
-            overview={servicePanels.hermes.overview}
-            error={servicePanels.hermes.error}
-            prompt={servicePanels.hermes.prompt}
-            reply={servicePanels.hermes.reply}
-            sending={servicePanels.hermes.sending}
-            selectedProfileId={selectedHermesProfileId}
-            profiles={hermesProfiles}
-            onSelectProfile={(profileId) => {
-              selectHermesProfile(profileId);
-              setToast(`Đã chuyển sang Hermes profile: ${profileId}`);
-            }}
-            onPromptChange={(prompt) => updateServicePanel("hermes", { prompt })}
-            onRefresh={() => void refreshServicePanel("hermes")}
-            onSubmit={() => void testServicePanel("hermes")}
-            diagnostics={["status", "doctor", "sessions", "cron", "profiles", "config"]}
-            onRunDiagnostic={(action) => void runServiceDiagnostic("hermes", action)}
           />
         </OsWindow>
       )}

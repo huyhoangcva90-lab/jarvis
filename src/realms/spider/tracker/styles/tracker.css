@@ -1,0 +1,335 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   NEXUS TRACKER — Cinematic Intelligence Map
+   ============================================ */
+
+:root {
+  --nx-bg: #07090D;
+  --nx-surface: rgba(10, 12, 18, 0.82);
+  --nx-border: rgba(255, 255, 255, 0.08);
+  --nx-border-light: rgba(255, 255, 255, 0.12);
+  --nx-primary: #FFFFFF;
+  --nx-muted: #8E96A3;
+  --nx-accent: #E51B23;
+  --nx-accent-glow: rgba(229, 27, 35, 0.4);
+  --nx-confirmed: #45D483;
+  --nx-rumored: #F3B64C;
+  --nx-event: #E51B23;
+  --nx-glass: rgba(10, 12, 18, 0.75);
+  --nx-glass-border: rgba(255, 255, 255, 0.06);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #tracker-root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--nx-bg);
+  color: var(--nx-primary);
+  font-family: 'Inter', 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+.nx-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.nx-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.nx-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+.nx-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Map Container */
+.maplibregl-map {
+  font-family: 'Inter', sans-serif !important;
+}
+.maplibregl-ctrl-attrib {
+  display: none !important;
+}
+.maplibregl-ctrl-logo {
+  display: none !important;
+}
+.maplibregl-popup {
+  z-index: 15 !important;
+}
+.maplibregl-popup-content {
+  background: rgba(10, 12, 18, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 2px !important;
+  padding: 8px 12px !important;
+  color: white !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+  font-size: 11px !important;
+  letter-spacing: 0.05em !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(12px) !important;
+}
+.maplibregl-popup-tip {
+  border-top-color: rgba(10, 12, 18, 0.92) !important;
+}
+.maplibregl-popup-close-button {
+  display: none !important;
+}
+
+/* Marker Animations */
+@keyframes marker-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(3.5);
+    opacity: 0;
+  }
+}
+
+@keyframes marker-pulse-weak {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+@keyframes marker-glow {
+  0%, 100% {
+    box-shadow: 0 0 6px var(--marker-color), 0 0 12px var(--marker-color);
+  }
+  50% {
+    box-shadow: 0 0 10px var(--marker-color), 0 0 20px var(--marker-color);
+  }
+}
+
+.nexus-marker {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.nexus-marker:hover {
+  transform: scale(1.3);
+  z-index: 10 !important;
+}
+
+.nexus-marker .marker-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  position: relative;
+  z-index: 2;
+  animation: marker-glow 2s ease-in-out infinite;
+}
+
+.nexus-marker .marker-ping {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+/* Confirmed Marker */
+.nexus-marker--confirmed .marker-dot {
+  background: var(--nx-accent);
+  border: 2px solid white;
+  --marker-color: var(--nx-accent);
+}
+.nexus-marker--confirmed .marker-ping {
+  background: var(--nx-accent);
+  animation: marker-pulse 2s ease-out infinite;
+}
+
+/* Rumored Marker */
+.nexus-marker--rumored .marker-dot {
+  width: 10px;
+  height: 10px;
+  background: var(--nx-rumored);
+  border: 1.5px solid rgba(243, 182, 76, 0.6);
+  opacity: 0.85;
+  --marker-color: var(--nx-rumored);
+}
+.nexus-marker--rumored .marker-ping {
+  width: 10px;
+  height: 10px;
+  background: var(--nx-rumored);
+  animation: marker-pulse-weak 2.5s ease-out infinite;
+}
+
+/* Event Marker */
+.nexus-marker--event .marker-dot {
+  width: 16px;
+  height: 16px;
+  background: var(--nx-event);
+  border: 2px solid white;
+  --marker-color: var(--nx-event);
+  box-shadow: 0 0 8px var(--nx-event), 0 0 16px var(--nx-accent-glow);
+}
+.nexus-marker--event .marker-ping {
+  width: 16px;
+  height: 16px;
+  background: var(--nx-event);
+  animation: marker-pulse 1.8s ease-out infinite;
+}
+
+/* Selected Marker */
+.nexus-marker--selected .marker-dot {
+  animation: marker-glow 0.8s ease-in-out infinite !important;
+  transform: scale(1.4);
+}
+.nexus-marker--selected .marker-ping {
+  animation: marker-pulse 1s ease-out infinite !important;
+}
+
+/* Intro Animations */
+@keyframes scan-line {
+  0% {
+    top: -2px;
+  }
+  100% {
+    top: 100%;
+  }
+}
+
+@keyframes text-glow {
+  0%, 100% {
+    text-shadow: 0 0 10px rgba(229, 27, 35, 0.3), 0 0 30px rgba(229, 27, 35, 0.1);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(229, 27, 35, 0.6), 0 0 40px rgba(229, 27, 35, 0.2);
+  }
+}
+
+@keyframes progress-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px var(--nx-accent-glow);
+  }
+  50% {
+    box-shadow: 0 0 16px var(--nx-accent-glow), 0 0 24px rgba(229, 27, 35, 0.2);
+  }
+}
+
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes grid-move {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(48px); }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .nexus-marker .marker-ping,
+  .nexus-marker .marker-dot {
+    animation: none !important;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Mobile Adjustments */
+@media (max-width: 767px) {
+  .nx-panel {
+    width: calc(100vw - 24px) !important;
+    max-width: none !important;
+  }
+}
+
+/* Selection */
+::selection {
+  background: rgba(229, 27, 35, 0.3);
+  color: white;
+}
+
+/* Focus Styles */
+*:focus-visible {
+  outline: 1px solid var(--nx-accent);
+  outline-offset: 2px;
+}
+
+/* Input Styles for Report Form */
+.nx-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--nx-border);
+  border-radius: 2px;
+  color: white;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  transition: border-color 0.2s;
+}
+.nx-input:focus {
+  outline: none;
+  border-color: var(--nx-accent);
+}
+.nx-input::placeholder {
+  color: var(--nx-muted);
+  opacity: 0.6;
+}
+
+.nx-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.nx-select {
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238E96A3'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+
+/* Range Slider */
+.nx-range {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  outline: none;
+}
+.nx-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--nx-accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 0 8px var(--nx-accent-glow);
+}
+.nx-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--nx-accent);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 0 8px var(--nx-accent-glow);
+}

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --open /index.dev.html",
+    "dev:tracker": "vite --host 127.0.0.1 --open /tracker.html",
     "gateway": "node server/gateway.mjs",
     "typecheck": "tsc --noEmit",
     "build": "node scripts/build-pages.mjs",
@@ -27,6 +28,9 @@
     "three": "^0.185.1",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
+    "framer-motion": "^11.18.0",
+    "lucide-react": "^0.468.0",
+    "maplibre-gl": "^4.7.1",
     "ws": "^8.21.3"
   },
   "devDependencies": {

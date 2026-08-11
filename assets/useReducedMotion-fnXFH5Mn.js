@@ -1,4 +1,4 @@
-import{a as Ty,g as wy,e as jm,b as h1,r as st,j as si}from"./index-BEmKo5zl.js";/**
+import{a as Ty,g as wy,e as jm,b as h1,r as st,j as si}from"./client-CzJiQ07X.js";/**
  * @license
  * Copyright 2010-2026 Three.js Authors
  * SPDX-License-Identifier: MIT

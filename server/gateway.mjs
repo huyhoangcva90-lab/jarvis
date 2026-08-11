@@ -31,7 +31,7 @@ const CIRCUIT_FAILURE_THRESHOLD = Number(process.env.JCORE_CIRCUIT_FAILURE_THRES
 const CIRCUIT_OPEN_MS = Number(process.env.JCORE_CIRCUIT_OPEN_MS || 30000);
 const DASHBOARD_SESSION_TTL_MS = Number(process.env.JCORE_DASHBOARD_SESSION_TTL_MS || 30 * 60 * 1000);
 const AUTH_USERNAME = process.env.JCORE_AUTH_USERNAME || "admin";
-const AUTH_PASSWORD = process.env.JCORE_AUTH_PASSWORD || "123456";
+const AUTH_PASSWORD = process.env.JCORE_AUTH_PASSWORD || "";
 const AUTH_SESSION_TTL_MS = Math.min(30 * 24 * 60 * 60 * 1000, Math.max(15 * 60 * 1000, Number(process.env.JCORE_AUTH_SESSION_TTL_MS || 7 * 24 * 60 * 60 * 1000)));
 const WEB_ROOT = resolve(process.env.JCORE_WEB_ROOT || join(process.cwd(), "dist"));
 const APP_CONFIG_WRITE_ENABLED = /^(1|true|yes|on)$/i.test(process.env.JCORE_APP_CONFIG_WRITE_ENABLED || "true");
@@ -87,6 +87,11 @@ const TEXT_FILE_EXTENSIONS = new Set([
 const FILE_READ_LIMIT = 512 * 1024;
 const DIRECTORY_ENTRY_LIMIT = 500;
 const JCORE_CONFIG_ROOT = resolve(process.env.JCORE_CONFIG_ROOT || join(process.cwd(), ".jcore", "apps"));
+const NATIVE_DASHBOARD_PORTS = {
+  hermes: Number(process.env.HERMES_DASHBOARD_PROXY_PORT || 9120),
+  openclaw: Number(process.env.OPENCLAW_DASHBOARD_PROXY_PORT || 18790),
+  nineRouter: Number(process.env.NINEROUTER_DASHBOARD_PROXY_PORT || 20129),
+};
 
 const managedConfigDefaults = {
   hermes: { service: "hermes", enabled: true, profile: HERMES_DEFAULT_PROFILE, model: process.env.HERMES_MODEL || "hermes-agent" },
@@ -125,10 +130,11 @@ const dashboardSessions = new Map();
 const terminalTickets = new Map();
 const terminalAudit = [];
 const authSessions = new Map();
+const nineRouterUpstreamSessions = new Map();
 const loginAttempts = new Map();
 
-if (!TOKEN && !AUTH_PASSWORD && !IS_LOOPBACK) {
-  throw new Error("JCORE_AUTH_PASSWORD or JCORE_GATEWAY_TOKEN is required when the gateway listens beyond localhost.");
+if (!TOKEN && !AUTH_PASSWORD) {
+  throw new Error("JCORE_AUTH_PASSWORD or JCORE_GATEWAY_TOKEN is required.");
 }
 
 const services = {
@@ -1046,6 +1052,117 @@ function proxyNineRouter(req, res) {
   });
 }
 
+function nativeDashboardUrl(req, port, pathname = "/") {
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const protocol = forwardedProto || (IS_LOOPBACK ? "http" : "https");
+  const hostname = String(req.headers.host || HOST).replace(/^\[|\]$|:\d+$/g, "");
+  return `${protocol}://${hostname}:${port}${pathname}`;
+}
+
+function rewriteDashboardHeaders(headers, req, upstreamBase) {
+  const responseHeaders = { ...headers };
+  delete responseHeaders["x-frame-options"];
+  const parentOrigin = `${IS_LOOPBACK ? "http" : "https"}://${String(req.headers.host || `${HOST}:${PORT}`).replace(/:\d+$/, `:${PORT}`)}`;
+  const upstreamCsp = String(responseHeaders["content-security-policy"] || "")
+    .replace(/(?:^|;)\s*frame-ancestors\s+[^;]*/gi, "")
+    .replace(/^;\s*|\s*;$/g, "");
+  responseHeaders["content-security-policy"] = [upstreamCsp, `frame-ancestors 'self' ${parentOrigin}`].filter(Boolean).join("; ");
+  if (responseHeaders.location) {
+    responseHeaders.location = String(responseHeaders.location).replace(upstreamBase.origin, `http://${req.headers.host}`);
+  }
+  responseHeaders["cache-control"] = responseHeaders["cache-control"] || "no-store";
+  return responseHeaders;
+}
+
+async function ensureNineRouterUpstreamSession(req, upstreamUrl) {
+  const jcoreSessionId = cookieValue(req, "jcore_session");
+  const cached = nineRouterUpstreamSessions.get(jcoreSessionId);
+  if (cached?.expiresAt > Date.now()) return cached.cookie;
+  const dashboardPassword = process.env.NINEROUTER_DASHBOARD_PASSWORD || "";
+  if (!dashboardPassword) return "";
+  const response = await fetch(new URL("/api/auth/login", upstreamUrl), {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-9r-real-ip": "j-core-local" },
+    body: JSON.stringify({ password: dashboardPassword }),
+  });
+  if (!response.ok) return "";
+  const setCookies = typeof response.headers.getSetCookie === "function"
+    ? response.headers.getSetCookie()
+    : [response.headers.get("set-cookie") || ""];
+  const cookie = setCookies.map((value) => value.split(";", 1)[0]).filter(Boolean).join("; ");
+  if (cookie) nineRouterUpstreamSessions.set(jcoreSessionId, { cookie, expiresAt: Date.now() + DASHBOARD_SESSION_TTL_MS });
+  return cookie;
+}
+
+async function proxyNativeDashboard(req, res, upstreamUrl, serviceKey = "") {
+  return new Promise((resolveProxy) => {
+    if (!authSession(req)) {
+      res.writeHead(401, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("J-Core session required");
+      resolveProxy();
+      return;
+    }
+    const upstreamBase = new URL(upstreamUrl);
+    const startProxy = async () => {
+      const upstreamCookie = serviceKey === "nineRouter" ? await ensureNineRouterUpstreamSession(req, upstreamUrl) : "";
+      const headers = { ...req.headers, host: upstreamBase.host };
+      if (upstreamCookie) headers.cookie = upstreamCookie;
+      delete headers.authorization;
+      const upstream = httpRequest({
+        protocol: upstreamBase.protocol,
+        hostname: upstreamBase.hostname,
+        port: upstreamBase.port || 80,
+        method: req.method,
+        path: req.url,
+        headers,
+      }, (upstreamResponse) => {
+        res.writeHead(upstreamResponse.statusCode || 502, rewriteDashboardHeaders(upstreamResponse.headers, req, upstreamBase));
+        upstreamResponse.pipe(res);
+        upstreamResponse.on("end", resolveProxy);
+      });
+      upstream.on("error", () => {
+        if (!res.headersSent) res.writeHead(502, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+        res.end("Native dashboard is offline");
+        resolveProxy();
+      });
+      req.pipe(upstream);
+    };
+    void startProxy().catch(() => {
+      if (!res.headersSent) res.writeHead(502, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("Native dashboard session could not be created");
+      resolveProxy();
+    });
+  });
+}
+
+function proxyNativeUpgrade(req, socket, head, upstreamUrl) {
+  if (!authSession(req)) {
+    socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+  const upstreamBase = new URL(upstreamUrl);
+  const headers = { ...req.headers, host: upstreamBase.host };
+  const upstream = httpRequest({
+    protocol: upstreamBase.protocol,
+    hostname: upstreamBase.hostname,
+    port: upstreamBase.port || 80,
+    method: req.method,
+    path: req.url,
+    headers,
+  });
+  upstream.on("upgrade", (upstreamResponse, upstreamSocket, upstreamHead) => {
+    const statusLine = `HTTP/${upstreamResponse.httpVersion} ${upstreamResponse.statusCode} ${upstreamResponse.statusMessage}\r\n`;
+    const headerLines = upstreamResponse.rawHeaders.reduce((result, value, index) => result + (index % 2 ? `${value}\r\n` : `${value}: `), "");
+    socket.write(`${statusLine}${headerLines}\r\n`);
+    if (upstreamHead.length) socket.write(upstreamHead);
+    if (head.length) upstreamSocket.write(head);
+    upstreamSocket.pipe(socket).pipe(upstreamSocket);
+  });
+  upstream.on("error", () => socket.destroy());
+  upstream.end();
+}
+
 function getCircuit(name) {
   if (!upstreamCircuits.has(name)) {
     upstreamCircuits.set(name, {
@@ -1391,6 +1508,16 @@ const server = createServer(async (req, res) => {
     }
     if (!hasGatewayAuthorization) {
       return sendJson(req, res, 401, { error: "unauthorized" });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/native-dashboards") {
+      return sendJson(req, res, 200, {
+        dashboards: {
+          hermes: nativeDashboardUrl(req, NATIVE_DASHBOARD_PORTS.hermes),
+          openclaw: nativeDashboardUrl(req, NATIVE_DASHBOARD_PORTS.openclaw),
+          nineRouter: nativeDashboardUrl(req, NATIVE_DASHBOARD_PORTS.nineRouter, "/dashboard"),
+        },
+      });
     }
 
     if (req.method === "GET" && url.pathname === "/health") {
@@ -1937,3 +2064,15 @@ server.listen(PORT, HOST, () => {
   console.log(`Claude bridge: ${services.claude.base}`);
   console.log(`Private terminal PTY: ${terminalSessionAvailable() ? "enabled" : "disabled"}`);
 });
+
+const nativeDashboardTargets = [
+  ["Hermes", "hermes", NATIVE_DASHBOARD_PORTS.hermes, services.hermes.base],
+  ["OpenClaw", "openclaw", NATIVE_DASHBOARD_PORTS.openclaw, services.openclaw.base],
+  ["9Router", "nineRouter", NATIVE_DASHBOARD_PORTS.nineRouter, services.nineRouter.base],
+];
+
+for (const [label, serviceKey, port, upstream] of nativeDashboardTargets) {
+  const nativeServer = createServer((req, res) => void proxyNativeDashboard(req, res, upstream, serviceKey));
+  nativeServer.on("upgrade", (req, socket, head) => proxyNativeUpgrade(req, socket, head, upstream));
+  nativeServer.listen(port, HOST, () => console.log(`${label} native dashboard proxy: http://${HOST}:${port}`));
+}

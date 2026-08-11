@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const gatewayPort = 18787;
-const upstreamPort = 20129;
+const upstreamPort = 30129;
 const token = "jcore-smoke-token";
 const hermesRequests = [];
 const configDirectory = mkdtempSync(join(tmpdir(), "jcore-config-smoke-"));
@@ -75,6 +75,9 @@ const gateway = spawn(process.execPath, ["server/gateway.mjs"], {
     JCORE_GATEWAY_HOST: "127.0.0.1",
     JCORE_GATEWAY_PORT: String(gatewayPort),
     JCORE_GATEWAY_TOKEN: token,
+    HERMES_DASHBOARD_PROXY_PORT: "19120",
+    OPENCLAW_DASHBOARD_PROXY_PORT: "19790",
+    NINEROUTER_DASHBOARD_PROXY_PORT: "29129",
     JCORE_AUTH_USERNAME: "smoke-admin",
     JCORE_AUTH_PASSWORD: "smoke-password",
     JCORE_OPENCLAW_CONFIG_PATH: configPath,

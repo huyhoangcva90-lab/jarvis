@@ -1,0 +1,25 @@
+[Unit]
+Description=9Router local model gateway and dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jcore
+Group=jcore
+Environment=HOME=/home/jcore
+Environment=PATH=/home/jcore/.openclaw/tools/node/bin:/usr/local/bin:/usr/bin:/bin
+Environment=DATA_DIR=/home/jcore/.9router
+Environment=PORT=20128
+Environment=HOSTNAME=127.0.0.1
+EnvironmentFile=/home/jcore/.config/j-core/9router.env
+Environment=REQUIRE_API_KEY=true
+Environment=ENABLE_REQUEST_LOGS=true
+ExecStart=/home/jcore/.openclaw/tools/node/bin/9router --port 20128 --host 127.0.0.1 --no-browser --log --skip-update
+Restart=on-failure
+RestartSec=4
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

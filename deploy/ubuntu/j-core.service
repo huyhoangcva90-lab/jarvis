@@ -1,0 +1,20 @@
+[Unit]
+Description=J-Core private local gateway
+After=network-online.target hermes-dashboard.service openclaw.service 9router.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jcore
+Group=jcore
+WorkingDirectory=/opt/j-core-console
+EnvironmentFile=/home/jcore/.config/j-core/j-core.env
+EnvironmentFile=/home/jcore/.config/j-core/9router.env
+ExecStart=/home/jcore/.openclaw/tools/node/bin/node /opt/j-core-console/server/gateway.mjs
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

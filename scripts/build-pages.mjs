@@ -6,6 +6,7 @@ const root = process.cwd();
 const devIndex = join(root, "index.dev.html");
 const deployIndex = join(root, "index.html");
 const distIndex = join(root, "dist", "index.html");
+const distDevIndex = join(root, "dist", "index.dev.html");
 const distAssets = join(root, "dist", "assets");
 const deployAssets = join(root, "assets");
 const previousIndex = existsSync(deployIndex) ? readFileSync(deployIndex, "utf8") : "";
@@ -44,15 +45,17 @@ try {
     writeFileSync(deployIndex, previousIndex);
     process.exit(result.status ?? 1);
   }
-  if (!existsSync(distIndex) || !existsSync(distAssets)) {
+  const builtIndex = existsSync(distIndex) ? distIndex : distDevIndex;
+  if (!existsSync(builtIndex) || !existsSync(distAssets)) {
     writeFileSync(deployIndex, previousIndex);
     throw new Error("Vite build did not produce deploy artifacts.");
   }
+  if (builtIndex !== distIndex) copyFileSync(builtIndex, distIndex);
   mkdirSync(deployAssets, { recursive: true });
   const currentAssets = new Set(readdirSync(distAssets));
   cpSync(distAssets, deployAssets, { recursive: true, force: true });
   pruneGeneratedAssetHistory(deployAssets, currentAssets);
-  copyFileSync(distIndex, deployIndex);
+  copyFileSync(builtIndex, deployIndex);
 } catch (error) {
   writeFileSync(deployIndex, previousIndex);
   console.error(error);

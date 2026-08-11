@@ -1,0 +1,19 @@
+[Unit]
+Description=OpenClaw local gateway and Control UI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jcore
+Group=jcore
+Environment=HOME=/home/jcore
+Environment=PATH=/home/jcore/.openclaw/tools/node/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/jcore/.openclaw/bin/openclaw gateway run --allow-unconfigured --auth none --bind loopback --port 18789 --ws-log compact
+Restart=on-failure
+RestartSec=4
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+[Unit]
+Description=Hermes Agent native dashboard and backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jcore
+Group=jcore
+WorkingDirectory=/home/jcore/.hermes/hermes-agent
+Environment=HOME=/home/jcore
+Environment=PATH=/home/jcore/.hermes/node/bin:/home/jcore/.hermes/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/jcore/.hermes/hermes-agent/venv/bin/hermes dashboard --host 127.0.0.1 --port 9119 --no-open
+Restart=on-failure
+RestartSec=4
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
