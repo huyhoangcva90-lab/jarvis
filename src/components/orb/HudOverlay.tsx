@@ -14,6 +14,8 @@ import ServiceDashboard from "./ServiceDashboard";
 import ObsidianVaultPanel from "./ObsidianVaultPanel";
 import UbuntuWorkspace from "./UbuntuWorkspace";
 import SpiderPersonalHub from "./SpiderPersonalHub";
+import WorldMonitorHub from "./WorldMonitorHub";
+import JavisOsHub from "./JavisOsHub";
 import {
   DEFAULT_HERMES_PROFILE_ID,
   HERMES_PROFILES,
@@ -110,7 +112,9 @@ const paletteLabels: Record<Palette, string> = {
   red: "Stark Combat",
   violet: "Stark Quantum",
   orange: "Arc Reactor",
-  spider: "Spider 2099"
+  spider: "Spider 2099",
+  world: "World Monitor",
+  javis: "Javis Neural OS",
 };
 
 const HERMES_PROFILE_PALETTES: Record<HermesProfileId, EnergyPalette> = {
@@ -1481,6 +1485,34 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         onAskEv={(prompt) => void sendMessage(prompt)}
         onExit={() => onPaletteChange("gold")}
         onResetView={onResetView}
+      />
+    );
+  }
+
+  if (palette === "world") {
+    return (
+      <WorldMonitorHub
+        currentTime={currentTime}
+        username={data?.username || "Operator"}
+        messages={messages}
+        isSending={isSending}
+        onAskAi={(prompt) => void sendMessage(prompt)}
+        onExit={() => onPaletteChange("gold")}
+      />
+    );
+  }
+
+  if (palette === "javis") {
+    return (
+      <JavisOsHub
+        currentTime={currentTime}
+        username={data?.username || "Operator"}
+        messages={messages}
+        isSending={isSending}
+        connections={connections}
+        nativeDashboards={nativeDashboards}
+        onAskAi={(prompt) => void sendMessage(prompt)}
+        onExit={() => onPaletteChange("gold")}
       />
     );
   }

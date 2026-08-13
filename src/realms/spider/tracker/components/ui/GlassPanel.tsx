@@ -9,7 +9,7 @@ interface GlassPanelProps {
   style?: React.CSSProperties;
   onClose?: () => void;
   title?: React.ReactNode;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
 }
 
 export const GlassPanel: React.FC<GlassPanelProps> = ({

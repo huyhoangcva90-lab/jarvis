@@ -8,6 +8,8 @@ export const ENERGY_PALETTES = [
   "violet",
   "orange",
   "spider",
+  "world",
+  "javis",
 ] as const;
 
 export type EnergyPalette = (typeof ENERGY_PALETTES)[number];

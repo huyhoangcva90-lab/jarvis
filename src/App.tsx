@@ -148,7 +148,7 @@ export default function App() {
     <StoneStateProvider data={data}>
       <main className={`jarvis-shell min-h-dvh overflow-hidden bg-void text-cyan-50 ${intensityClass}`}>
         <div className={`orb-stage fixed inset-0 z-0 ${coreMinimized ? "is-core-minimized" : ""}`}>
-          {!coreMinimized && <CinematicOrb activity={activity} palette={energyPalette} resetSignal={resetViewSignal} />}
+          {!coreMinimized && energyPalette !== "world" && energyPalette !== "javis" && <CinematicOrb activity={activity} palette={energyPalette} resetSignal={resetViewSignal} />}
         </div>
 
         {booting && <BootScreen />}
