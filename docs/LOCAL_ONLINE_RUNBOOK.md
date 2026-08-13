@@ -46,6 +46,37 @@ Use a private tunnel when possible:
 - Tailscale/Funnel for private personal access.
 - Ngrok only for short testing.
 
+### Trusted LAN gateway (192.168.1.114)
+
+When the browser runs on another machine in the same trusted LAN, serve the UI from the Ubuntu gateway itself. Do not run a second frontend or expose the native Hermes/OpenClaw/9Router ports.
+
+Deploy from the project checkout on the gateway:
+
+```bash
+sudo env JCORE_LAN_ADDRESS=192.168.1.114 \
+  bash scripts/provision-ubuntu-runtime.sh "$PWD"
+```
+
+This binds only the authenticated J-Core entry point and its authenticated native-dashboard proxies to the LAN. The upstream services remain on loopback:
+
+| LAN port | Purpose |
+| --- | --- |
+| `8787` | J-Core login, UI, API and terminal WebSocket |
+| `9120` | Authenticated Hermes dashboard proxy |
+| `18790` | Authenticated OpenClaw dashboard/WebSocket proxy |
+| `20129` | Authenticated 9Router dashboard proxy |
+
+If UFW is active, scope access to the local subnet:
+
+```bash
+sudo ufw allow from 192.168.1.0/24 to any port 8787 proto tcp
+sudo ufw allow from 192.168.1.0/24 to any port 9120 proto tcp
+sudo ufw allow from 192.168.1.0/24 to any port 18790 proto tcp
+sudo ufw allow from 192.168.1.0/24 to any port 20129 proto tcp
+```
+
+Do not open `9119`, `18789`, or `20128`; they are loopback upstream ports. Open the console from another LAN machine at `http://192.168.1.114:8787`.
+
 ## 3. Hermes-first chat
 
 Default production profile:

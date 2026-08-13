@@ -324,7 +324,7 @@ function issueDashboardSession(req) {
   const sessionId = randomUUID();
   dashboardSessions.set(sessionId, Date.now() + DASHBOARD_SESSION_TTL_MS);
   const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
-  const secure = forwardedProto === "https" || (!forwardedProto && !IS_LOOPBACK);
+  const secure = forwardedProto === "https" || Boolean(req.socket.encrypted);
   const attributes = [
     `jcore_9router_session=${encodeURIComponent(sessionId)}`,
     "Path=/",
@@ -1054,7 +1054,7 @@ function proxyNineRouter(req, res) {
 
 function nativeDashboardUrl(req, port, pathname = "/") {
   const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
-  const protocol = forwardedProto || (IS_LOOPBACK ? "http" : "https");
+  const protocol = forwardedProto || (req.socket.encrypted ? "https" : "http");
   const hostname = String(req.headers.host || HOST).replace(/^\[|\]$|:\d+$/g, "");
   return `${protocol}://${hostname}:${port}${pathname}`;
 }
@@ -1062,13 +1062,16 @@ function nativeDashboardUrl(req, port, pathname = "/") {
 function rewriteDashboardHeaders(headers, req, upstreamBase) {
   const responseHeaders = { ...headers };
   delete responseHeaders["x-frame-options"];
-  const parentOrigin = `${IS_LOOPBACK ? "http" : "https"}://${String(req.headers.host || `${HOST}:${PORT}`).replace(/:\d+$/, `:${PORT}`)}`;
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const protocol = forwardedProto || (req.socket.encrypted ? "https" : "http");
+  const parentHost = String(req.headers.host || `${HOST}:${PORT}`).replace(/:\d+$/, `:${PORT}`);
+  const parentOrigin = `${protocol}://${parentHost}`;
   const upstreamCsp = String(responseHeaders["content-security-policy"] || "")
     .replace(/(?:^|;)\s*frame-ancestors\s+[^;]*/gi, "")
     .replace(/^;\s*|\s*;$/g, "");
   responseHeaders["content-security-policy"] = [upstreamCsp, `frame-ancestors 'self' ${parentOrigin}`].filter(Boolean).join("; ");
   if (responseHeaders.location) {
-    responseHeaders.location = String(responseHeaders.location).replace(upstreamBase.origin, `http://${req.headers.host}`);
+    responseHeaders.location = String(responseHeaders.location).replace(upstreamBase.origin, `${protocol}://${req.headers.host}`);
   }
   responseHeaders["cache-control"] = responseHeaders["cache-control"] || "no-store";
   return responseHeaders;

@@ -12,6 +12,9 @@ SERVICE_USER="jcore"
 SERVICE_HOME="/home/jcore"
 CONFIG_DIR="$SERVICE_HOME/.config/j-core"
 ENV_FILE="$CONFIG_DIR/j-core.env"
+LAN_ADDRESS="${JCORE_LAN_ADDRESS:-}"
+GATEWAY_BIND_HOST="127.0.0.1"
+[[ -n "$LAN_ADDRESS" ]] && GATEWAY_BIND_HOST="0.0.0.0"
 NODE_BIN="$SERVICE_HOME/.openclaw/tools/node/bin/node"
 COREPACK_BIN="$SERVICE_HOME/.openclaw/tools/node/bin/corepack"
 
@@ -53,7 +56,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   LOGIN_PASSWORD="${JCORE_AUTH_PASSWORD:-$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')}"
   umask 077
   {
-    printf 'JCORE_GATEWAY_HOST=127.0.0.1\n'
+    printf 'JCORE_GATEWAY_HOST=%s\n' "$GATEWAY_BIND_HOST"
     printf 'JCORE_GATEWAY_PORT=8787\n'
     printf 'JCORE_AUTH_USERNAME=%s\n' "$LOGIN_NAME"
     printf 'JCORE_AUTH_PASSWORD=%s\n' "$LOGIN_PASSWORD"
@@ -80,6 +83,19 @@ if [[ ! -f "$ENV_FILE" ]]; then
   printf 'username=%s\npassword=%s\n' "$LOGIN_NAME" "$LOGIN_PASSWORD" > "$CONFIG_DIR/initial-login.txt"
   chown "$SERVICE_USER:$SERVICE_USER" "$CONFIG_DIR/initial-login.txt"
   chmod 600 "$CONFIG_DIR/initial-login.txt"
+fi
+
+if [[ -n "$LAN_ADDRESS" ]]; then
+  if ! [[ "$LAN_ADDRESS" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+    echo "JCORE_LAN_ADDRESS must be an IPv4 address, received: $LAN_ADDRESS" >&2
+    exit 1
+  fi
+  sed -i 's/^JCORE_GATEWAY_HOST=.*/JCORE_GATEWAY_HOST=0.0.0.0/' "$ENV_FILE"
+  if grep -q '^JCORE_CORS_ORIGIN=' "$ENV_FILE"; then
+    sed -i "s|^JCORE_CORS_ORIGIN=.*|JCORE_CORS_ORIGIN=http://$LAN_ADDRESS:8787|" "$ENV_FILE"
+  else
+    printf 'JCORE_CORS_ORIGIN=http://%s:8787\n' "$LAN_ADDRESS" >> "$ENV_FILE"
+  fi
 fi
 
 ROUTER_ENV_FILE="$CONFIG_DIR/9router.env"

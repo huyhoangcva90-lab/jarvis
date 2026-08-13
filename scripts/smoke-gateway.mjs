@@ -145,6 +145,12 @@ try {
     throw new Error(`Session lookup failed: ${JSON.stringify(authenticatedSessionBody)}`);
   }
 
+  const nativeDashboards = await fetch(`${base}/api/native-dashboards`, { headers: { cookie: authCookie } });
+  const nativeDashboardsBody = await nativeDashboards.json();
+  if (!nativeDashboards.ok || nativeDashboardsBody.dashboards?.openclaw !== "http://127.0.0.1:19790/") {
+    throw new Error(`LAN native dashboard URL failed: ${JSON.stringify(nativeDashboardsBody)}`);
+  }
+
   const configRead = await fetch(`${base}/api/apps/config?service=openclaw`, { headers: { cookie: authCookie } });
   const configBody = await configRead.json();
   if (!configRead.ok || !configBody.content?.includes("before")) throw new Error(`Config read failed: ${JSON.stringify(configBody)}`);
