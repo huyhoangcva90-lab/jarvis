@@ -6,6 +6,14 @@ APP_DIR="${JCORE_INSTALL_DIR:-$HOME/.local/share/j-core-console}"
 ENV_FILE="$APP_DIR/.env.local"
 UNIT_DIR="$HOME/.config/systemd/user"
 UNIT_FILE="$UNIT_DIR/j-core.service"
+LAN_ADDRESS="${JCORE_LAN_ADDRESS:-}"
+GATEWAY_BIND_HOST="127.0.0.1"
+[[ -n "$LAN_ADDRESS" ]] && GATEWAY_BIND_HOST="0.0.0.0"
+
+if [[ -n "$LAN_ADDRESS" ]] && ! [[ "$LAN_ADDRESS" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+  echo "JCORE_LAN_ADDRESS must be an IPv4 address, received: $LAN_ADDRESS" >&2
+  exit 1
+fi
 
 if [[ "$APP_DIR" != "$HOME/.local/share/j-core-console" && "$APP_DIR" != "$HOME/.local/share/j-core-console/"* ]]; then
   echo "Refusing an install target outside $HOME/.local/share/j-core-console" >&2
@@ -38,8 +46,9 @@ if [[ ! -f "$ENV_FILE" ]]; then
     exit 1
   fi
   {
-    printf 'JCORE_GATEWAY_HOST=127.0.0.1\n'
+    printf 'JCORE_GATEWAY_HOST=%s\n' "$GATEWAY_BIND_HOST"
     printf 'JCORE_GATEWAY_PORT=8787\n'
+    [[ -n "$LAN_ADDRESS" ]] && printf 'JCORE_CORS_ORIGIN=http://%s:8787\n' "$LAN_ADDRESS"
     printf 'JCORE_AUTH_USERNAME=%q\n' "$LOGIN_NAME"
     printf 'JCORE_AUTH_PASSWORD=%q\n' "$LOGIN_PASSWORD"
     printf 'JCORE_WEB_ROOT=%q\n' "$APP_DIR/dist"
@@ -57,6 +66,15 @@ if [[ ! -f "$ENV_FILE" ]]; then
     [[ -f "$HOME/.claude/settings.json" ]] && printf 'JCORE_CLAUDE_CONFIG_PATH=%q\n' "$HOME/.claude/settings.json"
   } > "$ENV_FILE"
   chmod 600 "$ENV_FILE"
+fi
+
+if [[ -n "$LAN_ADDRESS" ]]; then
+  sed -i 's/^JCORE_GATEWAY_HOST=.*/JCORE_GATEWAY_HOST=0.0.0.0/' "$ENV_FILE"
+  if grep -q '^JCORE_CORS_ORIGIN=' "$ENV_FILE"; then
+    sed -i "s|^JCORE_CORS_ORIGIN=.*|JCORE_CORS_ORIGIN=http://$LAN_ADDRESS:8787|" "$ENV_FILE"
+  else
+    printf 'JCORE_CORS_ORIGIN=http://%s:8787\n' "$LAN_ADDRESS" >> "$ENV_FILE"
+  fi
 fi
 
 echo "[4/5] Creating the per-user Ubuntu service..."
@@ -81,6 +99,8 @@ EOF
 
 echo "[5/5] Starting J-Core..."
 systemctl --user daemon-reload
-systemctl --user enable --now j-core.service
-echo "J-Core is ready at http://127.0.0.1:8787"
+systemctl --user enable j-core.service
+systemctl --user restart j-core.service
+JCORE_URL="http://${LAN_ADDRESS:-127.0.0.1}:8787"
+echo "J-Core is ready at $JCORE_URL"
 echo "Use: systemctl --user status j-core.service"
