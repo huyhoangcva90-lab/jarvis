@@ -98,6 +98,8 @@ function patchJavisAuthBypass(html) {
 
     function hideAuth() {
       document.querySelectorAll("#authOverlay,#setupWizard,.modal-overlay#authOverlay,.modal-overlay#setupWizard").forEach(function (node) {
+        if (node.dataset.jcoreHidden === "true") return;
+        node.dataset.jcoreHidden = "true";
         node.setAttribute("hidden", "");
         node.setAttribute("aria-hidden", "true");
         node.style.display = "none";
@@ -110,7 +112,7 @@ function patchJavisAuthBypass(html) {
 
     document.addEventListener("DOMContentLoaded", function () {
       hideAuth();
-      new MutationObserver(hideAuth).observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+      new MutationObserver(hideAuth).observe(document.documentElement, { childList: true, subtree: true });
     });
   })();
 </script>`;

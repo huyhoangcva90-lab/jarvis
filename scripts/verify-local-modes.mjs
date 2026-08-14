@@ -30,6 +30,8 @@ expectIncludes("scripts/build-pages.mjs", "publishWorldMonitorDashboard", "World
 expectIncludes("scripts/build-pages.mjs", "jcore-spidey-free-map", "Spidey free-map injector");
 expectIncludes("scripts/build-pages.mjs", "jcore-javis-auth-bypass", "Javis auth bypass patch");
 expectIncludes("scripts/build-pages.mjs", "jcore-worldmonitor-local-pro", "World Monitor local pro patch");
+expectExcludes("scripts/build-pages.mjs", "attributes: true", "attribute-observing MutationObserver");
+expectIncludes("scripts/build-pages.mjs", "node.dataset.jcoreHidden === \"true\"", "idempotent Javis overlay hiding");
 
 if (existsSync(join(root, "dist", "spideytracker", "index.html"))) {
   expectIncludes("dist/spideytracker/index.html", "jcore-spidey-free-map", "built Spidey free-map marker");
