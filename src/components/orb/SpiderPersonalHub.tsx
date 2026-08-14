@@ -2,6 +2,11 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { soundManager } from "../../utils/soundManager.js";
+import spideyLogo from "../../../external/spideytracker-snapshot/interaction-files/spideytracker.net_images_tracker_logo3.png_809e57c2.png";
+import spideyHead from "../../../external/spideytracker-snapshot/interaction-files/spideytracker.net_images_SpiderMan_HeadTurn.png_3d9a6ff3.png";
+import spideyRadar from "../../../external/spideytracker-snapshot/interaction-files/spideytracker.net_images_ui_map_radar.png_98d8533f.png";
+import spideyMapBg from "../../../external/spideytracker-snapshot/interaction-files/spideytracker.net_images_web_watch_map_bg.jpg_f911f39d.jpg";
+import spideySoundOff from "../../../external/spideytracker-snapshot/interaction-files/spideytracker.net_images_ui_buttons_sound_off.png_fe5bd9f1.png";
 
 type Message = { id: string; role: "user" | "assistant"; text: string; at: number };
 type LinkKind = "eat" | "drink" | "play" | "todo";
@@ -244,6 +249,7 @@ export default function SpiderPersonalHub({ currentTime, username, connections, 
       <div className="spider-scanlines" aria-hidden="true" />
 
       <section className="spidey-frame">
+        <div className="spidey-source-logo-strip"><img src={spideyLogo} alt="Spidey Tracker logo captured from snapshot" /><span>NO IFRAME · external/spideytracker-snapshot</span></div>
         <button className="spidey-corner spidey-corner-left" type="button" aria-label="Mở điều hướng" aria-expanded={panel === "nav"} onClick={() => togglePanel("nav")}><WebheadMark /></button>
         <div className="spidey-logo"><span>PERSONAL</span><b>SPIDEY <WebheadMark /> TRACKER</b><small>J—CORE FIELD NETWORK</small></div>
         <button className="spidey-corner spidey-corner-right" type="button" aria-label="Trở về J-Core" onClick={onExit}>
@@ -255,8 +261,14 @@ export default function SpiderPersonalHub({ currentTime, username, connections, 
         </aside>
 
         <main id="spidey-map" className="spidey-map" tabIndex={-1}>
+          <img className="spidey-source-bg" src={spideyMapBg} alt="" aria-hidden="true" />
           <div ref={mapContainerRef} className="spidey-real-map" aria-label="Spider personal map" />
           <div className="spidey-map-vignette" aria-hidden="true" />
+          <div className="spidey-source-badge">
+            <img src={spideyHead} alt="" aria-hidden="true" />
+            <div><span>CRAWLED ASSETS LOADED</span><b>SPIDEYTRACKER NATIVE SNAPSHOT</b></div>
+            <img src={spideySoundOff} alt="" aria-hidden="true" />
+          </div>
           <div className="spidey-map-status"><span>PERSONAL MAP // SAIGON</span><b>{visibleNodes.length} SIGNALS ONLINE</b>{draftLocation && <em>{draftLocation.lat.toFixed(5)} / {draftLocation.lng.toFixed(5)}</em>}</div>
 
           <div className="spidey-radar" aria-label="Điều khiển bản đồ">
