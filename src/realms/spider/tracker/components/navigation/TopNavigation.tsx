@@ -35,6 +35,10 @@ export const TopNavigation: React.FC = () => {
     }
   };
 
+  const goHome = () => {
+    window.location.href = './';
+  };
+
   return (
     <>
       <div
@@ -61,10 +65,29 @@ export const TopNavigation: React.FC = () => {
               <Menu size={20} />
             </button>
           )}
-          <div style={{ fontWeight: 'bold', fontFamily: 'Space Grotesk', fontSize: '14px', letterSpacing: '0.1em', color: theme.primary, display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            type="button"
+            onClick={goHome}
+            title="Back to J-Core home"
+            style={{
+              fontWeight: 'bold',
+              fontFamily: 'Space Grotesk',
+              fontSize: '14px',
+              letterSpacing: '0.1em',
+              color: theme.primary,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: 0,
+              textTransform: 'uppercase',
+            }}
+          >
             {brand.shortName}
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: theme.accent, boxShadow: `0 0 6px ${theme.accent}` }} />
-          </div>
+          </button>
         </div>
 
         {/* Center Nav Items */}

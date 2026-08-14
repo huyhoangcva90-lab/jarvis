@@ -21,8 +21,8 @@ const initialState: TrackerState = {
     timeFilter: 'all',
   },
   soundEnabled: false,
-  introComplete: false,
-  tutorialComplete: false,
+  introComplete: true,
+  tutorialComplete: true,
   notifications: [],
 };
 
@@ -77,8 +77,8 @@ function trackerReducer(state: TrackerState, action: TrackerAction): TrackerStat
 function loadInitialState(): TrackerState {
   try {
     const soundEnabled = localStorage.getItem('nexus-sound') === 'true';
-    const introComplete = localStorage.getItem('nexus-intro-complete') === 'true';
-    const tutorialComplete = localStorage.getItem('nexus-tutorial-complete') === 'true';
+    const introComplete = localStorage.getItem('nexus-intro-complete') !== 'false';
+    const tutorialComplete = localStorage.getItem('nexus-tutorial-complete') !== 'false';
     return {
       ...initialState,
       soundEnabled,

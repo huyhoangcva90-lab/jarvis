@@ -56,9 +56,9 @@ export const IntelligencePanel: React.FC = () => {
   const { dispatch, flyTo } = useTracker();
 
   const confirmedCount = intelligence.filter((i) => i.status === 'confirmed').length;
-  const avgConfidence = Math.round(
-    intelligence.reduce((acc, curr) => acc + curr.confidence, 0) / intelligence.length
-  );
+  const avgConfidence = intelligence.length
+    ? Math.round(intelligence.reduce((acc, curr) => acc + curr.confidence, 0) / intelligence.length)
+    : 0;
 
   return (
     <>
@@ -96,6 +96,11 @@ export const IntelligencePanel: React.FC = () => {
             </div>
             
             <div className="custom-scroll" style={contentStyles}>
+              {intelligence.length === 0 && (
+                <div style={{ padding: '18px', color: theme.muted, fontSize: '13px', lineHeight: 1.6 }}>
+                  Chưa có ghi chú/phân tích nào cho địa điểm.
+                </div>
+              )}
               {intelligence.map((report) => (
                 <div
                   key={report.id}

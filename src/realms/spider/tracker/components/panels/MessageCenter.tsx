@@ -80,6 +80,11 @@ export const MessageCenter: React.FC = () => {
               <Signal size={16} />
             </div>
             <div className="custom-scroll" style={contentStyles}>
+              {messages.length === 0 && (
+                <div style={{ padding: '18px', color: theme.muted, fontSize: '13px', lineHeight: 1.6 }}>
+                  Chưa có tin nhắn nào. Khu này giữ lại để sau nối AI/chat hoặc ghi chú địa điểm.
+                </div>
+              )}
               {messages.map((msg) => {
                 const isExpanded = expandedMessageId === msg.id;
                 const priorityColor = getPriorityColor(msg.priority);

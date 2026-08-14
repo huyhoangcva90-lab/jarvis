@@ -92,6 +92,11 @@ export const ActivityPanel: React.FC = () => {
             initial="hidden"
             animate="show"
           >
+            {sightings.length === 0 && (
+              <div style={{ padding: '18px', color: theme.muted, fontSize: '13px', lineHeight: 1.6 }}>
+                Chưa có địa điểm nào được lưu. Map đang sạch để bạn dùng làm tracker đồ ăn/uống cá nhân.
+              </div>
+            )}
             {sightings.map((sighting) => (
               <motion.div
                 key={sighting.id}

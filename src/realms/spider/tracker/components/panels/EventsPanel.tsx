@@ -83,6 +83,11 @@ export const EventsPanel: React.FC = () => {
               ))}
             </div>
             <div className="custom-scroll" style={contentStyles}>
+              {filteredEvents.length === 0 && (
+                <div style={{ padding: '18px', color: theme.muted, fontSize: '13px', lineHeight: 1.6 }}>
+                  Chưa có event hoặc địa điểm hẹn nào.
+                </div>
+              )}
               {filteredEvents.map((event) => (
                 <div
                   key={event.id}

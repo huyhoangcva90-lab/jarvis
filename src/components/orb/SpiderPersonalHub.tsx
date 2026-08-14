@@ -18,16 +18,16 @@ function localSubApp(path: string) {
 }
 
 export default function SpiderPersonalHub({ onExit }: Props) {
-  const target = localSubApp("./spideytracker/index.html");
+  const target = localSubApp("./tracker.html");
 
   useEffect(() => {
     window.location.assign(target);
   }, [target]);
 
   return (
-    <section className="external-mode-launcher" aria-label="Opening original Spidey Tracker">
+    <section className="external-mode-launcher" aria-label="Opening Spidey map tracker">
       <div>
-        <span>ORIGINAL SNAPSHOT MODE</span>
+        <span>SPIDEY MAP MODE</span>
         <h1>Spidey Tracker</h1>
         <p>Đang mở snapshot gốc đã claw/crawl về từ SpideyTracker.</p>
         <a href={target}>Mở ngay</a>
