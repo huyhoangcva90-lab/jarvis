@@ -30,6 +30,9 @@ expectIncludes("scripts/build-pages.mjs", "publishWorldMonitorDashboard", "World
 expectIncludes("scripts/build-pages.mjs", "jcore-spidey-free-map", "Spidey free-map injector");
 expectIncludes("scripts/build-pages.mjs", "jcore-javis-auth-bypass", "Javis auth bypass patch");
 expectIncludes("scripts/build-pages.mjs", "jcore-worldmonitor-local-pro", "World Monitor local pro patch");
+expectIncludes("scripts/build-pages.mjs", "renderWorldMonitorOriginalLikeShell", "World Monitor original-like fallback shell");
+expectIncludes("scripts/build-pages.mjs", "skeleton-shell", "World Monitor skeleton shell");
+expectIncludes("scripts/build-pages.mjs", "panelsGrid", "World Monitor panels grid");
 expectExcludes("scripts/build-pages.mjs", "attributes: true", "attribute-observing MutationObserver");
 expectIncludes("scripts/build-pages.mjs", "node.dataset.jcoreHidden === \"true\"", "idempotent Javis overlay hiding");
 expectIncludes("src/App.tsx", "SESSION_CHECK_TIMEOUT_MS", "bounded auth session probe timeout");
@@ -51,7 +54,10 @@ if (existsSync(join(root, "dist", "javis-os", "index.html"))) {
 
 if (existsSync(join(root, "dist", "worldmonitor", "index.html"))) {
   expectIncludes("dist/worldmonitor/index.html", "jcore-worldmonitor-local-pro", "built World Monitor local pro marker");
+  expectIncludes("dist/worldmonitor/index.html", "skeleton-shell", "built World Monitor skeleton shell");
+  expectIncludes("dist/worldmonitor/index.html", "panelsGrid", "built World Monitor panels grid");
   expectExcludes("dist/worldmonitor/index.html", "wm-pro-banner-reserved", "World Monitor pro banner reservation");
+  expectExcludes("dist/worldmonitor/index.html", "J-Core Local Pro", "custom World Monitor fallback title");
 }
 
 if (failures.length) {
