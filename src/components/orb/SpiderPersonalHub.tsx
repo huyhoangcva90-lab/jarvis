@@ -18,7 +18,7 @@ function localSubApp(path: string) {
 }
 
 export default function SpiderPersonalHub({ onExit }: Props) {
-  const target = localSubApp("./tracker.html");
+  const target = localSubApp("./spideytracker/index.html");
 
   useEffect(() => {
     window.location.assign(target);

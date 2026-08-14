@@ -11,21 +11,25 @@ type WorldMonitorHubProps = {
   onExit: () => void;
 };
 
-const WORLD_MONITOR_ORIGINAL_URL = "https://www.worldmonitor.app/dashboard?utm_source=welcome&utm_content=hero.";
+function localSubApp(path: string) {
+  return new URL(path, window.location.href).toString();
+}
 
 export default function WorldMonitorHub({ onExit }: WorldMonitorHubProps) {
+  const target = localSubApp("./worldmonitor/index.html");
+
   useEffect(() => {
-    window.location.assign(WORLD_MONITOR_ORIGINAL_URL);
-  }, []);
+    window.location.assign(target);
+  }, [target]);
 
   return (
-    <section className="external-mode-launcher" aria-label="Opening original World Monitor">
+    <section className="external-mode-launcher" aria-label="Opening local World Monitor">
       <div>
-        <span>ORIGINAL WEB MODE</span>
+        <span>LOCAL ORIGIN MODE</span>
         <h1>World Monitor</h1>
-        <p>Đang mở trang gốc World Monitor full-page, không iframe.</p>
-        <a href={WORLD_MONITOR_ORIGINAL_URL}>Mở ngay</a>
-        <button type="button" onClick={onExit}>Quay lại J-Core</button>
+        <p>Opening the local World Monitor surface with login, footer, and pro prompts removed.</p>
+        <a href={target}>Open now</a>
+        <button type="button" onClick={onExit}>Back to J-Core</button>
       </div>
     </section>
   );
