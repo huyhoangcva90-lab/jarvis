@@ -86,9 +86,23 @@ function publishSpideyOriginalSnapshot() {
       html = html.replaceAll(originalUrl, localUrl);
       html = html.replaceAll(originalUrl.replaceAll("&", "&amp;"), localUrl);
     }
+    const mainDataFile = findCrawledAsset("./data/main.json", normalizedFiles);
+    if (mainDataFile) {
+      const mainData = readFileSync(join(crawledFiles, mainDataFile), "utf8").replace(/<\/script/gi, "<\\/script");
+      html = html.replace(
+        "window.mainData = window.mainData || { init: siteInit };",
+        `window.mainData = ${mainData};`
+      );
+    }
     rewriteSpideyCrawledCss(join(target, "files"), replacements);
+    rewriteSpideyCrawledJs(join(target, "files"));
   }
   html = html
+    .replace(/<!-- OneTrust Cookies Consent Notice start[\s\S]*?<!-- OneTrust Cookies Consent Notice end for spideytracker\.net -->/g, "")
+    .replace(/<script src="\.\/files\/cdn\.cookielaw\.org_[^"]+"[^>]*><\/script>/g, "")
+    .replace(/<style id="onetrust-style">[\s\S]*?<\/style>/g, "")
+    .replace(/<div id="onetrust-consent-sdk"[\s\S]*?<\/div><\/body><\/html>$/g, "</body></html>")
+    .replaceAll("javascript:OneTrust.ToggleInfoDisplay();", "#")
     .replaceAll('"./favicon.png"', '"https://spideytracker.net/favicon.png"')
     .replaceAll('"./images/', '"https://spideytracker.net/images/')
     .replaceAll("'./images/", "'https://spideytracker.net/images/");
@@ -147,6 +161,49 @@ function rewriteSpideyCrawledCss(filesDirectory, replacements) {
     }
 
     writeFileSync(path, css);
+  }
+}
+
+function rewriteSpideyCrawledJs(filesDirectory) {
+  if (!existsSync(filesDirectory)) return;
+
+  const files = readdirSync(filesDirectory);
+  const jsFiles = files.filter((file) => file.endsWith(".js"));
+  const normalizedFiles = files.map((name) => ({ name, key: normalizeAssetKey(name) }));
+
+  const findRelativeModule = (specifier, fromFile) => {
+    const cleaned = specifier.replace(/^\.\//, "").split(/[?#]/)[0];
+    const key = normalizeAssetKey(cleaned);
+    if (!key) return "";
+
+    const sameOriginPrefix = fromFile.startsWith("spideytracker.net_")
+      ? "spideytracker.net_"
+      : fromFile.startsWith("spideytracker.com_")
+        ? "spideytracker.com_"
+        : "";
+    const sameOriginMatch = normalizedFiles.find((file) => (
+      file.name.startsWith(sameOriginPrefix)
+      && file.key.includes(key)
+      && file.name.endsWith(cleaned.match(/\.[a-z0-9]+$/i)?.[0] || ".js")
+    ));
+    if (sameOriginMatch) return sameOriginMatch.name;
+
+    const anyMatch = normalizedFiles.find((file) => file.key.includes(key));
+    return anyMatch?.name || "";
+  };
+
+  const relativeModulePattern = /(?<quote>["'])(?<specifier>\.\/[^"']+?)(?<quoteEnd>["'])/g;
+  for (const file of jsFiles) {
+    const path = join(filesDirectory, file);
+    let js = readFileSync(path, "utf8");
+    js = js.replace(relativeModulePattern, (match, quote, specifier, quoteEnd) => {
+      if (!/\.(?:js|css|json|png|jpg|jpeg|gif|svg|webp|woff2?|mp3|mp4|webm|mov)(?:[?#].*)?$/i.test(specifier)) {
+        return match;
+      }
+      const localFile = findRelativeModule(specifier, file);
+      return localFile ? `${quote}./${localFile}${quoteEnd}` : match;
+    });
+    writeFileSync(path, js);
   }
 }
 
