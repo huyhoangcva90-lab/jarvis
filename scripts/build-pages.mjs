@@ -106,6 +106,7 @@ function publishSpideyOriginalSnapshot() {
     .replaceAll('"./favicon.png"', '"https://spideytracker.net/favicon.png"')
     .replaceAll('"./images/', '"https://spideytracker.net/images/')
     .replaceAll("'./images/", "'https://spideytracker.net/images/");
+  html = hideSpideyFooterBranding(html);
 
   writeFileSync(join(target, "index.html"), html);
 }
@@ -205,6 +206,41 @@ function rewriteSpideyCrawledJs(filesDirectory) {
     });
     writeFileSync(path, js);
   }
+}
+
+function hideSpideyFooterBranding(html) {
+  const css = `
+<style id="jcore-spidey-fullscreen">
+  .site-footer,
+  .footer-content,
+  .footer-bottom,
+  .footer-logos,
+  .footer-logo,
+  .footer-logos-main,
+  .footer-release-date,
+  .footer-samsung,
+  .footer-samsung-wrap,
+  .footer-samsung-teaser-mode,
+  .footer-legal,
+  .footer-text,
+  .footer-copyright,
+  .footer-privacy-choices-group,
+  .footer-privacy-link,
+  .footer-credits,
+  .footer-credits-toggle,
+  .footer-credits__panel {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  html,
+  body {
+    min-height: 100dvh !important;
+    overflow: hidden !important;
+  }
+</style>`;
+  return html.includes("</head>") ? html.replace("</head>", `${css}</head>`) : `${css}${html}`;
 }
 
 function publishOriginalSubApps() {
