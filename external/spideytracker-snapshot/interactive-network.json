@@ -1,0 +1,1057 @@
+[
+  {
+    "url": "https://spideytracker.net/",
+    "status": 200,
+    "contentType": "text/html; charset=UTF-8"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame1-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame1-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame2-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame3-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame4-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame5-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame5-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame5-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/buttons/btn-white-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/buttons/btn-white-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/index.gyayWY3A.css",
+    "status": 200,
+    "contentType": "text/css"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/FooterCredits.QSxxyE34.css",
+    "status": 200,
+    "contentType": "text/css"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/index.D7H5xVOF.css",
+    "status": 200,
+    "contentType": "text/css"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/Map2D.BIligybI.css",
+    "status": 200,
+    "contentType": "text/css"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/ActivityLog.--cqM4Lv.css",
+    "status": 200,
+    "contentType": "text/css"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/SamsungExclusives.BULn20fm.css",
+    "status": 200,
+    "contentType": "text/css"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/WebWatch.kqROn44D.css",
+    "status": 200,
+    "contentType": "text/css"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/HelpScreen.Cy7uPcQs.css",
+    "status": 200,
+    "contentType": "text/css"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame2-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame3-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame3-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame4-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame4-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/frame/frame1-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/buttons/btn-white-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/ticker/ticker1-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/ticker/ticker1-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/ticker/ticker1-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/SiteFadeIn.astro_astro_type_script_index_0_lang.C8Ye9PWO.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/scripts/consent-api-min-v2.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/PushNotificationOptIn.astro_astro_type_script_index_0_lang.DjbNBLio.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/images/tracker_logo3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/XFeed.astro_astro_type_script_index_0_lang.CF68tUih.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://cdn.cookielaw.org/scripttemplates/otSDKStub.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/images/site_header/sonypictureslogo.svg",
+    "status": 200,
+    "contentType": "image/svg+xml"
+  },
+  {
+    "url": "https://spideytracker.net/images/site_header/sonylogo.svg",
+    "status": 200,
+    "contentType": "image/svg+xml"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/MainMenu.astro_astro_type_script_index_0_lang.CVa9xlQB.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/SoundOptIn.astro_astro_type_script_index_0_lang.CoH_BX6h.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/PreloaderSpideyProgressAnimation.astro_astro_type_script_index_0_lang.CuRbi0qT.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/PreMap.astro_astro_type_script_index_0_lang.ChyE87Kx.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/Preloader.astro_astro_type_script_index_0_lang.DIOlSthX.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/EventsPanel.astro_astro_type_script_index_0_lang.TwWuPdjL.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/NedTalkPrompt.astro_astro_type_script_index_0_lang.BvRaQT4U.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/SectionExplainerModal.astro_astro_type_script_index_0_lang.BQ-lU7P8.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/Map3D.astro_astro_type_script_index_0_lang.BHKY-DYW.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/ActivityLog.astro_astro_type_script_index_0_lang.CbHHu0D7.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/InTrackerVideoPlayer.astro_astro_type_script_index_0_lang.D_-X_rXp.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/Radar.astro_astro_type_script_index_0_lang.BFAmfDeJ.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/SamsungExclusives.astro_astro_type_script_index_0_lang.Dd33eNya.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/Map2DPano.astro_astro_type_script_index_0_lang.COnt5lAg.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/Toast.astro_astro_type_script_index_0_lang.DuXBg-CU.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/MainUIPanel.astro_astro_type_script_index_0_lang.BR7Pybqu.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/WebWatch.astro_astro_type_script_index_0_lang.YUEWAfyh.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/NotificationCenter.astro_astro_type_script_index_0_lang.G640m5aM.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/Map2D.astro_astro_type_script_index_0_lang.CoADz7sH.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/MsgCenter.astro_astro_type_script_index_0_lang.U3pDkmQe.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/Lightbox.astro_astro_type_script_index_0_lang.YBJWc47h.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/GetTicketsCTA.astro_astro_type_script_index_0_lang.Dx4NWnbG.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/WatchTrailerCTA.astro_astro_type_script_index_0_lang.Ad2uxjqQ.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/Layout.astro_astro_type_script_index_0_lang.DzUxZSPt.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/GoogleMapsPanoEmbed.astro_astro_type_script_index_0_lang.DE1dhltH.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/FrameUI.astro_astro_type_script_index_0_lang.CbhbOVUu.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/buttons/btn-yellow-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/xfeed/X_logo.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/event_pin.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/preloader/SM_ASCII_DOTS_WHITE.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/buttons/btn-yellow-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/SpiderMan_HeadTurn.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://d33t5dshwl6j0s.cloudfront.net/movies/spideytracker/ww/redirection_script.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/globe_btn.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/preloader/SpiderMan_web.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://cdn.cookielaw.org/consent/019dfe20-79a9-72b7-abfa-4ebe6e434c56/019dfe20-79a9-72b7-abfa-4ebe6e434c56.json",
+    "status": 200,
+    "contentType": "application/json"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/buttons/btn-yellow-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/buttons/btn-black-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/notification_center/top_ornament.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/map_center.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/green_pin.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/buttons/sound_off.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/red_pin.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/site_footer/bnd_logo.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/buttons/btn-black-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/msg_center/alert_btn_white.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/green_pin.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/red_pin.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://www.googletagmanager.com/gtm.js?id=GTM-MFDX4QCW",
+    "status": 200,
+    "contentType": "application/javascript; charset=UTF-8"
+  },
+  {
+    "url": "https://spideytracker.net/images/site_footer/now_playing_topline.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/site_footer/samsung.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/site_footer/billingblock.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/buttons/btn-black-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/msg_center/alert_btn_orange.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/white_pin.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps/api/js?key=AIzaSyA_PELuIzk8A1pMtH7A5lkBXgJumQiUhLg&v=beta&loading=async&callback=initMaps&language=",
+    "status": 200,
+    "contentType": "text/javascript; charset=UTF-8"
+  },
+  {
+    "url": "https://fonts.googleapis.com/css2?family=Bitcount+Prop+Single:wght@100..900&display=swap",
+    "status": 200,
+    "contentType": "text/css; charset=utf-8"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/buttons/x_btn.svg",
+    "status": 200,
+    "contentType": "image/svg+xml"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/radar.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/vertical_measure.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/horizontal_measure.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/grid_lines.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/web_watch/8bit_arrow.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/web_watch/map_bg.jpg",
+    "status": 200,
+    "contentType": "image/jpeg"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/samsung_exclusives/download_btn_arrow.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/samsung_exclusives/download_btn_base.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/notification_center/message_box/notification_box_1-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/notification_center/message_box/notification_box_1-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/notification_center/message_box/notification_box_1-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/notification_center/message_box/notification_box_2-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/notification_center/message_box/notification_box_2-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/notification_center/message_box/notification_box_3-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/notification_center/message_box/notification_box_3-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/help_screen/radar.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/notification_center/message_box/notification_box_2-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/notification_center/message_box/notification_box_3-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://geolocation.onetrust.com/cookieconsentpub/v1/geo/location",
+    "status": 200,
+    "contentType": "application/json"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/runtimeData.5PyvN2yU.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/pushNotificationManager.CpvQCb0A.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/bitBorder3Step.UfzqZ8_1.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/bitBorder2Top3Bottom.eAaO9-xp.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps-api-v3/api/js/65/12f-beta/main.js",
+    "status": 200,
+    "contentType": "text/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/seenCookie.D6WXTo6F.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/pinCookies.Dl9RnTmT.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/soundManager.Cxh2LKZS.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/fonts/PF_Videotext_Pro_Regular.woff2",
+    "status": 200,
+    "contentType": "font/woff2"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/spritesheet.Ci-TmP5u.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/spideyPinsData.DFGwLycj.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/flyToLocation.ByXmqODx.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/images/SpiderMan_Container.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/msg_center/green_wire.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/msg_center/msg_center_base.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/msg_center/bulb_orange.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/msg_center/bulb_red.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/msg_center/bulb_green.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/filters/filter_red.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/filters/filter_green.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/get_tickets/blue_1-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/get_tickets/yellow_1-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/get_tickets/yellow_1-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/get_tickets/blue_1-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/get_tickets/yellow_1-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/get_tickets/blue_1-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/msg_center/container_1-1.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/msg_center/container_1-2.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/msg_center/container_1-3.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/data/main.json",
+    "status": 200,
+    "contentType": "application/json"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/consentModal.uuKNYaHv.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/bitBorder2Step.RCKRfQHx.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/_astro/index.CdU9azD9.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://cdn.cookielaw.org/scripttemplates/202605.1.0/otBannerSdk.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/msg_center/alert_btn_white.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://fonts.gstatic.com/s/bitcountpropsingle/v3/-W-9XIv9SyXT0xz0E9pIHCxbW8ZMGEVdhz4VoumsGFhzYseFqK9f_KOwYjYsHSocfu1DlxztzQH877SgJ2SUzQ4SJdODLz0JoLU3vXFBpVzZ.woff2",
+    "status": 200,
+    "contentType": "font/woff2"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/filters/filter_white.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/web_watch/hand.jpg",
+    "status": 200,
+    "contentType": "image/jpeg"
+  },
+  {
+    "url": "https://spideytracker.net/images/web_watch/boomerang.jpg",
+    "status": 200,
+    "contentType": "image/jpeg"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps/api/mapsjs/gen_204?csp_test=true",
+    "status": 200,
+    "contentType": "application/json; charset=UTF-8"
+  },
+  {
+    "url": "https://d2i29m610w25go.cloudfront.net/",
+    "status": 200,
+    "contentType": "text/html"
+  },
+  {
+    "url": "https://spideytracker.net/images/web_watch/punisher.jpg",
+    "status": 200,
+    "contentType": "image/jpeg"
+  },
+  {
+    "url": "https://spideytracker.net/images/web_watch/unknown.jpg",
+    "status": 200,
+    "contentType": "image/jpeg"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/menu/spidey_head_spritesheet.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/web_watch/tarantula.jpg",
+    "status": 200,
+    "contentType": "image/jpeg"
+  },
+  {
+    "url": "https://spideytracker.net/images/web_watch/scorpion.jpg",
+    "status": 200,
+    "contentType": "image/jpeg"
+  },
+  {
+    "url": "https://d37op0kdz5jfqn.cloudfront.net/",
+    "status": 200,
+    "contentType": "text/html"
+  },
+  {
+    "url": "https://d37op0kdz5jfqn.cloudfront.net/",
+    "status": 200,
+    "contentType": "text/html"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps-api-v3/api/js/65/12f-beta/common.js",
+    "status": 200,
+    "contentType": "text/javascript"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps-api-v3/api/js/65/12f-beta/map.js",
+    "status": 200,
+    "contentType": "text/javascript"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps-api-v3/api/js/65/12f-beta/marker.js",
+    "status": 200,
+    "contentType": "text/javascript"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps-api-v3/api/js/65/12f-beta/util.js",
+    "status": 200,
+    "contentType": "text/javascript"
+  },
+  {
+    "url": "https://cdn.cookielaw.org/consent/019dfe20-79a9-72b7-abfa-4ebe6e434c56/0197ad15-155a-7854-a72a-26d0969364b2/en.json",
+    "status": 200,
+    "contentType": "application/json"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps-api-v3/api/js/65/12f-beta/log.js",
+    "status": 200,
+    "contentType": "text/javascript"
+  },
+  {
+    "url": "https://maps.gstatic.com/mapfiles/openhand_8_8.cur",
+    "status": 200,
+    "contentType": "image/bmp"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps/api/mapsjs/mapConfigs:batchGet?language=en-US&region=US&alt=protojson&major_version=65&minor_version=12f-beta&map_ids=f40366e3c6afe5272b1384f6&map_type=1",
+    "status": 200,
+    "contentType": "application/json+protobuf; charset=UTF-8"
+  },
+  {
+    "url": "https://cdn.cookielaw.org/scripttemplates/202605.1.0/assets/otFloatingFlat.json",
+    "status": 200,
+    "contentType": "application/json"
+  },
+  {
+    "url": "https://cdn.cookielaw.org/scripttemplates/202605.1.0/assets/v2/otPcTab.json",
+    "status": 200,
+    "contentType": "application/json"
+  },
+  {
+    "url": "https://cdn.cookielaw.org/scripttemplates/202605.1.0/assets/otCommonStyles.css",
+    "status": 200,
+    "contentType": "text/css"
+  },
+  {
+    "url": "https://cdn.cookielaw.org/logos/static/ot_close.svg",
+    "status": 200,
+    "contentType": "image/svg+xml"
+  },
+  {
+    "url": "https://cdn.cookielaw.org/logos/static/ot_guard_logo.svg",
+    "status": 200,
+    "contentType": "image/svg+xml"
+  },
+  {
+    "url": "https://cdn.cookielaw.org/logos/static/powered_by_logo.svg",
+    "status": 200,
+    "contentType": "image/svg+xml"
+  },
+  {
+    "url": "https://cdn.cookielaw.org/logos/d19e506f-1a64-463d-94e4-914dd635817d/b3adfcef-3e46-4bf5-90c5-de654490444b/3e52e08a-f636-4696-8723-c8714386d69f/sp_logo_black.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/data/events.php?region=VN",
+    "status": 200,
+    "contentType": "application/json; charset=utf-8"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps-api-v3/api/js/65/12f-beta/webgl.js",
+    "status": 200,
+    "contentType": "text/javascript"
+  },
+  {
+    "url": "https://maps.googleapis.com/$rpc/google.internal.maps.mapsjs.v1.MapsJsInternalService/GetViewportInfo",
+    "status": 200,
+    "contentType": "application/json+protobuf; charset=UTF-8"
+  },
+  {
+    "url": "blob:https://spideytracker.net/fd504328-7b63-4ed0-9ec2-45a5a69f270f",
+    "status": 200,
+    "contentType": "text/javascript"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/red_pin.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/green_pin.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://spideytracker.net/images/ui/map/white_pin.png",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i1!3i1!4i256!2m3!1e0!2sm!3i790556364!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps-api-v3/api/js/65/12f-beta/onion.js",
+    "status": 200,
+    "contentType": "text/javascript"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i1!3i2!4i256!2m3!1e0!2sm!3i790556364!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i0!3i2!4i256!2m3!1e0!2sm!3i790556058!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i3!3i3!4i256!2m3!1e0!2sm!3i790556058!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i0!3i1!4i256!2m3!1e0!2sm!3i790556058!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i2!3i2!4i256!2m3!1e0!2sm!3i790556364!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i2!3i1!4i256!2m3!1e0!2sm!3i790556364!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i2!3i3!4i256!2m3!1e0!2sm!3i790556058!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i1!3i3!4i256!2m3!1e0!2sm!3i790555332!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i0!3i3!4i256!2m3!1e0!2sm!3i790556058!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i0!3i0!4i256!2m3!1e0!2sm!3i790556058!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i3!3i0!4i256!2m3!1e0!2sm!3i790556364!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i3!3i2!4i256!2m3!1e0!2sm!3i790556364!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i3!3i1!4i256!2m3!1e0!2sm!3i790556364!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps-api-v3/api/js/65/12f-beta/vectortown-worker.js",
+    "status": 200,
+    "contentType": "text/javascript"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i1!3i0!4i256!2m3!1e0!2sm!3i790556364!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/featureMaps?map_id=f40366e3c6afe5272b1384f6&version=15672915178217441059&pb=!1m4!1m3!1i2!2i0!3i0!1m4!1m3!1i2!2i0!3i1!1m4!1m3!1i2!2i1!3i0!1m4!1m3!1i2!2i1!3i1!1m4!1m3!1i2!2i0!3i2!1m4!1m3!1i2!2i0!3i3!1m4!1m3!1i2!2i1!3i2!1m4!1m3!1i2!2i1!3i3!1m4!1m3!1i2!2i2!3i0!1m4!1m3!1i2!2i2!3i1!1m4!1m3!1i2!2i3!3i0!1m4!1m3!1i2!2i3!3i1!1m4!1m3!1i2!2i2!3i2!1m4!1m3!1i2!2i2!3i3!1m4!1m3!1i2!2i3!3i2!1m4!1m3!1i2!2i3!3i3!2m3!1e0!2sm!3i790556364!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e3!12m2!5b1!6b1!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "application/json"
+  },
+  {
+    "url": "https://mapsresources-pa.googleapis.com/v1/tiles?map_id=f40366e3c6afe5272b1384f6&version=sdk-15672915178217441059&pb=!1m5!1m4!1i2!2i2!3i0!4i256!2m3!1e0!2sm!3i790556364!3m13!2sen-US!3sUS!5e18!12m5!1e68!2m2!1sset!2sRoadmap!4e2!12m3!1e37!2m1!1ssmartmaps!4e0!5m1!1e3!23i46991212!23i47054750!23i47083502!23i56565656!26m2!1e2!1e3",
+    "status": 200,
+    "contentType": "image/png"
+  },
+  {
+    "url": "https://js-agent.newrelic.com/nr-rum-1.320.0.min.js",
+    "status": 200,
+    "contentType": "application/javascript"
+  },
+  {
+    "url": "https://maps.googleapis.com/maps-api-v3/api/js/65/12f-beta/controls.js",
+    "status": 200,
+    "contentType": "text/javascript"
+  },
+  {
+    "url": "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&text=%EE%97%8C%EE%94%AF%EE%BF%B7%EE%94%B6%EE%A7%B9&lang=en",
+    "status": 200,
+    "contentType": "text/css; charset=utf-8"
+  },
+  {
+    "url": "https://fonts.googleapis.com/css?family=Google+Sans+Text:400&text=%E2%86%90%E2%86%92%E2%86%91%E2%86%93&lang=en",
+    "status": 200,
+    "contentType": "text/css; charset=utf-8"
+  },
+  {
+    "url": "https://fonts.googleapis.com/css?family=Roboto:300,400,500,700|Google+Sans:400,500,700|Google+Sans+Text:400,500,700&lang=en",
+    "status": 200,
+    "contentType": "text/css; charset=utf-8"
+  },
+  {
+    "url": "https://fonts.gstatic.com/s/roboto/v51/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3yUBA.woff2",
+    "status": 200,
+    "contentType": "font/woff2"
+  },
+  {
+    "url": "https://bam.nr-data.net/1/NRJS-5316ca98aa88047d381?a=675436229&v=1.320.0&to=MgZTNkRQXUoDVkYNDgtMZBBfHlpXBlBKShENEw%3D%3D&rst=2520&ck=0&s=c4f814bdb42c83cd&ref=https://spideytracker.net/&ptid=09d263f263d9d837&ap=3&be=209&fe=2095&dc=1007&at=HkFQQAxKTkQ%3D&fsh=1&perf=%7B%22timing%22:%7B%22of%22:1786672857384,%22n%22:0,%22f%22:0,%22dn%22:10,%22dne%22:80,%22c%22:80,%22s%22:118,%22ce%22:163,%22rq%22:163,%22rp%22:209,%22rpe%22:270,%22di%22:987,%22ds%22:1215,%22de%22:1216,%22dc%22:2302,%22l%22:2302,%22le%22:2304%7D,%22navigation%22:%7B%7D%7D&fp=984&fcp=984",
+    "status": 200,
+    "contentType": "application/json"
+  },
+  {
+    "url": "https://bam.nr-data.net/events/1/NRJS-5316ca98aa88047d381?a=675436229&v=1.320.0&to=MgZTNkRQXUoDVkYNDgtMZBBfHlpXBlBKShENEw%3D%3D&rst=3037&ck=0&s=c4f814bdb42c83cd&ref=https://spideytracker.net/&ptid=09d263f263d9d837",
+    "status": 200,
+    "contentType": "image/gif"
+  }
+]

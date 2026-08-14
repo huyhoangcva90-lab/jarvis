@@ -1,0 +1,6 @@
+[submodule "external/worldmonitor"]
+	path = external/worldmonitor
+	url = https://github.com/koala73/worldmonitor.git
+[submodule "external/javis-os"]
+	path = external/javis-os
+	url = https://github.com/blogminhquy/javis-os.git

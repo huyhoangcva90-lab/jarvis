@@ -1,9 +1,12 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { soundManager } from "../../utils/soundManager.js";
 
 type Message = { id: string; role: "user" | "assistant"; text: string; at: number };
 type LinkKind = "eat" | "drink" | "play" | "todo";
-type PersonalNode = { id: string; kind: LinkKind; title: string; note: string; done?: boolean; x?: number; y?: number };
+type DraftLocation = { lng: number; lat: number };
+type PersonalNode = { id: string; kind: LinkKind; title: string; note: string; done?: boolean; x?: number; y?: number; lng?: number; lat?: number };
 
 type Props = {
   currentTime: string;
@@ -24,6 +27,8 @@ const KINDS: Array<{ id: LinkKind; label: string; short: string; color: string }
   { id: "todo", label: "Việc phải làm", short: "VIỆC", color: "red" },
 ];
 
+const SAIGON_CENTER: DraftLocation = { lng: 106.7009, lat: 10.7769 };
+
 const SEED_NODES: PersonalNode[] = [
   { id: "ev", kind: "todo", title: "Lập kế hoạch tuần", note: "Hỏi E.V và tách thành từng chặng", x: 68, y: 35 },
   { id: "coffee", kind: "drink", title: "Quán làm việc", note: "Ghim địa chỉ hoặc link Maps", x: 79, y: 48 },
@@ -31,12 +36,24 @@ const SEED_NODES: PersonalNode[] = [
   { id: "weekend", kind: "play", title: "Cuối tuần", note: "Hoạt động để nạp lại năng lượng", x: 27, y: 39 },
 ];
 
+function xyToLngLat(x = 50, y = 50): DraftLocation {
+  return {
+    lng: SAIGON_CENTER.lng + ((x - 50) / 100) * 0.18,
+    lat: SAIGON_CENTER.lat - ((y - 50) / 100) * 0.14,
+  };
+}
+
+function migrateNode(node: PersonalNode): PersonalNode {
+  if (typeof node.lng === "number" && typeof node.lat === "number") return node;
+  return { ...node, ...xyToLngLat(node.x, node.y) };
+}
+
 function loadNodes() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    return Array.isArray(parsed) && parsed.length ? parsed as PersonalNode[] : SEED_NODES;
+    return Array.isArray(parsed) && parsed.length ? (parsed as PersonalNode[]).map(migrateNode) : SEED_NODES.map(migrateNode);
   } catch {
-    return SEED_NODES;
+    return SEED_NODES.map(migrateNode);
   }
 }
 
@@ -79,6 +96,9 @@ function WorldMap() {
 }
 
 export default function SpiderPersonalHub({ currentTime, username, connections, messages, isSending, onAskEv, onExit, onResetView }: Props) {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<Record<string, maplibregl.Marker>>({});
   const [activeKind, setActiveKind] = useState<LinkKind | "all">("all");
   const [nodes, setNodes] = useState<PersonalNode[]>(loadNodes);
   const [selectedId, setSelectedId] = useState<string>(nodes[0]?.id || "");
@@ -86,10 +106,51 @@ export default function SpiderPersonalHub({ currentTime, username, connections, 
   const [kind, setKind] = useState<LinkKind>("todo");
   const [draft, setDraft] = useState("");
   const [note, setNote] = useState("");
+  const [draftLocation, setDraftLocation] = useState<DraftLocation | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editNote, setEditNote] = useState("");
   const [editKind, setEditKind] = useState<LinkKind>("todo");
   const [evPrompt, setEvPrompt] = useState("");
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      center: [SAIGON_CENTER.lng, SAIGON_CENTER.lat],
+      zoom: 12,
+      attributionControl: { compact: true },
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution: "OpenStreetMap",
+          },
+        },
+        layers: [{ id: "osm", type: "raster", source: "osm" }],
+      },
+    });
+
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
+    map.on("load", () => map.resize());
+    map.on("click", (event) => {
+      setDraftLocation({ lng: event.lngLat.lng, lat: event.lngLat.lat });
+      setPanel("compose");
+      soundManager.play("beep");
+    });
+
+    mapRef.current = map;
+
+    return () => {
+      Object.values(markersRef.current).forEach((marker) => marker.remove());
+      markersRef.current = {};
+      map.remove();
+      mapRef.current = null;
+    };
+  }, []);
 
   useEffect(() => localStorage.setItem(STORAGE_KEY, JSON.stringify(nodes)), [nodes]);
   const selected = nodes.find((node) => node.id === selectedId) || null;
@@ -98,13 +159,59 @@ export default function SpiderPersonalHub({ currentTime, username, connections, 
   const latestEv = useMemo(() => [...messages].reverse().find((message) => message.role === "assistant"), [messages]);
   const visibleNodes = useMemo(() => activeKind === "all" ? nodes : nodes.filter((node) => node.kind === activeKind), [activeKind, nodes]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    Object.values(markersRef.current).forEach((marker) => marker.remove());
+    markersRef.current = {};
+
+    visibleNodes.forEach((node) => {
+      if (typeof node.lng !== "number" || typeof node.lat !== "number") return;
+
+      const item = KINDS.find((entry) => entry.id === node.kind);
+      const markerButton = document.createElement("button");
+      const label = document.createElement("span");
+      const title = document.createElement("b");
+
+      markerButton.type = "button";
+      markerButton.className = `spidey-map-marker pin-${node.kind}${selectedId === node.id ? " selected" : ""}${node.done ? " done" : ""}`;
+      markerButton.setAttribute("aria-label", `${item?.label || node.kind}: ${node.title}`);
+      label.textContent = item?.short || node.kind;
+      title.textContent = node.title;
+      markerButton.append(label, title);
+      markerButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        setSelectedId(node.id);
+        setPanel("detail");
+        soundManager.play("click");
+      });
+
+      markersRef.current[node.id] = new maplibregl.Marker({ element: markerButton, anchor: "bottom" })
+        .setLngLat([node.lng, node.lat])
+        .addTo(map);
+    });
+  }, [selectedId, visibleNodes]);
+
+  useEffect(() => {
+    if (typeof selected?.lng !== "number" || typeof selected?.lat !== "number") return;
+    mapRef.current?.flyTo({ center: [selected.lng, selected.lat], zoom: 14, speed: 0.8, essential: false });
+  }, [selectedId, selected?.lng, selected?.lat]);
+
   const addNode = (event: FormEvent) => {
     event.preventDefault();
     if (!draft.trim()) return;
     const index = nodes.length;
+    const x = 18 + ((index * 19) % 70);
+    const y = 24 + ((index * 23) % 49);
+    const location = draftLocation || xyToLngLat(x, y);
     const node: PersonalNode = { id: `${Date.now()}`, kind, title: draft.trim(), note: note.trim() || "Chưa có địa chỉ, link hoặc ghi chú", x: 18 + ((index * 19) % 70), y: 24 + ((index * 23) % 49) };
+    node.x = x;
+    node.y = y;
+    node.lng = location.lng;
+    node.lat = location.lat;
     setNodes((current) => [...current, node]);
-    setSelectedId(node.id); setDraft(""); setNote(""); setPanel("detail");
+    setSelectedId(node.id); setDraft(""); setNote(""); setDraftLocation(null); setPanel("detail");
     soundManager.play("success");
   };
 
@@ -125,6 +232,11 @@ export default function SpiderPersonalHub({ currentTime, username, connections, 
 
   const togglePanel = (next: typeof panel) => setPanel((current) => current === next ? null : next);
 
+  const openSelectedMap = () => {
+    if (!selected || typeof selected.lat !== "number" || typeof selected.lng !== "number") return;
+    window.open(`https://www.openstreetmap.org/?mlat=${selected.lat}&mlon=${selected.lng}#map=17/${selected.lat}/${selected.lng}`, "_blank", "noopener,noreferrer");
+  };
+
   return (
     <div className="spider-personal-shell spidey-tracker-shell">
       <a className="spidey-skip" href="#spidey-map">Bỏ qua điều hướng</a>
@@ -143,14 +255,9 @@ export default function SpiderPersonalHub({ currentTime, username, connections, 
         </aside>
 
         <main id="spidey-map" className="spidey-map" tabIndex={-1}>
-          <WorldMap />
+          <div ref={mapContainerRef} className="spidey-real-map" aria-label="Spider personal map" />
           <div className="spidey-map-vignette" aria-hidden="true" />
-          <div className="spidey-map-status"><span>PERSONAL MAP // SAIGON</span><b>{visibleNodes.length} SIGNALS ONLINE</b></div>
-
-          {visibleNodes.map((node, index) => {
-            const fallbackX = 18 + ((index * 21) % 70); const fallbackY = 22 + ((index * 27) % 54);
-            return <button type="button" key={node.id} className={`spidey-pin pin-${node.kind} ${selectedId === node.id ? "selected" : ""} ${node.done ? "done" : ""}`} style={{ left: `${node.x ?? fallbackX}%`, top: `${node.y ?? fallbackY}%` }} aria-label={`${KINDS.find((item) => item.id === node.kind)?.label}: ${node.title}`} onClick={() => { setSelectedId(node.id); setPanel("detail"); }}><span><KindGlyph kind={node.kind} /></span><b>{node.title}</b></button>;
-          })}
+          <div className="spidey-map-status"><span>PERSONAL MAP // SAIGON</span><b>{visibleNodes.length} SIGNALS ONLINE</b>{draftLocation && <em>{draftLocation.lat.toFixed(5)} / {draftLocation.lng.toFixed(5)}</em>}</div>
 
           <div className="spidey-radar" aria-label="Điều khiển bản đồ">
             <i /><i /><i /><b />
@@ -175,7 +282,26 @@ export default function SpiderPersonalHub({ currentTime, username, connections, 
 
         {panel === "compose" && <aside className="spidey-panel spidey-compose-panel"><header><b>ADD SIGNAL</b><button type="button" onClick={() => setPanel(null)}>CLOSE</button></header><form onSubmit={addNode}><label>LOẠI<select value={kind} onChange={(event) => setKind(event.target.value as LinkKind)}>{KINDS.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label><label>TÊN<input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Tên địa điểm hoặc việc…" autoFocus /></label><label>ĐỊA CHỈ / LINK / GHI CHÚ<textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Dán link Maps, Notion hoặc ghi chú…" /></label><button type="submit" disabled={!draft.trim()}>GHIM VÀO MAP ＋</button></form></aside>}
 
-        {panel === "detail" && selected && <aside className="spidey-panel spidey-detail-panel"><header><b>NODE INTEL // {selected.id.slice(-4)}</b><button type="button" onClick={() => setPanel(null)}>CLOSE</button></header><form onSubmit={saveSelected}><label>LOẠI<select value={editKind} onChange={(event) => setEditKind(event.target.value as LinkKind)}>{KINDS.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label><label>TÊN<input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} /></label><label>ĐỊA CHỈ / LINK / GHI CHÚ<textarea value={editNote} onChange={(event) => setEditNote(event.target.value)} /></label><button type="submit">LƯU THAY ĐỔI</button></form><div className="spidey-detail-actions"><button type="button" onClick={() => setNodes((items) => items.map((item) => item.id === selected.id ? { ...item, done: !item.done } : item))}>{selected.done ? "MỞ LẠI" : "HOÀN TẤT"}</button><button type="button" onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selected.note || selected.title)}`, "_blank", "noopener,noreferrer")}>MỞ MAP ↗</button><button className="danger" type="button" onClick={() => { setNodes((items) => items.filter((item) => item.id !== selected.id)); setSelectedId(""); setPanel(null); }}>XÓA</button></div></aside>}
+        {panel === "detail" && selected && (
+          <aside className="spidey-panel spidey-detail-panel">
+            <header><b>NODE INTEL // {selected.id.slice(-4)}</b><button type="button" onClick={() => setPanel(null)}>CLOSE</button></header>
+            <form onSubmit={saveSelected}>
+              <label>LOẠI<select value={editKind} onChange={(event) => setEditKind(event.target.value as LinkKind)}>{KINDS.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label>
+              <label>TÊN<input value={editTitle} onChange={(event) => setEditTitle(event.target.value)} /></label>
+              <label>ĐỊA CHỈ / LINK / GHI CHÚ<textarea value={editNote} onChange={(event) => setEditNote(event.target.value)} /></label>
+              <button type="submit">LƯU THAY ĐỔI</button>
+            </form>
+            <div className="spidey-node-coordinates">
+              <span>COORDINATES</span>
+              <b>{typeof selected.lat === "number" && typeof selected.lng === "number" ? `${selected.lat.toFixed(5)} / ${selected.lng.toFixed(5)}` : "NO MAP POINT"}</b>
+            </div>
+            <div className="spidey-detail-actions">
+              <button type="button" onClick={() => setNodes((items) => items.map((item) => item.id === selected.id ? { ...item, done: !item.done } : item))}>{selected.done ? "MỞ LẠI" : "HOÀN TẤT"}</button>
+              <button type="button" onClick={openSelectedMap}>MỞ MAP ↗</button>
+              <button className="danger" type="button" onClick={() => { setNodes((items) => items.filter((item) => item.id !== selected.id)); setSelectedId(""); setPanel(null); }}>XÓA</button>
+            </div>
+          </aside>
+        )}
 
         {panel === "ev" && <aside className="spidey-panel spidey-ev-panel"><header><b>E.V // MESSAGE CENTER</b><button type="button" onClick={() => setPanel(null)}>CLOSE</button></header><div className="spidey-ev-message"><span><WebheadMark /></span><p>{latestEv?.text || "Nói mục tiêu của bạn. Tôi sẽ nối địa điểm, công việc và các bước tiếp theo thành bản đồ hành động."}</p></div><div className="spidey-quick-prompts">{["Lên lịch cuối tuần", "Tìm chỗ ăn gần đây", "Chia kế hoạch tuần", "Chuẩn bị việc hôm nay"].map((prompt) => <button type="button" key={prompt} onClick={() => setEvPrompt(prompt)}>{prompt}</button>)}</div><form onSubmit={askEv}><label htmlFor="spidey-ev-prompt">TIN NHẮN CHO E.V</label><textarea id="spidey-ev-prompt" value={evPrompt} onChange={(event) => setEvPrompt(event.target.value)} placeholder="Mô tả kế hoạch bạn đang hình dung…" /><button type="submit" disabled={isSending || !evPrompt.trim()}>{isSending ? "ĐANG NỐI…" : "TẠO KẾ HOẠCH ↗"}</button></form></aside>}
 

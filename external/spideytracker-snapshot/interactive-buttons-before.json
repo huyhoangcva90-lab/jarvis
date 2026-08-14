@@ -1,0 +1,402 @@
+[
+  {
+    "text": "YES",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "NO",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "",
+    "tag": "A",
+    "href": "https://www.sonypictures.com"
+  },
+  {
+    "text": "",
+    "tag": "A",
+    "href": "https://www.sony.com"
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "REPORT YOUR SIGHTINGS ON X",
+    "tag": "A",
+    "href": "https://x.com/spideytracker"
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "ACTIVITY LOG",
+    "tag": "A",
+    "href": "javascript:void(0)"
+  },
+  {
+    "text": "REPORT SIGHTINGS",
+    "tag": "A",
+    "href": "javascript:void(0)"
+  },
+  {
+    "text": "WEB WATCH",
+    "tag": "A",
+    "href": "javascript:void(0)"
+  },
+  {
+    "text": "VIDEOS",
+    "tag": "A",
+    "href": "javascript:void(0)"
+  },
+  {
+    "text": "EVENTS",
+    "tag": "A",
+    "href": "javascript:void(0)"
+  },
+  {
+    "text": "HELP",
+    "tag": "A",
+    "href": "javascript:void(0)"
+  },
+  {
+    "text": "SAMSUNG EXCLUSIVE\nDOWNLOADS",
+    "tag": "A",
+    "href": "javascript:void(0)"
+  },
+  {
+    "text": "SOUND ON",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "SOUND OFF",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "PLAY VIDEO",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "REPLAY VIDEO",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "TAP TO UNMUTE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "SKIP",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Keyboard shortcuts",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Toggle fullscreen view",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Open this area in Google Maps (opens a new window)",
+    "tag": "A",
+    "href": "https://maps.google.com/maps?ll=15.9739,-49.900743&z=2&t=m&hl=en-US&gl=US&mapclient=apiv3"
+  },
+  {
+    "text": "Keyboard shortcuts",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Map Data",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "500 km Click to toggle between metric and imperial units",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Terms",
+    "tag": "A",
+    "href": "https://www.google.com/intl/en-US_US/help/terms_maps.html"
+  },
+  {
+    "text": "Report a map error",
+    "tag": "A",
+    "href": "https://www.google.com/maps/@15.9738997,-49.9007427,2z/data=!10m1!1e1!12b1?source=apiv3&rapsrc=apiv3"
+  },
+  {
+    "text": "BACK TO MAP",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "▲",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "↺",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "↻",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "▼",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "BACK TO MAP",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "BACK TO MAP",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Previous article",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Next article",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Go to article 1",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Go to article 2",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Go to article 3",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Go to article 4",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Go to article 5",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Go to article 6",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Sound off",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "PRIVACY POLICY",
+    "tag": "A",
+    "href": "https://intl.sonypictures.com/en/privacy-policy"
+  },
+  {
+    "text": "TERMS OF USE",
+    "tag": "A",
+    "href": "https://intl.sonypictures.com/en/terms-of-use"
+  },
+  {
+    "text": "COOKIE CONSENT TOOL",
+    "tag": "A",
+    "href": "javascript:OneTrust.ToggleInfoDisplay();"
+  },
+  {
+    "text": "CREDITS",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Close credits panel",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "SONY PICTURES",
+    "tag": "A",
+    "href": "https://www.sonypictures.com/"
+  },
+  {
+    "text": "PRIVACY POLICY",
+    "tag": "A",
+    "href": "https://intl.sonypictures.com/en/privacy-policy"
+  },
+  {
+    "text": "TERMS OF USE",
+    "tag": "A",
+    "href": "https://intl.sonypictures.com/en/terms-of-use"
+  },
+  {
+    "text": "COOKIE CONSENT TOOL",
+    "tag": "A",
+    "href": "javascript:OneTrust.ToggleInfoDisplay();"
+  },
+  {
+    "text": "CLOSE",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "‹",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "›",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Previous videos",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Next videos",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Close",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Privacy And Cookies Policy",
+    "tag": "A",
+    "href": "https://intl.sonypictures.com/en/privacy-policy"
+  },
+  {
+    "text": "Cookie Consent Tool",
+    "tag": "A",
+    "href": "#"
+  },
+  {
+    "text": "Sony Pictures",
+    "tag": "A",
+    "href": "https://intl.sonypictures.com/sony-entities"
+  },
+  {
+    "text": "Sony group companies",
+    "tag": "A",
+    "href": "https://www.sony.com/en/SonyInfo/CorporateInfo/Subsidiaries/"
+  },
+  {
+    "text": "Accept all cookies",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Reject all non-essential cookies",
+    "tag": "BUTTON",
+    "href": ""
+  },
+  {
+    "text": "Close preference center",
+    "tag": "BUTTON",
+    "href": ""
+  }
+]
