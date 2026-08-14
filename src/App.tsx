@@ -12,13 +12,23 @@ export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
 export type { EnergyPalette } from "./utils/orbPreferences";
 
 const SESSION_CHECK_TIMEOUT_MS = 1800;
+const STATIC_HOSTNAMES = new Set(["jarvis.huykl.id.vn"]);
+
+function isStaticShell() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.location.protocol === "file:" ||
+    window.location.hostname.endsWith("github.io") ||
+    STATIC_HOSTNAMES.has(window.location.hostname)
+  );
+}
 
 export default function App() {
   const [booting, setBooting] = useState(true);
   const [data, setData] = useState(() => loadData());
   const [now, setNow] = useState(() => new Date());
-  const [authenticated, setAuthenticated] = useState(data.auth?.loginEnabled === false);
-  const [authChecking, setAuthChecking] = useState(true);
+  const [authenticated, setAuthenticated] = useState(() => isStaticShell() || data.auth?.loginEnabled === false);
+  const [authChecking, setAuthChecking] = useState(() => !isStaticShell());
   const [activity, setActivity] = useState<AiActivity>("idle");
   const [energyPalette, setEnergyPalette] = useState<EnergyPalette>(loadStoredEnergyPalette);
   const [resetViewSignal, setResetViewSignal] = useState(0);
@@ -36,6 +46,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (isStaticShell()) {
+      setAuthChecking(false);
+      setAuthenticated(true);
+      return;
+    }
+
     let active = true;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), SESSION_CHECK_TIMEOUT_MS);

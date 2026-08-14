@@ -35,6 +35,16 @@ const TELEMETRY = [
   ["MEMORY", "ACTIVE"],
 ];
 
+const STATIC_HOSTNAMES = new Set(["jarvis.huykl.id.vn"]);
+
+function isStaticShell() {
+  return (
+    window.location.protocol === "file:" ||
+    window.location.hostname.endsWith("github.io") ||
+    STATIC_HOSTNAMES.has(window.location.hostname)
+  );
+}
+
 export default function AuthScreen({ data, onUnlock }) {
   const [username, setUsername] = useState(data?.auth?.username || "admin");
   const [password, setPassword] = useState("");
@@ -85,8 +95,7 @@ export default function AuthScreen({ data, onUnlock }) {
     } catch (loginError) {
       const staticPreview =
         loginError?.message === "static_preview" ||
-        window.location.protocol === "file:" ||
-        window.location.hostname.endsWith("github.io");
+        isStaticShell();
       if (staticPreview && username.trim() === expectedUsername && password === expectedPassword) {
         setPhase("granting");
         soundManager.play("success");
