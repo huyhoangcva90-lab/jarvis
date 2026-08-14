@@ -37,6 +37,8 @@ expectIncludes("src/App.tsx", "AbortController", "abortable auth session probe")
 expectIncludes("src/App.tsx", "jarvis.huykl.id.vn", "custom domain static-host detection");
 expectIncludes("src/App.tsx", "isStaticShell", "static shell auth bypass");
 expectIncludes("src/components/AuthScreen.jsx", "isStaticShell", "custom domain static login fallback");
+expectIncludes("src/utils/gatewayClient.js", "isStaticGatewayShell", "static gateway shell detection");
+expectIncludes("src/utils/gatewayClient.js", "!isStaticGatewayShell()", "static shell must not use same-origin gateway");
 
 if (existsSync(join(root, "dist", "spideytracker", "index.html"))) {
   expectIncludes("dist/spideytracker/index.html", "jcore-spidey-free-map", "built Spidey free-map marker");

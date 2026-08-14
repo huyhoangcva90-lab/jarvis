@@ -1,4 +1,14 @@
 export const DEFAULT_GATEWAY_URL = "https://jarvisidhuykl.huykl.id.vn";
+const STATIC_HOSTNAMES = new Set(["jarvis.huykl.id.vn"]);
+
+function isStaticGatewayShell() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.location.protocol === "file:" ||
+    window.location.hostname.endsWith("github.io") ||
+    STATIC_HOSTNAMES.has(window.location.hostname)
+  );
+}
 
 const GATEWAY_ERROR_MESSAGES = {
   unauthorized: "Gateway token không hợp lệ.",
@@ -46,7 +56,7 @@ const GATEWAY_ERROR_MESSAGES = {
 };
 
 export function getGatewayConfig(data) {
-  const sameOrigin = data?.auth?.sessionMode === "same-origin";
+  const sameOrigin = data?.auth?.sessionMode === "same-origin" && !isStaticGatewayShell();
   const gateway = sameOrigin && typeof window !== "undefined"
     ? window.location.origin
     : data?.endpoints?.gateway || DEFAULT_GATEWAY_URL;
