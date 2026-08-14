@@ -57,22 +57,97 @@ function publishSpideyOriginalSnapshot() {
   const source = join(root, "external", "spideytracker-snapshot", "after-interactions.html");
   const fallbackSource = join(root, "external", "spideytracker-snapshot", "rendered.html");
   const htmlSource = existsSync(source) ? source : fallbackSource;
+  const assetsManifest = join(root, "external", "spideytracker-snapshot", "assets.json");
+  const crawledFiles = join(root, "external", "spideytracker-snapshot", "files");
   const target = join(root, "dist", "spideytracker");
 
   if (!existsSync(htmlSource)) return;
 
   mkdirSync(target, { recursive: true });
-  const html = readFileSync(htmlSource, "utf8")
-    .replaceAll('href="./_astro/', 'href="https://spideytracker.net/_astro/')
-    .replaceAll('src="./_astro/', 'src="https://spideytracker.net/_astro/')
-    .replaceAll('href="./images/', 'href="https://spideytracker.net/images/')
-    .replaceAll('src="./images/', 'src="https://spideytracker.net/images/')
-    .replaceAll('href="./fonts/', 'href="https://spideytracker.net/fonts/')
-    .replaceAll('src="./fonts/', 'src="https://spideytracker.net/fonts/')
-    .replaceAll('href="./data/', 'href="https://spideytracker.net/data/')
-    .replaceAll('src="./data/', 'src="https://spideytracker.net/data/');
+  if (existsSync(crawledFiles)) {
+    cpSync(crawledFiles, join(target, "files"), { recursive: true, force: true });
+  }
+
+  let html = readFileSync(htmlSource, "utf8");
+  if (existsSync(assetsManifest) && existsSync(crawledFiles)) {
+    const files = readdirSync(crawledFiles);
+    const normalizedFiles = files.map((name) => ({ name, key: normalizeAssetKey(name) }));
+    const assets = JSON.parse(readFileSync(assetsManifest, "utf8"));
+    const replacements = new Map();
+
+    for (const asset of assets) {
+      const originalUrl = String(asset?.url || "");
+      const localFile = findCrawledAsset(originalUrl, normalizedFiles);
+      if (!originalUrl || !localFile) continue;
+      replacements.set(originalUrl, `./files/${encodeURIComponent(localFile)}`);
+    }
+
+    for (const [originalUrl, localUrl] of [...replacements.entries()].sort((left, right) => right[0].length - left[0].length)) {
+      html = html.replaceAll(originalUrl, localUrl);
+      html = html.replaceAll(originalUrl.replaceAll("&", "&amp;"), localUrl);
+    }
+    rewriteSpideyCrawledCss(join(target, "files"), replacements);
+  }
+  html = html
+    .replaceAll('"./favicon.png"', '"https://spideytracker.net/favicon.png"')
+    .replaceAll('"./images/', '"https://spideytracker.net/images/')
+    .replaceAll("'./images/", "'https://spideytracker.net/images/");
 
   writeFileSync(join(target, "index.html"), html);
+}
+
+function normalizeAssetKey(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function assetLookupKey(rawUrl) {
+  const value = String(rawUrl || "");
+  if (!value) return "";
+  try {
+    const parsed = new URL(value, "https://spideytracker.com/");
+    return normalizeAssetKey(`${parsed.hostname}${parsed.pathname}`);
+  } catch {
+    return normalizeAssetKey(value);
+  }
+}
+
+function findCrawledAsset(rawUrl, normalizedFiles) {
+  const value = String(rawUrl || "");
+  const keys = new Set([assetLookupKey(value)]);
+  if (value.startsWith("./") || value.startsWith("/")) {
+    try {
+      const dotCom = new URL(value, "https://spideytracker.com/");
+      const dotNet = new URL(value, "https://spideytracker.net/");
+      keys.add(normalizeAssetKey(`${dotCom.hostname}${dotCom.pathname}`));
+      keys.add(normalizeAssetKey(`${dotNet.hostname}${dotNet.pathname}`));
+    } catch {
+      // Ignore malformed optional fallback keys.
+    }
+  }
+  const match = normalizedFiles.find((file) => [...keys].some((key) => key && file.key.startsWith(key)));
+  return match?.name || "";
+}
+
+function rewriteSpideyCrawledCss(filesDirectory, replacements) {
+  if (!existsSync(filesDirectory)) return;
+
+  for (const file of readdirSync(filesDirectory)) {
+    if (!file.endsWith(".css")) continue;
+    const path = join(filesDirectory, file);
+    let css = readFileSync(path, "utf8");
+
+    for (const [originalUrl, localUrl] of replacements) {
+      const localFileUrl = `./${localUrl.replace(/^\.\/files\//, "")}`;
+      const rootUrl = originalUrl.replace(/^\.\//, "/");
+      css = css
+        .replaceAll(originalUrl, localFileUrl)
+        .replaceAll(rootUrl, localFileUrl)
+        .replaceAll(originalUrl.replaceAll("&", "&amp;"), localFileUrl)
+        .replaceAll(rootUrl.replaceAll("&", "&amp;"), localFileUrl);
+    }
+
+    writeFileSync(path, css);
+  }
 }
 
 function publishOriginalSubApps() {
