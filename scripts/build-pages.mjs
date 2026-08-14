@@ -211,12 +211,43 @@ function rewriteSpideyCrawledJs(filesDirectory) {
 function hideSpideyFooterBranding(html) {
   const css = `
 <style id="jcore-spidey-fullscreen">
-  .site-footer,
+  .site-footer {
+    position: fixed !important;
+    left: 50% !important;
+    bottom: max(6px, env(safe-area-inset-bottom)) !important;
+    z-index: 12 !important;
+    width: auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: translateX(-50%) !important;
+    background: transparent !important;
+    pointer-events: none !important;
+  }
+
   .footer-content,
-  .footer-bottom,
   .footer-logos,
-  .footer-logo,
-  .footer-logos-main,
+  .footer-logos-main {
+    display: flex !important;
+    width: auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .footer-logo {
+    display: block !important;
+    width: min(180px, 30vw) !important;
+    height: auto !important;
+    max-height: 52px !important;
+    object-fit: contain !important;
+    visibility: visible !important;
+  }
+
+  .footer-bottom,
   .footer-release-date,
   .footer-samsung,
   .footer-samsung-wrap,
@@ -234,13 +265,36 @@ function hideSpideyFooterBranding(html) {
     pointer-events: none !important;
   }
 
+  .tracker-logo {
+    cursor: pointer !important;
+  }
+
   html,
   body {
     min-height: 100dvh !important;
     overflow: hidden !important;
   }
 </style>`;
-  return html.includes("</head>") ? html.replace("</head>", `${css}</head>`) : `${css}${html}`;
+  const script = `
+<script id="jcore-spidey-home-link">
+  document.addEventListener("DOMContentLoaded", function () {
+    var logo = document.querySelector(".tracker-logo");
+    if (!logo) return;
+    logo.setAttribute("role", "link");
+    logo.setAttribute("tabindex", "0");
+    logo.setAttribute("aria-label", "Back to J-Core home");
+    function goHome() { window.location.href = "../"; }
+    logo.addEventListener("click", goHome);
+    logo.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        goHome();
+      }
+    });
+  });
+</script>`;
+  const injection = `${css}${script}`;
+  return html.includes("</head>") ? html.replace("</head>", `${injection}</head>`) : `${injection}${html}`;
 }
 
 function publishOriginalSubApps() {
