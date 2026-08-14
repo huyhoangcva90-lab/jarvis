@@ -1119,7 +1119,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     } catch (error: any) {
       updateServicePanel(service, {
         sending: false,
-        reply: error?.message || `Khong the chay ${service} ${action}.`,
+        reply: error?.message || `Không thể chạy ${service} ${action}.`,
       });
     }
   };

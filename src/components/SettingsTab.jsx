@@ -29,14 +29,14 @@ export default function SettingsTab({ data, updateData, hardReset, addLog }) {
   };
 
   const testGateway = async () => {
-    setGatewayTest({ status: "testing", health: null, message: "Dang kiem tra gateway..." });
+    setGatewayTest({ status: "testing", health: null, message: "Đang kiểm tra gateway..." });
     try {
       const health = await gatewayFetch(data, "/health", { method: "GET", timeoutMs: 7000 });
-      setGatewayTest({ status: "success", health, message: "Gateway da ket noi." });
+      setGatewayTest({ status: "success", health, message: "Gateway đã kết nối." });
       addLog("Gateway connection test passed.");
       soundManager.play("success");
     } catch (error) {
-      setGatewayTest({ status: "error", health: null, message: error?.message || "Khong the ket noi gateway." });
+      setGatewayTest({ status: "error", health: null, message: error?.message || "Không thể kết nối gateway." });
       addLog(`Gateway connection test failed: ${error?.message || "unknown error"}`);
       soundManager.play("warning");
     }

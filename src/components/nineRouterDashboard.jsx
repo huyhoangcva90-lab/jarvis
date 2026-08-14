@@ -37,7 +37,7 @@ export default function NineRouterDashboard({ data, addLog }) {
       addLog?.(`9Router ${action} command completed.`);
       soundManager.play("success");
     } catch (requestError) {
-      setError(requestError?.message || `Khong the chay 9Router ${action}.`);
+      setError(requestError?.message || `Không thể chạy 9Router ${action}.`);
       soundManager.play("warning");
     } finally {
       setIsSending(false);
@@ -120,7 +120,7 @@ export default function NineRouterDashboard({ data, addLog }) {
               disabled={isSending}
               onClick={() => runRouterCommand("models")}
             >
-              Doc model that
+              Đọc model thật
             </button>
             <button
               type="button"
@@ -128,7 +128,7 @@ export default function NineRouterDashboard({ data, addLog }) {
               disabled={isSending}
               onClick={() => runRouterCommand("status")}
             >
-              Trang thai router
+              Trạng thái router
             </button>
           </div>
 

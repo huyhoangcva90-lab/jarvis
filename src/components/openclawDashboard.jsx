@@ -33,7 +33,7 @@ export default function OpenclawDashboard({ data, addLog }) {
       addLog?.(`OpenClaw diagnostic ${action} completed.`);
       soundManager.play("success");
     } catch (requestError) {
-      setError(requestError?.message || `Khong the chay OpenClaw ${action}.`);
+      setError(requestError?.message || `Không thể chạy OpenClaw ${action}.`);
       soundManager.play("warning");
     } finally {
       setIsSending(false);

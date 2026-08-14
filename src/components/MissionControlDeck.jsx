@@ -14,8 +14,17 @@ import NineRouterDashboard from './nineRouterDashboard.jsx';
 import OpenclawDashboard from './openclawDashboard.jsx';
 
 const TABS = [
-  'OVERVIEW', 'MISSIONS', 'AGENTS', 'ROUTER', 'SCHEDULE',
-  'FINANCE', 'KNOWLEDGE', 'MEMORY', 'TERMINAL', 'TOOLS', 'SETTINGS',
+  { id: 'OVERVIEW', label: 'TỔNG QUAN' },
+  { id: 'MISSIONS', label: 'NHIỆM VỤ' },
+  { id: 'AGENTS', label: 'TÁC NHÂN' },
+  { id: 'ROUTER', label: '9ROUTER' },
+  { id: 'SCHEDULE', label: 'LỊCH TRÌNH' },
+  { id: 'FINANCE', label: 'TÀI CHÍNH' },
+  { id: 'KNOWLEDGE', label: 'TRI THỨC' },
+  { id: 'MEMORY', label: 'BỘ NHỚ' },
+  { id: 'TERMINAL', label: 'TERMINAL' },
+  { id: 'TOOLS', label: 'CÔNG CỤ' },
+  { id: 'SETTINGS', label: 'CẤU HÌNH' },
 ];
 
 export default function MissionControlDeck({ data, updateData, addLog, copyText, hardReset, currentTime, onLock }) {
@@ -32,7 +41,7 @@ export default function MissionControlDeck({ data, updateData, addLog, copyText,
                 <div className="flex items-center gap-4 py-2">
                   <div className="text-4xl">{STONE_META[s.id].icon}</div>
                   <div>
-                    <p className="font-mono text-xs uppercase text-cyan-100/50">Status</p>
+                    <p className="font-mono text-xs uppercase text-cyan-100/50">Trạng thái</p>
                     <span
                       className="mt-1 inline-block rounded border px-2 py-0.5 font-mono text-xs uppercase"
                       style={{
@@ -57,25 +66,25 @@ export default function MissionControlDeck({ data, updateData, addLog, copyText,
         return <NineRouterDashboard data={data} addLog={addLog} />;
       case 'SCHEDULE':
         return (
-          <Panel title="Time Stone Schedule" kicker="Personal OS · Phase 6">
+          <Panel title="Lịch trình Time Stone" kicker="Personal OS · Phase 6">
             <div className="flex min-h-[200px] items-center justify-center font-mono text-sm text-cyan-100/40">
-              <p>⏳ Calendar, Habits & Automation — Coming in Phase 6</p>
+              <p>⏳ Lịch trình, Thói quen & Tự động hóa — Đang phát triển ở Phase 6</p>
             </div>
           </Panel>
         );
       case 'FINANCE':
         return (
-          <Panel title="Reality Stone Finance" kicker="Finance System · Phase 7">
+          <Panel title="Tài chính Reality Stone" kicker="Finance System · Phase 7">
             <div className="flex min-h-[200px] items-center justify-center font-mono text-sm text-cyan-100/40">
-              <p>💎 Income, Expenses & Budget tracking — Coming in Phase 7</p>
+              <p>💎 Quản lý Thu nhập, Chi tiêu & Ngân sách — Đang phát triển ở Phase 7</p>
             </div>
           </Panel>
         );
       case 'KNOWLEDGE':
         return (
-          <Panel title="Mind Stone Knowledge" kicker="Knowledge Core · Phase 9">
+          <Panel title="Tri thức Mind Stone" kicker="Knowledge Core · Phase 9">
             <div className="flex min-h-[200px] items-center justify-center font-mono text-sm text-cyan-100/40">
-              <p>🧠 Notion, Claude Code & RAG search — Coming in Phase 9</p>
+              <p>🧠 Tích hợp Notion, Claude Code & Tìm kiếm RAG — Đang phát triển ở Phase 9</p>
             </div>
           </Panel>
         );
@@ -98,16 +107,16 @@ export default function MissionControlDeck({ data, updateData, addLog, copyText,
       <div className="-mx-4 mb-4 flex overflow-x-auto border-b border-cyan-300/10 px-1 lg:-mx-6">
         {TABS.map((tab) => (
           <button
-            key={tab}
+            key={tab.id}
             type="button"
-            onClick={() => setActiveTab(tab)}
+            onClick={() => setActiveTab(tab.id)}
             className={`deck-tab shrink-0 whitespace-nowrap border-b-2 ${
-              activeTab === tab
+              activeTab === tab.id
                 ? 'active border-cyanCore'
                 : 'border-transparent'
             }`}
           >
-            {tab}
+            {tab.label}
           </button>
         ))}
       </div>

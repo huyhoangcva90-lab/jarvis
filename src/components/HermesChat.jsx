@@ -3,16 +3,16 @@ import { soundManager } from '../utils/soundManager.js';
 import { gatewayFetch, getGatewayReply } from '../utils/gatewayClient.js';
 
 const VOICE_COMMANDS = [
-  "Check Space Stone latency status.",
-  "Deploy a new workforce mission.",
-  "Check mood and energy indexes.",
-  "System diagnostics run please."
+  "Kiểm tra trạng thái độ trễ các dịch vụ.",
+  "Khởi tạo nhiệm vụ xử lý tác nhân mới.",
+  "Kiểm tra chỉ số năng lượng và tâm trạng hệ thống.",
+  "Chạy chẩn đoán toàn bộ hệ thống J-Core."
 ];
 
 export default function HermesChat({ data, addLog, onClose }) {
   const [messages, setMessages] = useState([{
     role: 'assistant',
-    content: `Jarvis online. How can I assist you today, ${data?.username || 'Operator'}?`,
+    content: `Jarvis sẵn sàng. Tôi có thể hỗ trợ gì cho bạn hôm nay, ${data?.username || 'Operator'}?`,
     timestamp: Date.now(),
   }]);
   const [input, setInput] = useState('');
@@ -121,7 +121,7 @@ export default function HermesChat({ data, addLog, onClose }) {
       <div className="flex items-center justify-between border-b border-cyan-300/20 bg-void/80 p-4">
         <div className="flex items-center gap-3">
           <div className="h-2 w-2 animate-pulseCore rounded-full bg-cyanCore" />
-          <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-cyanCore">AI Link</h2>
+          <h2 className="font-mono text-sm font-bold uppercase tracking-widest text-cyanCore">KÊNH CHAT AI</h2>
         </div>
         <button
           type="button"
@@ -156,7 +156,7 @@ export default function HermesChat({ data, addLog, onClose }) {
       {isRecording && (
         <div className="flex flex-col items-center justify-center bg-slate-950/95 border-t border-cyan-300/15 p-4 animate-fadeIn">
           <p className="font-mono text-[10px] text-dangerCore animate-pulse uppercase tracking-wider mb-2">
-            🎙️ SYSTEM RECORDING AUDIO INPUT...
+            🎙️ HỆ THỐNG ĐANG GHI ÂM TÍN HIỆU GIỌNG NÓI...
           </p>
           <div className="flex items-end justify-center gap-1 h-8">
             {[...Array(12)].map((_, i) => (
@@ -194,7 +194,7 @@ export default function HermesChat({ data, addLog, onClose }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder={isRecording ? "Listening..." : "Type a command..."}
+          placeholder={isRecording ? "Đang nghe..." : "Nhập câu lệnh..."}
           disabled={isRecording}
           className="hud-input flex-1 font-mono text-sm"
         />
@@ -204,7 +204,7 @@ export default function HermesChat({ data, addLog, onClose }) {
           disabled={isRecording}
           className="hud-button primary shrink-0 px-4"
         >
-          Send
+          Gửi
         </button>
       </div>
     </div>
