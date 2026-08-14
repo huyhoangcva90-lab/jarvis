@@ -1,7 +1,4 @@
-import { useMemo } from "react";
-import javisHtml from "../../../external/javis-os/dashboard/index.html?raw";
-import javisStyle from "../../../external/javis-os/dashboard/style.css?raw";
-import javisConsoleStyle from "../../../external/javis-os/dashboard/console.css?raw";
+import { useEffect } from "react";
 
 type Message = { id: string; role: "user" | "assistant"; text: string; at: number };
 type NativeDashboards = { hermes: string; openclaw: string; nineRouter: string } | null;
@@ -17,26 +14,25 @@ type JavisOsHubProps = {
   onExit: () => void;
 };
 
-function extractBody(html: string) {
-  const body = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] || html;
-  return body
-    .replaceAll("/brand-logo", new URL("../../../external/javis-os/dashboard/logo.png", import.meta.url).href)
-    .replaceAll("/static/", "./javis-static/")
-    .replace(/<script[\s\S]*?<\/script>/gi, "");
+function localSubApp(path: string) {
+  return new URL(path, window.location.href).toString();
 }
 
-export default function JavisOsHub({ currentTime, username, messages, isSending, onExit }: JavisOsHubProps) {
-  const body = useMemo(() => extractBody(javisHtml), []);
+export default function JavisOsHub({ onExit }: JavisOsHubProps) {
+  const target = localSubApp("./javis-os/index.html");
+
+  useEffect(() => {
+    window.location.assign(target);
+  }, [target]);
 
   return (
-    <section className="javis-original-shell" aria-label="Javis OS original dashboard clone">
-      <style>{javisStyle}</style>
-      <style>{javisConsoleStyle}</style>
-      <div className="javis-original-runtime" dangerouslySetInnerHTML={{ __html: body }} />
-      <div className="javis-original-jcore-rail">
-        <button type="button" onClick={onExit}>EXIT J-CORE</button>
-        <span>NO IFRAME · external/javis-os/dashboard</span>
-        <small>{username} · {currentTime} · {messages.length} msgs · {isSending ? "THINKING" : "READY"}</small>
+    <section className="external-mode-launcher" aria-label="Opening original Javis OS">
+      <div>
+        <span>ORIGINAL REPO MODE</span>
+        <h1>Javis OS</h1>
+        <p>Đang mở nguyên dashboard từ external/javis-os/dashboard.</p>
+        <a href={target}>Mở ngay</a>
+        <button type="button" onClick={onExit}>Quay lại J-Core</button>
       </div>
     </section>
   );

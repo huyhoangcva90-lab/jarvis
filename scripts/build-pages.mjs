@@ -36,6 +36,50 @@ function pruneGeneratedAssetHistory(directory, currentFiles, generationsToKeep =
   }
 }
 
+function publishJavisOriginalDashboard() {
+  const source = join(root, "external", "javis-os", "dashboard");
+  const target = join(root, "dist", "javis-os");
+  const indexPath = join(target, "index.html");
+
+  if (!existsSync(source)) return;
+
+  cpSync(source, target, { recursive: true, force: true });
+
+  if (existsSync(indexPath)) {
+    const html = readFileSync(indexPath, "utf8")
+      .replaceAll("/brand-logo", "./logo.png")
+      .replaceAll("/static/", "./");
+    writeFileSync(indexPath, html);
+  }
+}
+
+function publishSpideyOriginalSnapshot() {
+  const source = join(root, "external", "spideytracker-snapshot", "after-interactions.html");
+  const fallbackSource = join(root, "external", "spideytracker-snapshot", "rendered.html");
+  const htmlSource = existsSync(source) ? source : fallbackSource;
+  const target = join(root, "dist", "spideytracker");
+
+  if (!existsSync(htmlSource)) return;
+
+  mkdirSync(target, { recursive: true });
+  const html = readFileSync(htmlSource, "utf8")
+    .replaceAll('href="./_astro/', 'href="https://spideytracker.net/_astro/')
+    .replaceAll('src="./_astro/', 'src="https://spideytracker.net/_astro/')
+    .replaceAll('href="./images/', 'href="https://spideytracker.net/images/')
+    .replaceAll('src="./images/', 'src="https://spideytracker.net/images/')
+    .replaceAll('href="./fonts/', 'href="https://spideytracker.net/fonts/')
+    .replaceAll('src="./fonts/', 'src="https://spideytracker.net/fonts/')
+    .replaceAll('href="./data/', 'href="https://spideytracker.net/data/')
+    .replaceAll('src="./data/', 'src="https://spideytracker.net/data/');
+
+  writeFileSync(join(target, "index.html"), html);
+}
+
+function publishOriginalSubApps() {
+  publishJavisOriginalDashboard();
+  publishSpideyOriginalSnapshot();
+}
+
 try {
   copyFileSync(devIndex, deployIndex);
   const viteBin = join(root, "node_modules", "vite", "bin", "vite.js");
@@ -51,6 +95,7 @@ try {
     throw new Error("Vite build did not produce deploy artifacts.");
   }
   if (builtIndex !== distIndex) copyFileSync(builtIndex, distIndex);
+  publishOriginalSubApps();
   mkdirSync(deployAssets, { recursive: true });
   const currentAssets = new Set(readdirSync(distAssets));
   cpSync(distAssets, deployAssets, { recursive: true, force: true });
