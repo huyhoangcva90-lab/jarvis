@@ -32,6 +32,8 @@ expectIncludes("scripts/build-pages.mjs", "jcore-javis-auth-bypass", "Javis auth
 expectIncludes("scripts/build-pages.mjs", "jcore-worldmonitor-local-pro", "World Monitor local pro patch");
 expectExcludes("scripts/build-pages.mjs", "attributes: true", "attribute-observing MutationObserver");
 expectIncludes("scripts/build-pages.mjs", "node.dataset.jcoreHidden === \"true\"", "idempotent Javis overlay hiding");
+expectIncludes("src/App.tsx", "SESSION_CHECK_TIMEOUT_MS", "bounded auth session probe timeout");
+expectIncludes("src/App.tsx", "AbortController", "abortable auth session probe");
 
 if (existsSync(join(root, "dist", "spideytracker", "index.html"))) {
   expectIncludes("dist/spideytracker/index.html", "jcore-spidey-free-map", "built Spidey free-map marker");

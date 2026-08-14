@@ -11,6 +11,8 @@ import { loadStoredEnergyPalette, saveStoredEnergyPalette, type EnergyPalette } 
 export type AiActivity = "idle" | "listening" | "thinking" | "speaking";
 export type { EnergyPalette } from "./utils/orbPreferences";
 
+const SESSION_CHECK_TIMEOUT_MS = 1800;
+
 export default function App() {
   const [booting, setBooting] = useState(true);
   const [data, setData] = useState(() => loadData());
@@ -35,7 +37,14 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/session", { credentials: "include", headers: { accept: "application/json" } })
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), SESSION_CHECK_TIMEOUT_MS);
+
+    fetch("/api/auth/session", {
+      credentials: "include",
+      headers: { accept: "application/json" },
+      signal: controller.signal,
+    })
       .then(async (response) => {
         if (!(response.headers.get("content-type") || "").includes("application/json")) return null;
         return response.json();
@@ -50,8 +59,15 @@ export default function App() {
         setAuthenticated(true);
       })
       .catch(() => {})
-      .finally(() => { if (active) setAuthChecking(false); });
-    return () => { active = false; };
+      .finally(() => {
+        window.clearTimeout(timeout);
+        if (active) setAuthChecking(false);
+      });
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
   }, []);
 
   useEffect(() => {
