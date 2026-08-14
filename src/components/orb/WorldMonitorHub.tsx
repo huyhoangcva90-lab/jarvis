@@ -38,7 +38,7 @@ function SparkIcon({ name }: { name: "ai" | "send" | "close" | "reload" }) {
 }
 
 export default function WorldMonitorHub({ currentTime, username, messages, isSending, onAskAi, onExit }: WorldMonitorHubProps) {
-  const [railOpen, setRailOpen] = useState(true);
+  const [railOpen, setRailOpen] = useState(false);
   const [prompt, setPrompt] = useState("");
   const streamRef = useRef<HTMLDivElement>(null);
   const worldMessages = useMemo(() => messages.slice(-8), [messages]);
@@ -110,17 +110,10 @@ export default function WorldMonitorHub({ currentTime, username, messages, isSen
           </div>
         </section>
 
-        <aside className="world-native-command">
-          <header><span>WORLD://LAYERS</span><b>56 MAP TYPES</b></header>
-          <div className="world-native-layer-grid">
-            {WORLD_LAYERS.map(([label, detail, value]) => (
-              <article key={label}><small>{value}</small><b>{label}</b><span>{detail}</span></article>
-            ))}
-          </div>
-          <section className="world-native-brief">
-            <h2>Repo DNA</h2>
-            <p>Vanilla TypeScript + Vite, globe.gl, deck.gl, MapLibre, Tauri desktop, local Ollama/Groq/OpenRouter AI, six variants from one codebase.</p>
-          </section>
+        <aside className="world-native-command world-native-command-compact">
+          {WORLD_LAYERS.map(([label, detail, value]) => (
+            <article key={label}><small>{value}</small><b>{label}</b><span>{detail}</span></article>
+          ))}
         </aside>
 
         <nav className="world-floating-controls" aria-label="Điều khiển World Monitor">

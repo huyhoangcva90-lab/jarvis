@@ -24,7 +24,7 @@ type Props = {
   onResetView: () => void;
 };
 
-const STORAGE_KEY = "jarvis.spider.personal.v2";
+const STORAGE_KEY = "jarvis.spider.personal.v3.empty";
 const KINDS: Array<{ id: LinkKind; label: string; short: string; color: string }> = [
   { id: "eat", label: "Ăn", short: "ĂN", color: "amber" },
   { id: "drink", label: "Uống", short: "UỐNG", color: "cyan" },
@@ -34,12 +34,7 @@ const KINDS: Array<{ id: LinkKind; label: string; short: string; color: string }
 
 const SAIGON_CENTER: DraftLocation = { lng: 106.7009, lat: 10.7769 };
 
-const SEED_NODES: PersonalNode[] = [
-  { id: "ev", kind: "todo", title: "Lập kế hoạch tuần", note: "Hỏi E.V và tách thành từng chặng", x: 68, y: 35 },
-  { id: "coffee", kind: "drink", title: "Quán làm việc", note: "Ghim địa chỉ hoặc link Maps", x: 79, y: 48 },
-  { id: "dinner", kind: "eat", title: "Ăn tối", note: "Danh sách nơi muốn thử", x: 53, y: 58 },
-  { id: "weekend", kind: "play", title: "Cuối tuần", note: "Hoạt động để nạp lại năng lượng", x: 27, y: 39 },
-];
+const SEED_NODES: PersonalNode[] = [];
 
 function xyToLngLat(x = 50, y = 50): DraftLocation {
   return {
@@ -56,7 +51,7 @@ function migrateNode(node: PersonalNode): PersonalNode {
 function loadNodes() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    return Array.isArray(parsed) && parsed.length ? (parsed as PersonalNode[]).map(migrateNode) : SEED_NODES.map(migrateNode);
+    return Array.isArray(parsed) ? (parsed as PersonalNode[]).map(migrateNode) : SEED_NODES.map(migrateNode);
   } catch {
     return SEED_NODES.map(migrateNode);
   }
