@@ -109,6 +109,7 @@ export default function App() {
       if (event.key === "2") setActivity("listening");
       if (event.key === "3") setActivity("thinking");
       if (event.key === "4") setActivity("speaking");
+      if (event.key === "5" || event.key.toLowerCase() === "g") setEnergyPalette("green");
       if (event.key.toLowerCase() === "r") setResetViewSignal((signal) => signal + 1);
     };
     window.addEventListener("keydown", handleKeyDown);
