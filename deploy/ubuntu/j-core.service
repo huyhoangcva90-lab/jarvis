@@ -1,5 +1,5 @@
 [Unit]
-Description=J-Core private local gateway
+Description=JARVIS self-hosted personal AI OS
 After=network-online.target hermes-dashboard.service openclaw.service 9router.service
 Wants=network-online.target
 

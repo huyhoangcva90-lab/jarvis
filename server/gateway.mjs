@@ -21,7 +21,7 @@ if (existsSync(envPath)) {
 const PORT = Number(process.env.JCORE_GATEWAY_PORT || 8787);
 const HOST = process.env.JCORE_GATEWAY_HOST || "127.0.0.1";
 const TOKEN = process.env.JCORE_GATEWAY_TOKEN || "";
-const CORS_ORIGINS = (process.env.JCORE_CORS_ORIGIN || "*")
+const CORS_ORIGINS = (process.env.JCORE_CORS_ORIGIN || "")
   .split(",")
   .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
@@ -92,6 +92,7 @@ const NATIVE_DASHBOARD_PORTS = {
   openclaw: Number(process.env.OPENCLAW_DASHBOARD_PROXY_PORT || 18790),
   nineRouter: Number(process.env.NINEROUTER_DASHBOARD_PROXY_PORT || 20129),
 };
+const NATIVE_DASHBOARD_PROXY_HOST = process.env.JCORE_NATIVE_DASHBOARD_PROXY_HOST || "127.0.0.1";
 
 const managedConfigDefaults = {
   hermes: { service: "hermes", enabled: true, profile: HERMES_DEFAULT_PROFILE, model: process.env.HERMES_MODEL || "hermes-agent" },
@@ -133,8 +134,8 @@ const authSessions = new Map();
 const nineRouterUpstreamSessions = new Map();
 const loginAttempts = new Map();
 
-if (!TOKEN && !AUTH_PASSWORD) {
-  throw new Error("JCORE_AUTH_PASSWORD or JCORE_GATEWAY_TOKEN is required.");
+if (!AUTH_PASSWORD) {
+  throw new Error("JCORE_AUTH_PASSWORD is required for server-side session authentication.");
 }
 
 const services = {
@@ -243,7 +244,13 @@ function issueAuthCookie(req, username) {
 function clearAuthCookie(req) {
   const sessionId = cookieValue(req, "jcore_session");
   if (sessionId) authSessions.delete(sessionId);
-  return "jcore_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax";
+  const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
+  const secure = forwardedProto === "https" || Boolean(req.socket.encrypted);
+  return [
+    "jcore_session=; Path=/; HttpOnly; Max-Age=0",
+    secure ? "SameSite=Strict" : "SameSite=Lax",
+    ...(secure ? ["Secure"] : []),
+  ].join("; ");
 }
 
 function loginAllowed(req) {
@@ -1055,7 +1062,8 @@ function proxyNineRouter(req, res) {
 function nativeDashboardUrl(req, port, pathname = "/") {
   const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
   const protocol = forwardedProto || (req.socket.encrypted ? "https" : "http");
-  const hostname = String(req.headers.host || HOST).replace(/^\[|\]$|:\d+$/g, "");
+  const requestHost = String(req.headers.host || `${HOST}:${PORT}`).replace(/^\[|\]$|:\d+$/g, "");
+  const hostname = NATIVE_DASHBOARD_PROXY_HOST === "127.0.0.1" ? "127.0.0.1" : requestHost;
   return `${protocol}://${hostname}:${port}${pathname}`;
 }
 
@@ -2060,6 +2068,7 @@ terminalWss.on("connection", (websocket, req, session) => {
 });
 
 server.listen(PORT, HOST, () => {
+  console.log(`J-Core server: http://${HOST}:${PORT}`);
   console.log(`J-Core local gateway: http://${HOST}:${PORT}`);
   console.log(`Hermes: ${services.hermes.base}`);
   console.log(`OpenClaw: ${services.openclaw.base}`);
@@ -2077,5 +2086,5 @@ const nativeDashboardTargets = [
 for (const [label, serviceKey, port, upstream] of nativeDashboardTargets) {
   const nativeServer = createServer((req, res) => void proxyNativeDashboard(req, res, upstream, serviceKey));
   nativeServer.on("upgrade", (req, socket, head) => proxyNativeUpgrade(req, socket, head, upstream));
-  nativeServer.listen(port, HOST, () => console.log(`${label} native dashboard proxy: http://${HOST}:${port}`));
+  nativeServer.listen(port, NATIVE_DASHBOARD_PROXY_HOST, () => console.log(`${label} native dashboard proxy: http://${NATIVE_DASHBOARD_PROXY_HOST}:${port}`));
 }

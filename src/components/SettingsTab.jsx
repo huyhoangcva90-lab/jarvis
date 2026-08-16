@@ -12,10 +12,6 @@ export default function SettingsTab({ data, updateData, hardReset, addLog }) {
     updateData({ toolUrls: { ...data.toolUrls, [name]: value } });
   };
 
-  const updateEndpoint = (key, value) => {
-    updateData({ endpoints: { ...data.endpoints, [key]: value } });
-  };
-
   const updateAuth = (key, value) => {
     updateData({ auth: { ...data.auth, [key]: value } });
   };
@@ -138,23 +134,15 @@ export default function SettingsTab({ data, updateData, hardReset, addLog }) {
       </div>
 
       <div className="space-y-4">
-        <Panel title="External Adapter Endpoints" kicker="Service routing URLs">
+        <Panel title="Server Routing" kicker="Same-origin appliance">
           <div className="space-y-3 font-mono">
-            <label className="field-label">
-              J-Core Gateway URL
-              <input className="hud-input text-xs" value={data.endpoints?.gateway || ""} onChange={(event) => updateEndpoint("gateway", event.target.value)} />
-            </label>
-            <label className="field-label">
-              Gateway device token
-              <input className="hud-input text-xs" type="password" value={data.endpoints?.gatewayToken || ""} onChange={(event) => updateEndpoint("gatewayToken", event.target.value)} />
-            </label>
             <label className="field-label">
               9Router model
               <select
                 className="hud-input text-xs"
                 value={getNineRouterModel(data)}
                 onChange={(event) => {
-                  updateEndpoint("nineRouterModel", event.target.value);
+                  updateData({ endpoints: { ...data.endpoints, nineRouterModel: event.target.value } });
                   addLog(`9Router model set to ${event.target.value}.`);
                 }}
               >
@@ -164,7 +152,7 @@ export default function SettingsTab({ data, updateData, hardReset, addLog }) {
               </select>
             </label>
             <p className="text-[11px] leading-relaxed text-cyan-100/50">
-              Hermes, OpenClaw, 9Router va Claude duoc dinh tuyen tai Ubuntu. Trinh duyet chi ket noi toi gateway nay.
+              Hermes, OpenClaw, 9Router va Claude duoc dinh tuyen tai Ubuntu. Trinh duyet chi ket noi toi JARVIS cung origin.
             </p>
             <button
               type="button"

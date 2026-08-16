@@ -31,17 +31,29 @@ npm run build
 
 The production files will be generated in `dist/`.
 
-## Gateway
+## Production
 
-The public web app is served from `https://jarvis.huykl.id.vn`.
-The online console uses `https://jarvisidhuykl.huykl.id.vn` as its default gateway.
-Hermes chat, OpenClaw tasks, 9Router chat, and health checks all go through that
-gateway. Configure the Ubuntu service with `.env.local`; never put upstream API
-keys in the React app.
+JARVIS is intended to run as a self-hosted Ubuntu appliance:
+
+```text
+Internet -> Cloudflare Tunnel -> JARVIS server -> local AI services
+```
+
+The production server builds and serves the frontend from `dist/`, exposes
+backend routes at `/api/*`, and keeps WebSocket traffic under `/ws/*` on the
+same origin. The browser should only talk to JARVIS and should never receive
+gateway URLs, upstream service URLs, API keys, or service tokens.
+
+Configure the Ubuntu service with `.env.local` or
+`/home/jcore/.config/j-core/j-core.env`. Hermes chat, OpenClaw tasks, 9Router
+chat, Claude bridge calls, health checks, and dashboard diagnostics all go
+through the JARVIS server. Keep Hermes, OpenClaw, 9Router, Claude, Notion, and
+Karen credentials server-side on the AI Workstation.
 
 The main web chat is Hermes-first and uses the `jarvis` profile with
 server-controlled session continuity. See `docs/HERMES_FIRST_ARCHITECTURE.md`
 for the routing contract, Telegram-session mode, Ubuntu checklist, and staged
 Mission Control backlog.
 
-See `docs/LOCAL_ONLINE_RUNBOOK.md` for the full local and online setup.
+See `docs/LOCAL_ONLINE_RUNBOOK.md` for the full Dev Machine and AI Workstation
+setup.

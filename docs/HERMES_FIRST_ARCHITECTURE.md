@@ -35,8 +35,11 @@ J-Core Console is a single web dashboard for talking to a local AI profile and c
 
 ## Security baseline
 
-- `JCORE_GATEWAY_TOKEN` is required whenever the gateway listens beyond localhost.
-- Browser requests must use `Authorization: Bearer <token>` when a token is configured.
+- JARVIS server authentication uses username/password login and an HttpOnly
+  `jcore_session` cookie.
+- Browser requests use same-origin `/api/*` and `/ws/*` paths with cookies.
+- Browser code must not send gateway bearer tokens or receive upstream service
+  URLs/API keys.
 - Secrets stay in Ubuntu `.env.local` or service-specific configuration.
 - Workspace APIs return relative paths only.
 - Terminal broker rejects shell metacharacters and write/delete/restart/stop operations.

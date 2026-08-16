@@ -37,11 +37,10 @@ expectExcludes("scripts/build-pages.mjs", "attributes: true", "attribute-observi
 expectIncludes("scripts/build-pages.mjs", "node.dataset.jcoreHidden === \"true\"", "idempotent Javis overlay hiding");
 expectIncludes("src/App.tsx", "SESSION_CHECK_TIMEOUT_MS", "bounded auth session probe timeout");
 expectIncludes("src/App.tsx", "AbortController", "abortable auth session probe");
-expectIncludes("src/App.tsx", "jarvis.huykl.id.vn", "custom domain static-host detection");
-expectIncludes("src/App.tsx", "isStaticShell", "static shell auth bypass");
-expectIncludes("src/components/AuthScreen.jsx", "isStaticShell", "custom domain static login fallback");
-expectIncludes("src/utils/gatewayClient.js", "isStaticGatewayShell", "static gateway shell detection");
-expectIncludes("src/utils/gatewayClient.js", "!isStaticGatewayShell()", "static shell must not use same-origin gateway");
+expectExcludes("src/App.tsx", "isStaticShell", "static shell auth bypass");
+expectExcludes("src/components/AuthScreen.jsx", "isStaticShell", "custom domain static login fallback");
+expectExcludes("src/utils/gatewayClient.js", "isStaticGatewayShell", "static gateway shell detection");
+expectIncludes("src/utils/gatewayClient.js", "sameOrigin: true", "same-origin gateway client contract");
 
 if (existsSync(join(root, "dist", "spideytracker", "index.html"))) {
   expectIncludes("dist/spideytracker/index.html", "jcore-spidey-free-map", "built Spidey free-map marker");

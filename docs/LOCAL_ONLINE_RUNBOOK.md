@@ -1,228 +1,129 @@
-# J-Core local and online runbook
+# JARVIS self-hosted runbook
 
-## 1. Local setup
+JARVIS is a personal AI OS with two separate machines:
+
+- DEV MACHINE: Codex edits and commits this repository here. Do not assume
+  Hermes, OpenClaw, 9Router, Claude Code, Notion, or Karen exist locally.
+- Ubuntu AI WORKSTATION: production runtime. JARVIS runs here and talks to
+  local/private AI services over loopback.
+
+## 1. Development machine
+
+Install dependencies and use Vite for UI development:
 
 ```powershell
 pnpm install
-Copy-Item .env.example .env.local
-notepad .env.local
-```
-
-Run the gateway:
-
-```powershell
-pnpm run gateway
-```
-
-Run the web UI:
-
-```powershell
 pnpm run dev
 ```
 
-Set the Gateway URL in J-Core to:
+The development frontend calls relative `/api/*` paths. For live service
+testing, run the JARVIS server locally with a development `.env.local`, or test
+against the Ubuntu workstation through its JARVIS origin. Do not put production
+service URLs or API keys in frontend code.
+
+## 2. Production topology
 
 ```text
-http://127.0.0.1:8787
+Internet
+  -> Cloudflare Tunnel
+  -> http://127.0.0.1:8787 on Ubuntu AI WORKSTATION
+  -> JARVIS frontend, /api/*, /ws/*
+  -> loopback Hermes / OpenClaw / 9Router / Claude bridge
 ```
 
-## 2. Production gateway
+Only the JARVIS hostname should be public, for example:
 
-Only expose the J-Core gateway, not Hermes/OpenClaw/9Router/Claude directly.
+- `https://jarvis.example.com/`
+- `https://jarvis.example.com/api/*`
+- `https://jarvis.example.com/ws/*`
+
+Do not expose Hermes, OpenClaw, 9Router, Claude, or native dashboard proxy ports
+through Cloudflare or the firewall.
+
+## 3. Ubuntu install
+
+From the repository checkout on the AI Workstation:
+
+```bash
+bash scripts/install-ubuntu.sh
+```
+
+For the root/systemd provisioner:
+
+```bash
+sudo bash scripts/provision-ubuntu-runtime.sh "$PWD"
+```
+
+Both scripts build `dist/` and configure the JARVIS server to serve the
+production frontend and backend from the same origin.
+
+## 4. Required server config
+
+Copy `.env.example` to the server environment file and edit values on the AI
+Workstation only:
 
 ```env
-JCORE_GATEWAY_HOST=0.0.0.0
+JCORE_GATEWAY_HOST=127.0.0.1
 JCORE_GATEWAY_PORT=8787
-JCORE_GATEWAY_TOKEN=<long-random-token>
-JCORE_CORS_ORIGIN=https://jarvis.huykl.id.vn
-JCORE_DASHBOARD_SESSION_TTL_MS=1800000
+JCORE_WEB_ROOT=/opt/j-core-console/dist
+JCORE_PUBLIC_ORIGIN=https://jarvis.example.com
+JCORE_AUTH_USERNAME=admin
+JCORE_AUTH_PASSWORD=<strong-password>
+JCORE_NATIVE_DASHBOARD_PROXY_HOST=127.0.0.1
+JCORE_CORS_ORIGIN=
 ```
 
-The gateway refuses to start on `0.0.0.0` without `JCORE_GATEWAY_TOKEN`.
-
-Use a private tunnel when possible:
-
-- Cloudflare Tunnel + Access for public domain access.
-- Tailscale/Funnel for private personal access.
-- Ngrok only for short testing.
-
-### Trusted LAN gateway (192.168.1.114)
-
-When the browser runs on another machine in the same trusted LAN, serve the UI from the Ubuntu gateway itself. Do not run a second frontend or expose the native Hermes/OpenClaw/9Router ports.
-
-Deploy from the project checkout on the gateway:
-
-```bash
-sudo env JCORE_LAN_ADDRESS=192.168.1.114 \
-  bash scripts/provision-ubuntu-runtime.sh "$PWD"
-```
-
-This binds only the authenticated J-Core entry point and its authenticated native-dashboard proxies to the LAN. The upstream services remain on loopback:
-
-| LAN port | Purpose |
-| --- | --- |
-| `8787` | J-Core login, UI, API and terminal WebSocket |
-| `9120` | Authenticated Hermes dashboard proxy |
-| `18790` | Authenticated OpenClaw dashboard/WebSocket proxy |
-| `20129` | Authenticated 9Router dashboard proxy |
-
-If UFW is active, scope access to the local subnet:
-
-```bash
-sudo ufw allow from 192.168.1.0/24 to any port 8787 proto tcp
-sudo ufw allow from 192.168.1.0/24 to any port 9120 proto tcp
-sudo ufw allow from 192.168.1.0/24 to any port 18790 proto tcp
-sudo ufw allow from 192.168.1.0/24 to any port 20129 proto tcp
-```
-
-Do not open `9119`, `18789`, or `20128`; they are loopback upstream ports. Open the console from another LAN machine at `http://192.168.1.114:8787`.
-
-## 3. Hermes-first chat
-
-Default production profile:
+Keep upstream integrations loopback/private:
 
 ```env
 HERMES_BASE_URL=http://127.0.0.1:8642
-HERMES_HEALTH_URL=http://127.0.0.1:8642/v1/models
 HERMES_CHAT_URL=http://127.0.0.1:8642/v1/chat/completions
-HERMES_API_KEY=<matches-hermes-api-server-key>
-HERMES_MODEL=hermes-agent
-HERMES_DEFAULT_PROFILE=jarvis
-HERMES_ALLOWED_PROFILES=jarvis,ev-personal
-HERMES_MULTIPLEX_PROFILES=true
-HERMES_SESSION_MODE=web
-HERMES_SESSION_ID=jarvis-web-primary
-HERMES_SESSION_KEY=agent:jarvis:web:dm:owner
-```
-
-The UI sends the active Hermes profile with `/api/hermes/chat`. Profile switching in the UI changes the orb palette and persists the selected profile locally.
-
-J-Core now reads profile metadata from Hermes `/v1/profiles`. If the installed Hermes build does not expose that route, configure a safe fallback without adding secrets:
-
-```env
-HERMES_PROFILE_METADATA_JSON=[{"id":"jarvis","name":"Jarvis","palette":"orange","tags":["Memory"]},{"id":"ev-personal","name":"E.V","palette":"spider","tags":["Personal"]}]
-HERMES_PROFILE_METADATA_TTL_MS=30000
-```
-
-Create the real isolated E.V profile before enabling Spider Mode chat:
-
-```bash
-hermes profile create ev-personal
-hermes config set gateway.multiplex_profiles true
-hermes gateway restart
-```
-
-E.V then uses its own profile directory, memory, tools and provider credentials. J-Core routes it through the multiplexed profile endpoint instead of treating a frontend persona as a separate agent.
-
-## 4. OpenClaw, 9Router and Claude
-
-```env
 OPENCLAW_BASE_URL=http://127.0.0.1:18789
-OPENCLAW_HEALTH_URL=http://127.0.0.1:18789/v1/models
-OPENCLAW_CHAT_URL=http://127.0.0.1:18789/v1/chat/completions
-OPENCLAW_TASK_URL=
-OPENCLAW_MODEL=openclaw/default
-
 NINEROUTER_BASE_URL=http://127.0.0.1:20128
-NINEROUTER_HEALTH_URL=http://127.0.0.1:20128/v1/models
-NINEROUTER_CHAT_URL=http://127.0.0.1:20128/v1/chat/completions
-NINEROUTER_MODEL=Code
-
 CLAUDE_BASE_URL=http://127.0.0.1:3001
-CLAUDE_HEALTH_URL=http://127.0.0.1:3001/health
-CLAUDE_CHAT_URL=
 ```
 
-Dashboard diagnostics use `POST /api/system/dashboard-command` with an allowlist. This gives the UI real status/model/task checks without exposing an unrestricted shell.
+Store all service API keys in the server environment only.
 
-## 5. Ubuntu Files and Obsidian
+## 5. Cloudflare Tunnel
 
-```env
-JCORE_WORKSPACE_ROOT=/srv/j-core
-JCORE_OBSIDIAN_ROOT=/home/<ubuntu-user>/Documents/ObsidianVault
-JCORE_WORKSPACE_WRITE_ENABLED=true
+Use `deploy/ubuntu/cloudflared-j-core.yml.example` as the starting point:
+
+```yaml
+ingress:
+  - hostname: jarvis.example.com
+    service: http://127.0.0.1:8787
+  - service: http_status:404
 ```
 
-The gateway returns relative paths only. It skips dotfiles, secrets, symlinks and oversized files. Text-file editing is enabled only when `JCORE_WORKSPACE_WRITE_ENABLED=true`; writes use conflict detection and an atomic same-directory replacement. Create/delete and binary writes are not exposed by this broker.
+The tunnel origin should be JARVIS only. Do not add ingress rules for Hermes,
+OpenClaw, 9Router, Claude, or dashboard proxy ports.
 
-## 6. Terminal modes
+## 6. Verify
 
-Safe broker mode is the default:
-
-```env
-JCORE_TERMINAL_ENABLED=true
-JCORE_TERMINAL_PRIVATE_MODE=false
-JCORE_TERMINAL_SHELL=/bin/bash
-JCORE_TERMINAL_TIMEOUT_MS=10000
-JCORE_TERMINAL_OUTPUT_LIMIT=262144
-JCORE_MANAGED_SERVICES=j-core-gateway,hermes,openclaw,9router
-JCORE_HERMES_CLI=jarvis
-JCORE_OPENCLAW_CLI=openclaw
-JCORE_CLAUDE_CLI=claude
-```
-
-Broker commands include:
-
-- `help`, `pwd`, `roots`
-- `ls`, `cat`, `find`
-- `system uptime|disk|memory`
-- `service <name> status`, `logs <name> [lines]`
-- `hermes status|doctor|sessions|cron`
-- `openclaw status|doctor|models|tasks`
-- `claude version`
-- `9router models`
-
-Private shell mode is for a trusted Ubuntu gateway only:
-
-```env
-JCORE_TERMINAL_PRIVATE_MODE=true
-JCORE_TERMINAL_SHELL=/bin/bash
-```
-
-The non-streaming private command endpoint remains available for trusted diagnostics:
-
-```text
-POST /api/system/private-terminal
-```
-
-The focused Terminal dashboard also supports a real streamed PTY. The browser first requests an authenticated, one-time ticket from `POST /api/system/terminal/session`, then connects to `/ws/terminal`. The ticket expires after 60 seconds and the PTY session expires after 30 minutes by default:
-
-```env
-JCORE_TERMINAL_TICKET_TTL_MS=60000
-JCORE_TERMINAL_SESSION_TTL_MS=1800000
-```
-
-PTY audit records session open/close time, remote address and input/output byte counts. It deliberately does not store command text because commands may contain secrets. Local browser console and direct Ubuntu Files remain the default mode.
-
-Do not enable private shell on a public gateway unless it is behind strong access control.
-
-## 7. Vietnamese voice pipeline
-
-Without extra configuration, J-Core keeps using browser SpeechRecognition and speechSynthesis. To use local Ubuntu voice, point these variables at OpenAI-compatible Whisper and TTS endpoints:
-
-```env
-HERMES_STT_URL=http://127.0.0.1:9000/v1/audio/transcriptions
-HERMES_STT_API_KEY=
-HERMES_STT_MODEL=whisper-1
-HERMES_TTS_URL=http://127.0.0.1:9001/v1/audio/speech
-HERMES_TTS_API_KEY=
-HERMES_TTS_MODEL=tts-1
-HERMES_TTS_VOICE=alloy
-```
-
-The client records WebM/Opus, uses local VAD to stop after silence, transcribes as Vietnamese, routes the text through the active Hermes profile, and plays local TTS. If either service is absent, that half of the pipeline falls back to the browser automatically.
-
-## 8. Verify
+Run from the repository:
 
 ```bash
-curl -H "Authorization: Bearer $JCORE_GATEWAY_TOKEN" \
-  https://jarvisidhuykl.huykl.id.vn/health
+pnpm run typecheck
+pnpm run build
+pnpm run test:self-hosted
+pnpm run test:gateway
 ```
 
-At least one chat service should show:
+On the AI Workstation, also run:
 
-```json
-{ "online": true, "configured": true }
+```bash
+pnpm run doctor:gateway
 ```
 
-Every response includes `x-request-id`; use it to match UI errors with gateway logs.
+Then verify through the Cloudflare hostname:
+
+- `/` serves the JARVIS UI.
+- `/api/auth/login` issues an HttpOnly session cookie.
+- `/api/auth/session` returns the logged-in user.
+- `/health` requires that session and reports upstream status.
+- Browser network traffic uses only the JARVIS hostname for app APIs and
+  WebSockets.
+- Built frontend assets contain no API keys, service tokens, or upstream
+  workstation URLs.
+

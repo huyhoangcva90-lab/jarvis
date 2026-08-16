@@ -1,14 +1,4 @@
-export const DEFAULT_GATEWAY_URL = "https://jarvisidhuykl.huykl.id.vn";
-const STATIC_HOSTNAMES = new Set(["jarvis.huykl.id.vn"]);
-
-function isStaticGatewayShell() {
-  if (typeof window === "undefined") return false;
-  return (
-    window.location.protocol === "file:" ||
-    window.location.hostname.endsWith("github.io") ||
-    STATIC_HOSTNAMES.has(window.location.hostname)
-  );
-}
+export const DEFAULT_GATEWAY_URL = "";
 
 const GATEWAY_ERROR_MESSAGES = {
   unauthorized: "Gateway token không hợp lệ.",
@@ -56,17 +46,11 @@ const GATEWAY_ERROR_MESSAGES = {
 };
 
 export function getGatewayConfig(data) {
-  const sameOrigin = data?.auth?.sessionMode === "same-origin" && !isStaticGatewayShell();
-  const gateway = sameOrigin && typeof window !== "undefined"
-    ? window.location.origin
-    : data?.endpoints?.gateway || DEFAULT_GATEWAY_URL;
-  const token = String(data?.endpoints?.gatewayToken || "")
-    .trim()
-    .replace(/^Bearer\s+/i, "");
+  const gateway = typeof window !== "undefined" ? window.location.origin : DEFAULT_GATEWAY_URL;
   return {
     gateway: String(gateway).trim().replace(/\/+$/, ""),
-    token: sameOrigin ? "" : token,
-    sameOrigin,
+    token: "",
+    sameOrigin: true,
   };
 }
 
@@ -78,7 +62,7 @@ function createRequestId() {
 }
 
 export async function gatewayFetch(data, path, options = {}) {
-  const { gateway, token } = getGatewayConfig(data);
+  const { gateway, token, sameOrigin } = getGatewayConfig(data);
   const { timeoutMs = 15000, headers: optionHeaders, ...fetchOptions } = options;
   const requestId = createRequestId();
   const headers = { "x-request-id": requestId, ...(optionHeaders || {}) };
@@ -96,7 +80,7 @@ export async function gatewayFetch(data, path, options = {}) {
   const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(`${gateway}${path}`, {
+    const response = await fetch(sameOrigin ? path : `${gateway}${path}`, {
       ...fetchOptions,
       credentials: fetchOptions.credentials || "include",
       headers,
@@ -135,7 +119,7 @@ export async function gatewayFetch(data, path, options = {}) {
       throw timeoutError;
     }
     if (error instanceof TypeError) {
-      const networkError = new Error("Không thể kết nối gateway. Hãy kiểm tra URL, mạng và CORS.");
+      const networkError = new Error("Không thể kết nối JARVIS server. Hãy kiểm tra phiên đăng nhập và mạng.");
       networkError.requestId = requestId;
       throw networkError;
     }
@@ -147,7 +131,7 @@ export async function gatewayFetch(data, path, options = {}) {
 }
 
 export async function gatewayBinaryFetch(data, path, options = {}) {
-  const { gateway, token } = getGatewayConfig(data);
+  const { gateway, token, sameOrigin } = getGatewayConfig(data);
   const { timeoutMs = 60000, headers: optionHeaders, ...fetchOptions } = options;
   const requestId = createRequestId();
   const headers = { "x-request-id": requestId, ...(optionHeaders || {}) };
@@ -155,7 +139,7 @@ export async function gatewayBinaryFetch(data, path, options = {}) {
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(`${gateway}${path}`, { ...fetchOptions, credentials: fetchOptions.credentials || "include", headers, signal: controller.signal });
+    const response = await fetch(sameOrigin ? path : `${gateway}${path}`, { ...fetchOptions, credentials: fetchOptions.credentials || "include", headers, signal: controller.signal });
     if (!response.ok) {
       let details = {};
       try { details = await response.json(); } catch { details = {}; }

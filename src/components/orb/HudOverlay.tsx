@@ -4,11 +4,6 @@ import { gatewayBinaryFetch, gatewayFetch, getGatewayConfig, getGatewayReply } f
 import { useStoneState } from "../../utils/stoneState.jsx";
 import { ORB_UI_STORAGE_KEY } from "../../utils/orbPreferences";
 import { DEFAULT_NINEROUTER_MODEL, NINEROUTER_MODELS, getNineRouterModel } from "../../utils/nineRouterModels.js";
-import {
-  clearGatewayToken,
-  isGatewayTokenRemembered,
-  saveGatewayToken,
-} from "../../utils/storage.js";
 import DynamicHub from "./DynamicHub";
 import ServiceDashboard from "./ServiceDashboard";
 import ObsidianVaultPanel from "./ObsidianVaultPanel";
@@ -108,7 +103,7 @@ const QUICK_COMMANDS = [
 const paletteLabels: Record<Palette, string> = {
   gold: "Gold Core",
   blue: "Spatial Tesseract",
-  green: "Stark Matrix",
+  green: "Green Mystic Core",
   red: "Stark Combat",
   violet: "Stark Quantum",
   orange: "Arc Reactor",
@@ -545,10 +540,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [gatewayTest, setGatewayTest] = useState<"idle" | "testing" | "success" | "error">("idle");
   const [gatewayTestMessage, setGatewayTestMessage] = useState("");
   const [gatewayHealth, setGatewayHealth] = useState<any>(null);
-  const [gatewayDraft, setGatewayDraft] = useState(data.endpoints?.gateway || "");
-  const [gatewayTokenDraft, setGatewayTokenDraft] = useState(data.endpoints?.gatewayToken || "");
-  const [rememberGatewayToken, setRememberGatewayToken] = useState(() => isGatewayTokenRemembered());
-  const [showGatewayToken, setShowGatewayToken] = useState(false);
   const [nativeDashboards, setNativeDashboards] = useState<NativeDashboards | null>(null);
   const [selectedHermesProfileId, setSelectedHermesProfileId] = useState<HermesProfileId>(() => {
     const configured = data?.ai?.hermesProfile;
@@ -614,10 +605,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     updateData({ ai: { ...(data.ai || {}), hermesProfile: "ev-personal" } });
   }, [palette]);
   useEffect(() => {
-    setGatewayDraft(data.endpoints?.gateway || "");
-    setGatewayTokenDraft(data.endpoints?.gatewayToken || "");
-  }, [data.endpoints?.gateway, data.endpoints?.gatewayToken]);
-  useEffect(() => {
     let active = true;
     gatewayFetch(data, "/api/hermes/voice/capabilities", { method: "GET", timeoutMs: 5000 })
       .then((payload: any) => {
@@ -625,7 +612,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       })
       .catch(() => { if (active) setVoiceCapabilities({ stt: false, tts: false }); });
     return () => { active = false; };
-  }, [data.endpoints?.gateway, data.endpoints?.gatewayToken]);
+  }, [data?.auth?.sessionMode]);
   useEffect(() => {
     let active = true;
     gatewayFetch(data, "/api/native-dashboards", { method: "GET", credentials: "include", timeoutMs: 5000 })
@@ -634,7 +621,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       })
       .catch(() => { if (active) setNativeDashboards(null); });
     return () => { active = false; };
-  }, [data.endpoints?.gateway, data.endpoints?.gatewayToken]);
+  }, [data?.auth?.sessionMode]);
   useEffect(() => { activityRef.current = activity; }, [activity]);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
   useEffect(() => { messageEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -985,46 +972,22 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
   const testGateway = async () => {
     setGatewayTest("testing");
-    setGatewayTestMessage("Đang kiểm tra Gateway và các dịch vụ nội bộ...");
+    setGatewayTestMessage("Đang kiểm tra JARVIS và các dịch vụ nội bộ...");
     setGatewayHealth(null);
-    const normalizedToken = gatewayTokenDraft.trim().replace(/^Bearer\s+/i, "");
-    const endpoints = {
-      ...data.endpoints,
-      gateway: gatewayDraft.trim(),
-      gatewayToken: normalizedToken,
-    };
-    updateData({ endpoints });
-    saveGatewayToken(normalizedToken, rememberGatewayToken);
     try {
-      const health = await gatewayFetch({ ...data, endpoints }, "/health", { method: "GET", timeoutMs: 7000 });
+      const health = await gatewayFetch(data, "/health", { method: "GET", timeoutMs: 7000 });
       setGatewayTest("success");
       setGatewayHealth(health);
-      setGatewayTestMessage("Gateway đã xác thực. Trạng thái dịch vụ được cập nhật bên dưới.");
-      setToast("Gateway đã kết nối.");
+      setGatewayTestMessage("JARVIS đã xác thực. Trạng thái dịch vụ được cập nhật bên dưới.");
+      setToast("JARVIS đã kết nối.");
     } catch (error: any) {
       setGatewayTest("error");
       const message = error?.status === 401
-        ? "Jarvis token bị Gateway từ chối. Kiểm tra token đang chạy trên Ubuntu."
-        : error?.message || "Không thể kết nối Gateway.";
+        ? "Phiên JARVIS đã hết hạn. Hãy đăng nhập lại."
+        : error?.message || "Không thể kết nối JARVIS.";
       setGatewayTestMessage(message);
       setToast(message);
     }
-  };
-
-  const clearSavedGatewayToken = () => {
-    clearGatewayToken();
-    setGatewayTokenDraft("");
-    setRememberGatewayToken(false);
-    setGatewayTest("idle");
-    setGatewayTestMessage("");
-    updateData({
-      endpoints: {
-        ...data.endpoints,
-        gateway: gatewayDraft.trim(),
-        gatewayToken: "",
-      },
-    });
-    setToast("Đã xóa Jarvis token khỏi trình duyệt.");
   };
 
   const updateServicePanel = (service: ServiceKey, patch: Partial<ServicePanelState>) => {
@@ -1684,61 +1647,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               <div><b>LOCAL PROJECT SESSION</b><span>J-Core tự kết nối dịch vụ trong dự án sau đăng nhập. Không có URL, API key hay token cần nhập.</span></div>
               {sameOriginSession && <button type="button" onClick={() => void logoutProjectSession()}>Đăng xuất</button>}
             </div>
-            <label className="gateway-field">
-              <span>Gateway URL</span>
-              <input
-                type="url"
-                name="jcore-gateway-url"
-                value={gatewayDraft}
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck={false}
-                data-1p-ignore="true"
-                data-lpignore="true"
-                onChange={(event) => {
-                  setGatewayDraft(event.target.value);
-                  setGatewayTest("idle");
-                }}
-              />
-            </label>
-            <label className="gateway-field">
-              <span>Jarvis device token</span>
-              <div className="gateway-token-control">
-                <input
-                  type={showGatewayToken ? "text" : "password"}
-                  value={gatewayTokenDraft}
-                  placeholder="Chỉ nhập chuỗi token, không cần Bearer"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  data-1p-ignore="true"
-                  data-lpignore="true"
-                  onChange={(event) => {
-                    setGatewayTokenDraft(event.target.value);
-                    setGatewayTest("idle");
-                    setGatewayTestMessage("");
-                  }}
-                />
-                <button type="button" onClick={() => setShowGatewayToken((visible) => !visible)}>
-                  {showGatewayToken ? "Ẩn" : "Hiện"}
-                </button>
-              </div>
-            </label>
-            <label className="toggle-row gateway-remember-row">
-              <span>
-                Nhớ token trên thiết bị
-                <small>{rememberGatewayToken ? "Lưu lâu dài trong trình duyệt này" : "Chỉ giữ đến khi đóng tab"}</small>
-              </span>
-              <input
-                checked={rememberGatewayToken}
-                type="checkbox"
-                onChange={(event) => {
-                  const remember = event.target.checked;
-                  setRememberGatewayToken(remember);
-                  saveGatewayToken(gatewayTokenDraft, remember);
-                }}
-              />
-            </label>
             <p className={`gateway-test-status ${gatewayTest}`} role={gatewayTest === "error" ? "alert" : "status"}>
               {gatewayTestMessage || (connections.gateway ? "Health check đang hoạt động." : "Gateway chưa kết nối.")}
             </p>
@@ -1753,9 +1661,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 ))}
               </div>
             )}
-            <button className="gateway-clear-token" type="button" onClick={clearSavedGatewayToken}>
-              Xóa token khỏi trình duyệt
-            </button>
           </section>
           <section className="settings-block model-settings">
             <div className="settings-block-head">

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-# Read-only diagnostics for the J-Core gateway and its local AI upstreams.
-# Secrets are used only as Authorization headers and are never printed.
+# Read-only diagnostics for the JARVIS server and its local AI upstreams.
+# Secrets are used only for login/upstream checks and are never printed.
 
 set -u
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${JCORE_ENV_FILE:-$ROOT_DIR/.env.local}"
-PUBLIC_GATEWAY="${JCORE_PUBLIC_GATEWAY:-https://jarvisidhuykl.huykl.id.vn}"
+PUBLIC_GATEWAY="${JCORE_PUBLIC_ORIGIN:-}"
 SERVICE_NAME="${JCORE_SERVICE_NAME:-gateway-api.service}"
 PASS_COUNT=0
 WARN_COUNT=0
@@ -91,10 +91,35 @@ check_expected_url() {
   fi
 }
 
+login_cookie() {
+  local base_url="$1"
+  local username="$2"
+  local password="$3"
+  local cookie_file="$4"
+  local output_file
+  local payload
+  local status
+
+  output_file="$(mktemp)"
+  payload="$(printf '{"username":"%s","password":"%s"}' "$username" "$password")"
+  status="$(
+    curl --silent --show-error --max-time 8 \
+      --cookie-jar "$cookie_file" \
+      --output "$output_file" \
+      --write-out "%{http_code}" \
+      -H "content-type: application/json" \
+      --data "$payload" \
+      "$base_url/api/auth/login" 2>/dev/null || true
+  )"
+  rm -f -- "$output_file"
+  [[ "$status" == 2?? ]]
+}
+
 http_check() {
   local label="$1"
   local url="$2"
   local token="${3:-}"
+  local cookie_file="${4:-}"
   local output_file
   local status
   local curl_args=(
@@ -109,6 +134,9 @@ http_check() {
   curl_args+=("$output_file" --write-out "%{http_code}")
   if [[ -n "$token" ]]; then
     curl_args+=(-H "Authorization: Bearer $token")
+  fi
+  if [[ -n "$cookie_file" ]]; then
+    curl_args+=(--cookie "$cookie_file")
   fi
 
   status="$(curl "${curl_args[@]}" "$url" 2>/dev/null || true)"
@@ -170,13 +198,14 @@ else
 fi
 
 section "Configuration"
-JCORE_TOKEN="$(read_env JCORE_GATEWAY_TOKEN)"
+JCORE_AUTH_USERNAME="$(read_env JCORE_AUTH_USERNAME)"
+JCORE_AUTH_PASSWORD="$(read_env JCORE_AUTH_PASSWORD)"
 HERMES_TOKEN="$(read_env HERMES_API_KEY)"
 OPENCLAW_TOKEN="$(read_env OPENCLAW_API_KEY)"
 NINEROUTER_TOKEN="$(read_env NINEROUTER_API_KEY)"
 NINEROUTER_MODEL="$(read_env NINEROUTER_MODEL)"
 
-check_secret "JCORE_GATEWAY_TOKEN" "$JCORE_TOKEN"
+check_secret "JCORE_AUTH_PASSWORD" "$JCORE_AUTH_PASSWORD"
 check_secret "HERMES_API_KEY" "$HERMES_TOKEN"
 check_secret "OPENCLAW_API_KEY" "$OPENCLAW_TOKEN"
 check_secret "NINEROUTER_API_KEY" "$NINEROUTER_TOKEN"
@@ -191,18 +220,39 @@ check_expected_url OPENCLAW_CHAT_URL "http://127.0.0.1:18789/v1/chat/completions
 check_expected_url NINEROUTER_CHAT_URL "http://127.0.0.1:20128/v1/chat/completions"
 
 section "Local APIs"
-http_check "J-Core local health" "http://127.0.0.1:8787/health" "$JCORE_TOKEN"
+JCORE_COOKIE_FILE="$(mktemp)"
+trap 'rm -f -- "$JCORE_COOKIE_FILE"' EXIT
+if [[ -n "$JCORE_AUTH_PASSWORD" ]] && login_cookie "http://127.0.0.1:8787" "${JCORE_AUTH_USERNAME:-admin}" "$JCORE_AUTH_PASSWORD" "$JCORE_COOKIE_FILE"; then
+  pass "JARVIS local session login works"
+  http_check "JARVIS local health" "http://127.0.0.1:8787/health" "" "$JCORE_COOKIE_FILE"
+else
+  fail "JARVIS local session login failed"
+fi
 http_check "Hermes models" "http://127.0.0.1:8642/v1/models" "$HERMES_TOKEN"
 http_check "OpenClaw models" "http://127.0.0.1:18789/v1/models" "$OPENCLAW_TOKEN"
 http_check "n9router models" "http://127.0.0.1:20128/v1/models" "$NINEROUTER_TOKEN"
 
 section "Public route"
-if getent ahosts jarvisidhuykl.huykl.id.vn >/dev/null 2>&1; then
-  pass "jarvisidhuykl.huykl.id.vn resolves in system DNS"
+if [[ -z "$PUBLIC_GATEWAY" ]]; then
+  warn "JCORE_PUBLIC_ORIGIN is not configured; skipped public tunnel check"
 else
-  fail "jarvisidhuykl.huykl.id.vn does not resolve in system DNS"
+  public_host="${PUBLIC_GATEWAY#*://}"
+  public_host="${public_host%%/*}"
+  public_host="${public_host%%:*}"
+  if getent ahosts "$public_host" >/dev/null 2>&1; then
+    pass "$public_host resolves in system DNS"
+  else
+    fail "$public_host does not resolve in system DNS"
+  fi
+  PUBLIC_COOKIE_FILE="$(mktemp)"
+  trap 'rm -f -- "$JCORE_COOKIE_FILE" "$PUBLIC_COOKIE_FILE"' EXIT
+  if [[ -n "$JCORE_AUTH_PASSWORD" ]] && login_cookie "$PUBLIC_GATEWAY" "${JCORE_AUTH_USERNAME:-admin}" "$JCORE_AUTH_PASSWORD" "$PUBLIC_COOKIE_FILE"; then
+    pass "JARVIS public session login works"
+    http_check "JARVIS public health" "$PUBLIC_GATEWAY/health" "" "$PUBLIC_COOKIE_FILE"
+  else
+    fail "JARVIS public session login failed"
+  fi
 fi
-http_check "Public gateway health" "$PUBLIC_GATEWAY/health" "$JCORE_TOKEN"
 
 printf '\nSummary: %s%d pass%s, %s%d warning%s, %s%d fail%s\n' \
   "$GREEN" "$PASS_COUNT" "$RESET" \

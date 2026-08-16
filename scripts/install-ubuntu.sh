@@ -49,6 +49,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
     printf 'JCORE_GATEWAY_HOST=%s\n' "$GATEWAY_BIND_HOST"
     printf 'JCORE_GATEWAY_PORT=8787\n'
     [[ -n "$LAN_ADDRESS" ]] && printf 'JCORE_CORS_ORIGIN=http://%s:8787\n' "$LAN_ADDRESS"
+    printf 'JCORE_NATIVE_DASHBOARD_PROXY_HOST=127.0.0.1\n'
     printf 'JCORE_AUTH_USERNAME=%q\n' "$LOGIN_NAME"
     printf 'JCORE_AUTH_PASSWORD=%q\n' "$LOGIN_PASSWORD"
     printf 'JCORE_WEB_ROOT=%q\n' "$APP_DIR/dist"

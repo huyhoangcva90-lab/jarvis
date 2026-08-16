@@ -11,6 +11,9 @@ import { MindScene } from "../realms/mind/MindScene";
 import { SpaceScene } from "../realms/space/SpaceScene";
 import { SpiderScene } from "../realms/spider/SpiderScene";
 import { TonyOrbScene } from "../realms/stark/TonyOrbScene";
+import { PowerScene } from "../realms/power/PowerScene";
+import { RealityScene } from "../realms/reality/RealityScene";
+import { TimeScene } from "../realms/time/TimeScene";
 
 type JarvisCanvasProps = {
   activity: AiActivity;
@@ -221,7 +224,7 @@ function PostFX({ activity, palette }: { activity: AiActivity; palette: string }
     const profiles: Record<string, { intensity: number; threshold: number; smoothing: number }> = {
       blue: { intensity: 1.32, threshold: 0.28, smoothing: 0.52 },
       green: { intensity: 0.92, threshold: 0.42, smoothing: 0.42 },
-      red: { intensity: 0.88, threshold: 0.46, smoothing: 0.4 },
+      red: { intensity: 1.18, threshold: 0.32, smoothing: 0.46 },
       violet: { intensity: 0.94, threshold: 0.44, smoothing: 0.4 },
       orange: { intensity: 0.9, threshold: 0.46, smoothing: 0.38 },
       spider: { intensity: 1.25, threshold: 0.28, smoothing: 0.4 },
@@ -260,16 +263,16 @@ export default function JarvisCanvas({ activity, palette, resetSignal = 0 }: Jar
                 return <MindScene activity={activity} palette="gold" />;
               }
               if (activePalette === "green") {
-                return <TonyOrbScene activity={activity} palette="green" />;
+                return <TimeScene activity={activity} />;
               }
               if (activePalette === "blue") {
                 return <SpaceScene activity={activity} />;
               }
               if (activePalette === "red") {
-                return <TonyOrbScene activity={activity} palette="red" />;
+                return <RealityScene activity={activity} />;
               }
               if (activePalette === "violet") {
-                return <TonyOrbScene activity={activity} palette="violet" />;
+                return <PowerScene activity={activity} />;
               }
               if (activePalette === "orange") {
                 return <TonyOrbScene activity={activity} palette="orange" />;

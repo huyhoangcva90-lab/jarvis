@@ -185,7 +185,7 @@ export function StoneStateProvider({ children, data }) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [data?.endpoints?.gateway, data?.endpoints?.gatewayToken]);
+  }, [data?.auth?.sessionMode]);
 
   const setStoneStatus = useCallback((stoneId, status, extra = {}) => {
     dispatch({ type: "SET_STATUS", payload: { stoneId, status, ...extra } });

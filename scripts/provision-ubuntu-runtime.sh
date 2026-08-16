@@ -58,6 +58,7 @@ if [[ ! -f "$ENV_FILE" ]]; then
   {
     printf 'JCORE_GATEWAY_HOST=%s\n' "$GATEWAY_BIND_HOST"
     printf 'JCORE_GATEWAY_PORT=8787\n'
+    printf 'JCORE_NATIVE_DASHBOARD_PROXY_HOST=127.0.0.1\n'
     printf 'JCORE_AUTH_USERNAME=%s\n' "$LOGIN_NAME"
     printf 'JCORE_AUTH_PASSWORD=%s\n' "$LOGIN_PASSWORD"
     printf 'JCORE_WEB_ROOT=%s\n' "$APP_DIR/dist"
@@ -65,18 +66,19 @@ if [[ ! -f "$ENV_FILE" ]]; then
     printf 'JCORE_WORKSPACE_WRITE_ENABLED=true\n'
     printf 'JCORE_APP_CONFIG_WRITE_ENABLED=true\n'
     printf 'JCORE_TERMINAL_ENABLED=true\n'
-    printf 'JCORE_TERMINAL_PRIVATE_MODE=true\n'
+    printf 'JCORE_TERMINAL_PRIVATE_MODE=false\n'
     printf 'JCORE_TERMINAL_SHELL=/bin/bash\n'
-    printf 'HERMES_BASE_URL=http://127.0.0.1:9119\n'
-    printf 'HERMES_HEALTH_URL=http://127.0.0.1:9119/api/status\n'
+    printf 'HERMES_BASE_URL=%s\n' "${HERMES_BASE_URL:-http://127.0.0.1:8642}"
+    printf 'HERMES_HEALTH_URL=%s\n' "${HERMES_HEALTH_URL:-http://127.0.0.1:8642/v1/models}"
+    printf 'HERMES_CHAT_URL=%s\n' "${HERMES_CHAT_URL:-http://127.0.0.1:8642/v1/chat/completions}"
     printf 'OPENCLAW_BASE_URL=http://127.0.0.1:18789\n'
-    printf 'OPENCLAW_HEALTH_URL=http://127.0.0.1:18789/\n'
+    printf 'OPENCLAW_HEALTH_URL=http://127.0.0.1:18789/v1/models\n'
     printf 'NINEROUTER_BASE_URL=http://127.0.0.1:20128\n'
     printf 'NINEROUTER_HEALTH_URL=http://127.0.0.1:20128/v1/models\n'
     printf 'NINEROUTER_CHAT_URL=http://127.0.0.1:20128/v1/chat/completions\n'
     printf 'JCORE_HERMES_CONFIG_PATH=%s\n' "$SERVICE_HOME/.hermes/config.yaml"
     printf 'JCORE_OPENCLAW_CONFIG_PATH=%s\n' "$SERVICE_HOME/.openclaw/openclaw.json"
-    printf 'JCORE_9ROUTER_CONFIG_PATH=%s\n' "$SERVICE_HOME/.9router/db/data.sqlite"
+    printf 'JCORE_9ROUTER_CONFIG_PATH=%s\n' "$SERVICE_HOME/.config/j-core/apps/9router.json"
   } > "$ENV_FILE"
   chown "$SERVICE_USER:$SERVICE_USER" "$ENV_FILE"
   chmod 600 "$ENV_FILE"

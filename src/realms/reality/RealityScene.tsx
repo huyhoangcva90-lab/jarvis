@@ -4,20 +4,27 @@ import * as THREE from "three";
 import type { AiActivity } from "../../App";
 import { activityEnergy, activityPulse, activitySpeed, seededRandom } from "../shared/coreMotion";
 
-const CRIMSON = "#ff203c";
-const AETHER = "#ff4b56";
-const GOLD = "#ffc35a";
+// Palettes & Constants directly from MCU Concept Reference
+const CRIMSON = "#ff1744";
+const BLOOD_RED = "#d50000";
+const DEEP_VOID = "#0a0004";
+const DARK_MATTER = "#200008";
+const HOT_CORE = "#ff8ba0";
+const RUNIC_GOLD = "#ffb300";
+const RUNIC_RED = "#ff2a4b";
 
-// --- GLSL SHADERS FOR AETHER BLOB & REALITY FRACTURE ---
+// --- GLSL SHADERS ---
 
-const aetherVertexShader = `
+// 1. Aether Storm Core - Multi-layer Procedural 3D Simplex Fluid Noise with Dark Matter Veins
+const aetherCoreVertexShader = `
   uniform float uTime;
   uniform float uEnergy;
   varying vec3 vNormal;
   varying vec3 vPosition;
   varying vec3 vWorldPosition;
+  varying vec3 vViewDirection;
 
-  // 3D Simplex noise generator
+  // Simplex 3D Noise Generator
   vec4 permute(vec4 x){ return mod(((x*34.0)+1.0)*x, 289.0); }
   vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - 0.85373472095314 * r; }
 
@@ -68,123 +75,143 @@ const aetherVertexShader = `
     vNormal = normalize(normalMatrix * normal);
     vPosition = position;
 
-    // Organic liquid Aether fluid deformation
-    float noise1 = snoise(position * 1.5 + vec3(0.0, uTime * 0.8, uTime * 0.5));
-    float noise2 = snoise(position * 3.2 - vec3(uTime * 0.6, uTime * 0.9, 0.0));
-    float displacement = (noise1 * 0.22 + noise2 * 0.12) * (0.8 + uEnergy * 0.6);
+    // Organic sentience fluid morphing - Multi-octave turbulence
+    vec3 noiseCoord = position * 1.8;
+    float n1 = snoise(noiseCoord + vec3(0.0, uTime * 0.7, uTime * 0.4));
+    float n2 = snoise(noiseCoord * 2.5 - vec3(uTime * 0.9, 0.0, uTime * 0.6));
+    float n3 = snoise(noiseCoord * 4.0 + vec3(uTime * 1.2, uTime * 0.5, 0.0)) * 0.5;
 
-    vec3 newPos = position + normal * displacement;
-    vWorldPosition = (modelMatrix * vec4(newPos, 1.0)).xyz;
+    float displacement = (n1 * 0.28 + n2 * 0.16 + n3 * 0.08) * (0.8 + uEnergy * 0.7);
+    vec3 newPosition = position + normal * displacement;
 
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
+    vec4 worldPos = modelMatrix * vec4(newPosition, 1.0);
+    vWorldPosition = worldPos.xyz;
+    vViewDirection = normalize(cameraPosition - worldPos.xyz);
+
+    gl_Position = projectionMatrix * viewMatrix * worldPos;
   }
 `;
 
-const aetherFragmentShader = `
+const aetherCoreFragmentShader = `
   uniform float uTime;
   uniform float uEnergy;
   varying vec3 vNormal;
   varying vec3 vPosition;
   varying vec3 vWorldPosition;
+  varying vec3 vViewDirection;
 
   void main() {
-    // Swirling crimson liquid blood vein math
-    float veinPattern = pow(abs(sin(vPosition.x * 12.0 + sin(vPosition.y * 10.0 + uTime * 2.5))), 10.0);
-    float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.4);
+    float fresnel = pow(1.0 - max(dot(normalize(vNormal), normalize(vViewDirection)), 0.0), 2.2);
 
-    vec3 colDeepDark = vec3(0.12, 0.0, 0.03);
-    vec3 colCrimson  = vec3(1.0, 0.094, 0.235); // #ff203c
-    vec3 colGold     = vec3(1.0, 0.765, 0.353); // #ffc35a
+    // Dynamic swirling dark matter vortices & blood-plasma streams
+    float swirl = sin(vPosition.y * 7.0 + vPosition.x * 5.0 + uTime * 3.0);
+    float darkVeins = pow(abs(sin(vPosition.z * 11.0 + swirl * 2.0 - uTime * 2.2)), 8.0);
+    float pulse = 0.5 + 0.5 * sin(uTime * 4.0 + vPosition.y * 6.0);
 
-    vec3 baseColor = mix(colDeepDark, colCrimson, fresnel * 0.85 + 0.25);
-    baseColor = mix(baseColor, colGold, veinPattern * 0.9);
+    vec3 colVoid    = vec3(0.04, 0.0, 0.015);
+    vec3 colDarkRed = vec3(0.45, 0.0, 0.06);
+    vec3 colCrimson = vec3(1.0, 0.09, 0.22);
+    vec3 colHot     = vec3(1.0, 0.72, 0.82);
 
-    float alpha = (0.55 + fresnel * 0.45 + veinPattern * 0.3) * uEnergy;
-    gl_FragColor = vec4(baseColor * (0.9 + uEnergy * 0.5), alpha);
+    // Layering from deep dark void to blazing crimson storm
+    vec3 color = mix(colVoid, colDarkRed, fresnel * 0.8 + 0.2);
+    color = mix(color, colCrimson, (1.0 - darkVeins * 0.85) * (0.6 + pulse * 0.4));
+    color = mix(color, colHot, pow(fresnel, 3.5) * 0.85 + (1.0 - darkVeins) * pulse * 0.35);
+
+    float alpha = (0.75 + fresnel * 0.35) * (0.7 + uEnergy * 0.35);
+    gl_FragColor = vec4(color * (1.2 + uEnergy * 0.65), alpha);
   }
 `;
 
-const fractureFragmentShader = `
+// 2. Concentric Runic Anchor / Mandala Shader (Floor / Back Runic Circle)
+const runicMandalaFragmentShader = `
   uniform float uTime;
   uniform float uEnergy;
+  uniform vec3 uColor;
+  uniform vec3 uHotColor;
   varying vec2 vUv;
 
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-
   void main() {
-    vec2 st = (vUv - vec2(0.5)) * 7.0;
-    vec2 id = floor(st);
-    vec2 f  = fract(st) - vec2(0.5);
+    vec2 p = vUv - vec2(0.5);
+    float r = length(p) * 2.0;
+    float a = atan(p.y, p.x);
 
-    float n = hash(id);
-    // Voronoi glass shard reality cracks
-    float crack = smoothstep(0.045, 0.0, abs(f.x + f.y * (n - 0.5) * 2.2));
-    float pulse = 0.4 + 0.6 * pow(abs(sin(uTime * 0.8 + n * 6.28)), 6.0);
+    if (r > 1.0) discard;
 
-    vec3 colCrimson = vec3(1.0, 0.094, 0.235); // #ff203c
-    vec3 colGold    = vec3(1.0, 0.765, 0.353); // #ffc35a
-    vec3 color = mix(colCrimson, colGold, pulse);
+    // Rings math
+    float ring1 = smoothstep(0.015, 0.0, abs(r - 0.92));
+    float ring2 = smoothstep(0.012, 0.0, abs(r - 0.78));
+    float ring3 = smoothstep(0.015, 0.0, abs(r - 0.55));
+    float ring4 = smoothstep(0.02, 0.0, abs(r - 0.32));
+    float ring5 = smoothstep(0.01, 0.0, abs(r - 0.15));
 
-    float alpha = crack * pulse * 0.35 * uEnergy;
-    gl_FragColor = vec4(color * 2.2, alpha);
+    // Radial spokes & Eldritch Runes division
+    float spokes = smoothstep(0.015, 0.0, abs(sin(a * 8.0 + uTime * 0.15))) * step(0.32, r) * step(r, 0.92);
+    float innerSpokes = smoothstep(0.02, 0.0, abs(sin(a * 16.0 - uTime * 0.25))) * step(0.55, r) * step(r, 0.78);
+    float runes = step(0.65, fract(sin(floor(a * 12.0) * 45.12 + floor(r * 20.0) * 88.3) * 43758.5453)) * 
+                  step(0.78, r) * step(r, 0.92);
+
+    float totalPattern = ring1 + ring2 + ring3 + ring4 + ring5 + spokes * 0.6 + innerSpokes * 0.7 + runes * 0.8;
+    float pulse = 0.7 + 0.3 * sin(uTime * 3.5 - r * 8.0);
+
+    vec3 col = mix(uColor, uHotColor, totalPattern * 0.6 + pulse * 0.4);
+    float alpha = totalPattern * (0.35 + pulse * 0.45) * (0.7 + uEnergy * 0.4);
+    
+    // Edge fade
+    alpha *= smoothstep(1.0, 0.85, r);
+
+    gl_FragColor = vec4(col * (1.3 + uEnergy * 0.5), alpha);
   }
 `;
 
-// --- COMPONENTS ---
+// --- 3D SUB-COMPONENTS ---
 
-// 1. Sinh Thể Chất Lỏng Aether 3D (Volumetric Aether Blob)
-function VolumetricAetherBlob({ activity }: { activity: AiActivity }) {
-  const coreRef = useRef<THREE.Mesh>(null);
-  const shaderRef = useRef<THREE.ShaderMaterial>(null);
-  const lobesRef = useRef<THREE.Group>(null);
-
-  const lobes = useMemo(() => [
-    { base: [-0.65, 0.25, -0.1] as [number, number, number], scale: [0.55, 0.42, 0.45] as [number, number, number], phase: 0.3 },
-    { base: [0.6, -0.15, 0.05] as [number, number, number], scale: [0.45, 0.6, 0.42] as [number, number, number], phase: 1.5 },
-    { base: [0.1, 0.7, -0.15] as [number, number, number], scale: [0.38, 0.5, 0.35] as [number, number, number], phase: 2.7 },
-    { base: [-0.15, -0.72, -0.1] as [number, number, number], scale: [0.42, 0.48, 0.38] as [number, number, number], phase: 4.1 },
-  ], []);
+// 1. Aether Storm Core Mesh (The living cloud / stone storm)
+function AetherStormCore({ activity }: { activity: AiActivity }) {
+  const outerBlob = useRef<THREE.Mesh>(null);
+  const innerBlob = useRef<THREE.Mesh>(null);
+  const coreLight = useRef<THREE.PointLight>(null);
+  const outerMat = useRef<THREE.ShaderMaterial>(null);
+  const innerMat = useRef<THREE.ShaderMaterial>(null);
 
   useFrame(({ clock }, delta) => {
     const time = clock.elapsedTime;
     const speed = activitySpeed(activity);
     const energy = activityEnergy(activity);
+    const pulse = activityPulse(activity, time, 0.6);
 
-    if (coreRef.current) {
-      coreRef.current.rotation.y += delta * 0.15 * speed;
-      coreRef.current.rotation.z = Math.sin(time * 0.2) * 0.1;
-      coreRef.current.scale.setScalar(activityPulse(activity, time, 0.8));
+    if (outerBlob.current) {
+      outerBlob.current.rotation.y += delta * 0.25 * speed;
+      outerBlob.current.rotation.z = Math.sin(time * 0.3) * 0.15;
+      outerBlob.current.scale.setScalar(1.08 * pulse);
     }
-
-    if (shaderRef.current) {
-      shaderRef.current.uniforms.uTime.value = time;
-      shaderRef.current.uniforms.uEnergy.value = energy;
+    if (innerBlob.current) {
+      innerBlob.current.rotation.y -= delta * 0.4 * speed;
+      innerBlob.current.rotation.x += delta * 0.2 * speed;
+      innerBlob.current.scale.setScalar(0.72 * (2.0 - pulse));
     }
-
-    if (lobesRef.current) {
-      lobesRef.current.children.forEach((child, index) => {
-        const lobe = lobes[index];
-        if (!lobe) return;
-        child.position.set(
-          lobe.base[0] + Math.sin(time * 0.8 * speed + lobe.phase) * 0.12,
-          lobe.base[1] + Math.cos(time * 0.65 * speed + lobe.phase) * 0.1,
-          lobe.base[2] + Math.sin(time * 0.5 * speed + lobe.phase) * 0.14
-        );
-        const pulse = 1.0 + Math.sin(time * 3.0 + lobe.phase) * 0.1 * energy;
-        child.scale.set(lobe.scale[0] * pulse, lobe.scale[1] / pulse, lobe.scale[2] * pulse);
-      });
+    if (outerMat.current) {
+      outerMat.current.uniforms.uTime.value = time;
+      outerMat.current.uniforms.uEnergy.value = energy;
+    }
+    if (innerMat.current) {
+      innerMat.current.uniforms.uTime.value = time * 1.5;
+      innerMat.current.uniforms.uEnergy.value = energy * 1.2;
+    }
+    if (coreLight.current) {
+      coreLight.current.intensity = 4.5 + energy * 4.0 + Math.sin(time * 8.0) * 1.2;
     }
   });
 
   return (
-    <group position={[0, 0, 0]}>
-      {/* Biến Dạng Sinh Học Lỏng Aether 3D Core Mesh */}
-      <mesh ref={coreRef}>
-        <icosahedronGeometry args={[0.82, 32]} />
+    <group name="aether-storm-core">
+      {/* Outer Volumetric Aether Plasma Shell */}
+      <mesh ref={outerBlob}>
+        <icosahedronGeometry args={[0.92, 32]} />
         <shaderMaterial
-          ref={shaderRef}
-          vertexShader={aetherVertexShader}
-          fragmentShader={aetherFragmentShader}
+          ref={outerMat}
+          vertexShader={aetherCoreVertexShader}
+          fragmentShader={aetherCoreFragmentShader}
           uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 } }}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
@@ -192,184 +219,315 @@ function VolumetricAetherBlob({ activity }: { activity: AiActivity }) {
         />
       </mesh>
 
-      {/* Các Thùy Sóng Nhịp Đập Aether (Aether Wave Lobes) */}
-      <group ref={lobesRef}>
-        {lobes.map((lobe, index) => (
-          <mesh key={index} position={lobe.base} scale={lobe.scale}>
-            <icosahedronGeometry args={[1, 16]} />
-            <meshStandardMaterial
-              color="#3a0009"
-              emissive={index % 2 === 0 ? CRIMSON : AETHER}
-              emissiveIntensity={1.8}
-              metalness={0.1}
-              roughness={0.3}
-              transparent
-              opacity={0.82}
-            />
-          </mesh>
-        ))}
-      </group>
+      {/* Dense High-Frequency Inner Core */}
+      <mesh ref={innerBlob}>
+        <icosahedronGeometry args={[0.65, 24]} />
+        <shaderMaterial
+          ref={innerMat}
+          vertexShader={aetherCoreVertexShader}
+          fragmentShader={aetherCoreFragmentShader}
+          uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 } }}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          transparent
+        />
+      </mesh>
 
-      <pointLight color={CRIMSON} intensity={3.5} distance={5} decay={2} />
+      {/* Central Blazing Singularity */}
+      <mesh scale={0.22}>
+        <octahedronGeometry args={[1, 3]} />
+        <meshBasicMaterial color={HOT_CORE} toneMapped={false} />
+      </mesh>
+
+      <pointLight ref={coreLight} color={CRIMSON} distance={7} intensity={6} />
+      <pointLight color={HOT_CORE} distance={3} intensity={4} />
     </group>
   );
 }
 
-// 2. Vết Nứt Thực Tại Vỡ Thủy Tinh (Spatial Reality Fracture Grid)
-function SpatialRealityFractureGrid({ activity }: { activity: AiActivity }) {
-  const fractureRef = useRef<THREE.ShaderMaterial>(null);
+// 2. Containment Frame (Curved Segmented Alien / Dark Claws Enclosing the Aether)
+function ContainmentFrame({ activity }: { activity: AiActivity }) {
+  const frameGroup = useRef<THREE.Group>(null);
 
-  useFrame(({ clock }) => {
-    if (fractureRef.current) {
-      fractureRef.current.uniforms.uTime.value = clock.elapsedTime;
-      fractureRef.current.uniforms.uEnergy.value = activityEnergy(activity);
-    }
-  });
-
-  return (
-    <mesh position={[0, 0, -1.6]} scale={[5.8, 4.4, 1]}>
-      <planeGeometry args={[1, 1]} />
-      <shaderMaterial
-        ref={fractureRef}
-        vertexShader={`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`}
-        fragmentShader={fractureFragmentShader}
-        uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 } }}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-        transparent
-      />
-    </mesh>
-  );
-}
-
-// 3. Vành Đai Cột Đá Rune Cổ Đại (Runic Monolith Ring - Exactly 22 Columns)
-function RunicMonolithRing({ activity }: { activity: AiActivity }) {
-  const stonesRef = useRef<THREE.InstancedMesh>(null);
-  const runesRef = useRef<THREE.InstancedMesh>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-
-  const stoneCount = 22;
-  const monoliths = useMemo(() => {
-    const random = seededRandom(2026);
-    return Array.from({ length: stoneCount }, (_, index) => {
-      const angle = (index / stoneCount) * Math.PI * 2;
+  // Generate curved talon / claw profiles positioned around the perimeter
+  const claws = useMemo(() => {
+    const clawCount = 6;
+    return Array.from({ length: clawCount }, (_, i) => {
+      const angle = (i / clawCount) * Math.PI * 2;
       return {
         angle,
-        radius: 2.1 + (random() - 0.5) * 0.35,
-        height: 0.7 + random() * 0.5,
-        z: -0.6 + (random() - 0.5) * 0.6,
-        tilt: (random() - 0.5) * 0.3,
-        phase: random() * Math.PI * 2,
+        heightScale: 1.0 + (i % 2 === 0 ? 0.25 : -0.15),
+        radius: 1.38,
+        tilt: 0.18 * (i % 2 === 0 ? 1 : -1),
       };
     });
   }, []);
 
-  useFrame(({ clock }) => {
-    if (!stonesRef.current || !runesRef.current) return;
+  useFrame(({ clock }, delta) => {
+    if (!frameGroup.current) return;
     const time = clock.elapsedTime;
     const speed = activitySpeed(activity);
+    const energy = activityEnergy(activity);
 
-    monoliths.forEach((stone, index) => {
-      const currentAngle = stone.angle + time * 0.03 * speed;
-      const hoverY = Math.sin(time * 0.8 + stone.phase) * 0.08;
-      const x = Math.cos(currentAngle) * stone.radius;
-      const y = Math.sin(currentAngle) * stone.radius * 0.65 + hoverY;
-
-      // Render 3D Dark Monolith Column
-      dummy.position.set(x, y, stone.z);
-      dummy.rotation.set(stone.tilt, -0.2, currentAngle + Math.PI / 2);
-      dummy.scale.set(0.18, stone.height, 0.12);
-      dummy.updateMatrix();
-      stonesRef.current?.setMatrixAt(index, dummy.matrix);
-
-      // Render Glowing Runic Script Etching on Column Face
-      dummy.position.set(x * 1.004, y * 1.004, stone.z + 0.07);
-      dummy.rotation.set(0, 0, currentAngle + Math.PI / 2);
-      dummy.scale.set(0.11, 0.04, 0.015);
-      dummy.updateMatrix();
-      runesRef.current?.setMatrixAt(index, dummy.matrix);
-    });
-
-    stonesRef.current.instanceMatrix.needsUpdate = true;
-    runesRef.current.instanceMatrix.needsUpdate = true;
+    // Floating breathing motion
+    frameGroup.current.rotation.y += delta * 0.08 * speed;
+    frameGroup.current.position.y = Math.sin(time * 0.8) * 0.05;
+    
+    // Breathing scale expansion during high activity
+    const pulseScale = 1.0 + Math.sin(time * 2.0) * 0.02 * energy;
+    frameGroup.current.scale.set(pulseScale, pulseScale, pulseScale);
   });
 
   return (
-    <group rotation={[0.15, -0.06, 0.08]}>
-      {/* 22 Cột Đá U Tối Cổ Đại */}
-      <instancedMesh ref={stonesRef} args={[undefined, undefined, stoneCount]}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial
-          color="#1a0408"
-          emissive="#4a050d"
-          emissiveIntensity={0.6}
-          metalness={0.2}
-          roughness={0.8}
-        />
-      </instancedMesh>
+    <group ref={frameGroup} name="containment-claws-frame">
+      {claws.map((claw, idx) => {
+        const x = Math.cos(claw.angle) * claw.radius;
+        const z = Math.sin(claw.angle) * claw.radius;
+        return (
+          <group key={idx} position={[x, 0, z]} rotation={[claw.tilt, -claw.angle + Math.PI / 2, 0]}>
+            {/* Primary Curved Talon Spine */}
+            <mesh scale={[0.07, claw.heightScale * 1.35, 0.16]} position={[0, 0, 0]}>
+              <coneGeometry args={[1, 2, 5]} />
+              <meshStandardMaterial
+                color={DARK_MATTER}
+                emissive={CRIMSON}
+                emissiveIntensity={0.65}
+                metalness={0.92}
+                roughness={0.25}
+              />
+            </mesh>
 
-      {/* Ký Tự Rune Cổ Phát Sáng Vàng Kim #ffc35a & Đỏ #ff203c */}
-      <instancedMesh ref={runesRef} args={[undefined, undefined, stoneCount]}>
-        <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color={GOLD} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
-      </instancedMesh>
+            {/* Inward Curved Pincer Tip (Top) */}
+            <mesh
+              scale={[0.05, 0.45, 0.1]}
+              position={[0, claw.heightScale * 1.1, -0.18]}
+              rotation={[-0.75, 0, 0]}
+            >
+              <coneGeometry args={[1, 2, 4]} />
+              <meshStandardMaterial
+                color="#120004"
+                emissive={HOT_CORE}
+                emissiveIntensity={1.2}
+                metalness={0.8}
+                roughness={0.3}
+              />
+            </mesh>
+
+            {/* Inward Curved Pincer Tip (Bottom) */}
+            <mesh
+              scale={[0.05, 0.45, 0.1]}
+              position={[0, -claw.heightScale * 1.1, -0.18]}
+              rotation={[0.75, 0, 0]}
+            >
+              <coneGeometry args={[1, 2, 4]} />
+              <meshStandardMaterial
+                color="#120004"
+                emissive={HOT_CORE}
+                emissiveIntensity={1.2}
+                metalness={0.8}
+                roughness={0.3}
+              />
+            </mesh>
+
+            {/* Glowing Aetheric Conduit Seam on Talon */}
+            <mesh scale={[0.02, claw.heightScale * 1.2, 0.03]} position={[0, 0, 0.08]}>
+              <boxGeometry args={[1, 1, 1]} />
+              <meshBasicMaterial color={CRIMSON} toneMapped={false} />
+            </mesh>
+          </group>
+        );
+      })}
     </group>
   );
 }
 
-// 4. Tàn Tro Năng Lượng (Reality Dust Embers - Thanos Dissolve Effect)
-function RealityDustEmbers({ activity }: { activity: AiActivity }) {
-  const particlesRef = useRef<THREE.Points>(null);
-  const count = 600;
+// 3. Dark Void Swirls & Energy Tendrils (Volumetric Spirals & Arcs)
+function DarkVoidTendrils({ activity }: { activity: AiActivity }) {
+  const tendrilsRef = useRef<THREE.Group>(null);
+  const count = 12;
 
-  const { positions, velocities } = useMemo(() => {
-    const random = seededRandom(8812);
-    const pos = new Float32Array(count * 3);
-    const vel = new Float32Array(count * 3);
-
-    for (let i = 0; i < count; i++) {
-      pos[i * 3] = (random() - 0.5) * 5.5;
-      pos[i * 3 + 1] = (random() - 0.5) * 4.5;
-      pos[i * 3 + 2] = (random() - 0.5) * 3.5 - 0.3;
-
-      vel[i * 3] = (random() - 0.5) * 0.4;
-      vel[i * 3 + 1] = 0.3 + random() * 0.8; // Drifting upwards
-      vel[i * 3 + 2] = (random() - 0.5) * 0.4;
-    }
-    return { positions: pos, velocities: vel };
+  const curves = useMemo(() => {
+    const rng = seededRandom(9931);
+    return Array.from({ length: count }, (_, i) => {
+      const points: THREE.Vector3[] = [];
+      const baseAngle = (i / count) * Math.PI * 2;
+      const length = 18;
+      for (let j = 0; j < length; j++) {
+        const t = j / length;
+        const radius = 0.25 + t * (1.45 + rng() * 0.4);
+        const theta = baseAngle + t * (Math.PI * 1.4) * (i % 2 === 0 ? 1 : -1);
+        const y = (t - 0.5) * 1.8 + Math.sin(t * Math.PI * 2) * 0.3;
+        points.push(new THREE.Vector3(Math.cos(theta) * radius, y, Math.sin(theta) * radius));
+      }
+      return new THREE.CatmullRomCurve3(points);
+    });
   }, []);
 
-  useFrame((_, delta) => {
-    if (!particlesRef.current) return;
-    const posAttr = particlesRef.current.geometry.attributes.position as THREE.BufferAttribute;
-    const posArr = posAttr.array as Float32Array;
-
+  useFrame(({ clock }, delta) => {
+    if (!tendrilsRef.current) return;
     const speed = activitySpeed(activity);
-
-    for (let i = 0; i < count; i++) {
-      posArr[i * 3] += velocities[i * 3] * delta * speed;
-      posArr[i * 3 + 1] += velocities[i * 3 + 1] * delta * speed;
-      posArr[i * 3 + 2] += velocities[i * 3 + 2] * delta * speed;
-
-      // Loop particles back to bottom when they drift out
-      if (posArr[i * 3 + 1] > 2.5) {
-        posArr[i * 3 + 1] = -2.5;
-      }
-    }
-    posAttr.needsUpdate = true;
+    tendrilsRef.current.rotation.y += delta * 0.35 * speed;
+    tendrilsRef.current.rotation.x = Math.sin(clock.elapsedTime * 0.4) * 0.1;
   });
 
   return (
-    <points ref={particlesRef}>
+    <group ref={tendrilsRef} name="dark-void-tendrils">
+      {curves.map((curve, idx) => (
+        <mesh key={idx}>
+          <tubeGeometry args={[curve, 28, 0.016 + (idx % 3) * 0.008, 6, false]} />
+          <meshStandardMaterial
+            color={idx % 2 === 0 ? DEEP_VOID : DARK_MATTER}
+            emissive={idx % 3 === 0 ? CRIMSON : BLOOD_RED}
+            emissiveIntensity={idx % 2 === 0 ? 1.4 : 0.6}
+            metalness={0.9}
+            roughness={0.2}
+            transparent
+            opacity={0.88}
+          />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+// 4. Runic Resonance Anchor (Horizontal Floor Grid + Vertical Arcane Halo)
+function RunicResonanceAnchor({ activity }: { activity: AiActivity }) {
+  const floorRef = useRef<THREE.ShaderMaterial>(null);
+  const haloRef = useRef<THREE.ShaderMaterial>(null);
+  const floorGroup = useRef<THREE.Group>(null);
+  const haloGroup = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }, delta) => {
+    const time = clock.elapsedTime;
+    const energy = activityEnergy(activity);
+    const speed = activitySpeed(activity);
+
+    if (floorRef.current) {
+      floorRef.current.uniforms.uTime.value = time;
+      floorRef.current.uniforms.uEnergy.value = energy;
+    }
+    if (haloRef.current) {
+      haloRef.current.uniforms.uTime.value = time * 0.8;
+      haloRef.current.uniforms.uEnergy.value = energy;
+    }
+    if (floorGroup.current) {
+      floorGroup.current.rotation.z -= delta * 0.05 * speed;
+    }
+    if (haloGroup.current) {
+      haloGroup.current.rotation.z += delta * 0.03 * speed;
+    }
+  });
+
+  return (
+    <group name="runic-resonance-anchor">
+      {/* 1. Concentric Runic Ground Anchor Plane (Below Orb) */}
+      <group ref={floorGroup} position={[0, -1.75, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh>
+          <planeGeometry args={[4.8, 4.8]} />
+          <shaderMaterial
+            ref={floorRef}
+            vertexShader={`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`}
+            fragmentShader={runicMandalaFragmentShader}
+            uniforms={{
+              uTime: { value: 0 },
+              uEnergy: { value: 1 },
+              uColor: { value: new THREE.Color(RUNIC_RED) },
+              uHotColor: { value: new THREE.Color(RUNIC_GOLD) },
+            }}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            transparent
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      </group>
+
+      {/* 2. Vertical Ancient Runic Anchor Halo (Behind Orb) */}
+      <group ref={haloGroup} position={[0, 0, -1.2]} rotation={[0.08, 0, 0]}>
+        <mesh>
+          <planeGeometry args={[5.2, 5.2]} />
+          <shaderMaterial
+            ref={haloRef}
+            vertexShader={`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`}
+            fragmentShader={runicMandalaFragmentShader}
+            uniforms={{
+              uTime: { value: 0 },
+              uEnergy: { value: 1 },
+              uColor: { value: new THREE.Color(RUNIC_RED) },
+              uHotColor: { value: new THREE.Color(HOT_CORE) },
+            }}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            transparent
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
+// 5. Aetheric Nebula Dust & Thanos Embers (Upward Swirling Particles)
+function AethericNebulaParticles({ activity }: { activity: AiActivity }) {
+  const pointsRef = useRef<THREE.Points>(null);
+  const count = 900;
+
+  const { positions, velocities, randomOffsets } = useMemo(() => {
+    const rng = seededRandom(4418);
+    const pos = new Float32Array(count * 3);
+    const vel = new Float32Array(count * 3);
+    const offs = new Float32Array(count);
+
+    for (let i = 0; i < count; i++) {
+      const radius = 0.6 + rng() * 2.8;
+      const theta = rng() * Math.PI * 2;
+      const y = (rng() - 0.5) * 4.2;
+
+      pos[i * 3] = Math.cos(theta) * radius;
+      pos[i * 3 + 1] = y;
+      pos[i * 3 + 2] = Math.sin(theta) * radius * 0.85;
+
+      vel[i * 3] = (rng() - 0.5) * 0.2;
+      vel[i * 3 + 1] = 0.25 + rng() * 0.75; // Upward drift (Reality dissolution)
+      vel[i * 3 + 2] = (rng() - 0.5) * 0.2;
+
+      offs[i] = rng() * Math.PI * 2;
+    }
+    return { positions: pos, velocities: vel, randomOffsets: offs };
+  }, []);
+
+  useFrame(({ clock }, delta) => {
+    if (!pointsRef.current) return;
+    const posAttr = pointsRef.current.geometry.attributes.position as THREE.BufferAttribute;
+    const posArr = posAttr.array as Float32Array;
+    const time = clock.elapsedTime;
+    const speed = activitySpeed(activity);
+
+    for (let i = 0; i < count; i++) {
+      posArr[i * 3 + 1] += velocities[i * 3 + 1] * delta * speed;
+      posArr[i * 3] += Math.sin(time * 1.5 + randomOffsets[i]) * 0.005;
+      posArr[i * 3 + 2] += Math.cos(time * 1.5 + randomOffsets[i]) * 0.005;
+
+      // Wrap around bounds
+      if (posArr[i * 3 + 1] > 2.6) {
+        posArr[i * 3 + 1] = -2.4;
+      }
+    }
+    posAttr.needsUpdate = true;
+    pointsRef.current.rotation.y = time * 0.03 * speed;
+  });
+
+  return (
+    <points ref={pointsRef} name="aether-nebula-particles">
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
       <pointsMaterial
-        color={AETHER}
+        color={CRIMSON}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
-        opacity={0.65}
-        size={0.035}
+        opacity={0.68}
+        size={0.038}
         sizeAttenuation
         toneMapped={false}
         transparent
@@ -378,23 +536,138 @@ function RealityDustEmbers({ activity }: { activity: AiActivity }) {
   );
 }
 
-// --- MAIN REALITY SCENE ---
-export function RealityScene({ activity = "idle" }: { activity?: AiActivity }) {
+// 6. Energy Arcs / Aether Discharge Lightning
+function EnergyArcs({ activity }: { activity: AiActivity }) {
+  const lineRef = useRef<THREE.LineSegments>(null);
+  const arcCount = 8;
+  const segmentsPerArc = 6;
+
+  const positions = useMemo(() => new Float32Array(arcCount * segmentsPerArc * 6), []);
+  const geometry = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    return geo;
+  }, [positions]);
+
+  useFrame(({ clock }) => {
+    const time = clock.elapsedTime;
+    const energy = activityEnergy(activity);
+    const speed = activitySpeed(activity);
+    let ptr = 0;
+
+    for (let i = 0; i < arcCount; i++) {
+      const angle = (i / arcCount) * Math.PI * 2 + time * 0.5 * speed;
+      const baseRadius = 0.75;
+      let currentPos = new THREE.Vector3(
+        Math.cos(angle) * baseRadius,
+        Math.sin(angle * 2.0) * 0.35,
+        Math.sin(angle) * baseRadius
+      );
+
+      for (let j = 0; j < segmentsPerArc; j++) {
+        const nextPos = currentPos.clone().add(
+          new THREE.Vector3(
+            (Math.sin(time * 12.0 + i * 5 + j) - 0.5) * 0.28 * energy,
+            (Math.cos(time * 15.0 + i * 3 + j) - 0.5) * 0.28 * energy + 0.08,
+            (Math.sin(time * 10.0 + j * 7) - 0.5) * 0.28 * energy
+          )
+        );
+
+        positions[ptr++] = currentPos.x;
+        positions[ptr++] = currentPos.y;
+        positions[ptr++] = currentPos.z;
+        positions[ptr++] = nextPos.x;
+        positions[ptr++] = nextPos.y;
+        positions[ptr++] = nextPos.z;
+
+        currentPos = nextPos;
+      }
+    }
+
+    geometry.attributes.position.needsUpdate = true;
+  });
+
   return (
-    <group name="reality-aether-forge-mcu" scale={1.25}>
-      <ambientLight intensity={0.5} color={CRIMSON} />
+    <lineSegments ref={lineRef} geometry={geometry}>
+      <lineBasicMaterial
+        color={HOT_CORE}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        opacity={0.85}
+        toneMapped={false}
+        transparent
+      />
+    </lineSegments>
+  );
+}
 
-      {/* 1. Spatial Reality Glass Fracture Grid */}
-      <SpatialRealityFractureGrid activity={activity} />
+// 7. Accretion Void Rings (Tilted Dark Matter Ring System)
+function AccretionVoidRings({ activity }: { activity: AiActivity }) {
+  const ring1 = useRef<THREE.Mesh>(null);
+  const ring2 = useRef<THREE.Mesh>(null);
 
-      {/* 2. Thanos Reality Dust Embers */}
-      <RealityDustEmbers activity={activity} />
+  useFrame(({ clock }, delta) => {
+    const speed = activitySpeed(activity);
+    if (ring1.current) ring1.current.rotation.z += delta * 0.12 * speed;
+    if (ring2.current) ring2.current.rotation.z -= delta * 0.18 * speed;
+  });
 
-      {/* 3. 22 Runic Monolith Ring */}
-      <RunicMonolithRing activity={activity} />
-
-      {/* 4. Volumetric Liquid Aether Blob */}
-      <VolumetricAetherBlob activity={activity} />
+  return (
+    <group rotation={[0.42, 0.15, 0.2]} name="accretion-void-rings">
+      <mesh ref={ring1}>
+        <torusGeometry args={[1.85, 0.012, 8, 120]} />
+        <meshBasicMaterial
+          color={CRIMSON}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          opacity={0.4}
+          transparent
+        />
+      </mesh>
+      <mesh ref={ring2} rotation={[0.3, 0.4, 0]}>
+        <torusGeometry args={[2.15, 0.008, 8, 120]} />
+        <meshBasicMaterial
+          color={HOT_CORE}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          opacity={0.3}
+          transparent
+        />
+      </mesh>
     </group>
   );
 }
+
+// --- MAIN REALITY SCENE EXPORT ---
+export function RealityScene({ activity = "idle" }: { activity?: AiActivity }) {
+  return (
+    <group name="reality-stone-aether-mcu-core" scale={1.05}>
+      {/* Cinematic Lighting Setup */}
+      <ambientLight color={DEEP_VOID} intensity={0.6} />
+      <directionalLight color={HOT_CORE} intensity={1.8} position={[2.5, 3.5, 4.0]} />
+      <pointLight color={CRIMSON} distance={10} intensity={3.5} position={[-2.5, -1.0, 2.0]} />
+
+      {/* 1. Runic Mandala Anchor (Back Halo & Floor Plane) */}
+      <RunicResonanceAnchor activity={activity} />
+
+      {/* 2. Thanos Reality Embers & Aetheric Nebula Cloud */}
+      <AethericNebulaParticles activity={activity} />
+
+      {/* 3. Dark Void Swirls Tendrils */}
+      <DarkVoidTendrils activity={activity} />
+
+      {/* 4. Accretion Void Rings */}
+      <AccretionVoidRings activity={activity} />
+
+      {/* 5. Containment Claw Frame (Spiked Alien Frame) */}
+      <ContainmentFrame activity={activity} />
+
+      {/* 6. Aether Storm Core (Living Volumetric Simplex Fluid Sphere) */}
+      <AetherStormCore activity={activity} />
+
+      {/* 7. Discharge Energy Arcs */}
+      <EnergyArcs activity={activity} />
+    </group>
+  );
+}
+export default RealityScene;

@@ -11,6 +11,8 @@
     "build": "node scripts/build-pages.mjs",
     "build:vite": "vite build",
     "test:gateway": "node scripts/smoke-gateway.mjs",
+    "test:self-hosted": "node scripts/verify-self-hosted.mjs",
+    "test:production-serving": "node scripts/verify-production-serving.mjs",
     "doctor:gateway": "bash scripts/doctor-gateway.sh",
     "preview": "vite preview --host 127.0.0.1"
   },

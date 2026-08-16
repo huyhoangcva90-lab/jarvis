@@ -1,0 +1,11 @@
+# Copy to /etc/cloudflared/j-core.yml on the Ubuntu AI WORKSTATION.
+# Keep the credentials file on the workstation; do not commit it to GitHub.
+
+tunnel: <cloudflare-tunnel-id>
+credentials-file: /etc/cloudflared/<cloudflare-tunnel-id>.json
+
+ingress:
+  - hostname: jarvis.example.com
+    service: http://127.0.0.1:8787
+  - service: http_status:404
+

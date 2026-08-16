@@ -1,17 +1,20 @@
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const gatewayPort = 18787;
 const upstreamPort = 30129;
-const token = "jcore-smoke-token";
 const hermesRequests = [];
 const configDirectory = mkdtempSync(join(tmpdir(), "jcore-config-smoke-"));
 const configPath = join(configDirectory, "openclaw.json");
+const webRoot = join(configDirectory, "dist");
+mkdirSync(join(webRoot, "assets"), { recursive: true });
 writeFileSync(configPath, '{"mode":"before"}\n', "utf8");
+writeFileSync(join(webRoot, "index.html"), "<!doctype html><div id=\"root\">JARVIS production shell</div><script type=\"module\" src=\"/assets/app.js\"></script>\n", "utf8");
+writeFileSync(join(webRoot, "assets", "app.js"), "fetch('/api/auth/session', { credentials: 'include' });\n", "utf8");
 
 const upstream = createServer(async (req, res) => {
   if (req.url === "/v1/models") {
@@ -74,7 +77,7 @@ const gateway = spawn(process.execPath, ["server/gateway.mjs"], {
     ...process.env,
     JCORE_GATEWAY_HOST: "127.0.0.1",
     JCORE_GATEWAY_PORT: String(gatewayPort),
-    JCORE_GATEWAY_TOKEN: token,
+    JCORE_WEB_ROOT: webRoot,
     HERMES_DASHBOARD_PROXY_PORT: "19120",
     OPENCLAW_DASHBOARD_PROXY_PORT: "19790",
     NINEROUTER_DASHBOARD_PROXY_PORT: "29129",
@@ -120,6 +123,17 @@ try {
   }
 
   const base = `http://127.0.0.1:${gatewayPort}`;
+  const productionShell = await fetch(`${base}/`);
+  const productionShellBody = await productionShell.text();
+  if (!productionShell.ok || !productionShellBody.includes("JARVIS production shell")) {
+    throw new Error(`Production shell was not served: ${productionShell.status} ${productionShellBody}`);
+  }
+  const productionAsset = await fetch(`${base}/assets/app.js`);
+  const productionAssetBody = await productionAsset.text();
+  if (!productionAsset.ok || !productionAssetBody.includes("fetch('/api/auth/session'")) {
+    throw new Error(`Production asset was not served: ${productionAsset.status} ${productionAssetBody}`);
+  }
+
   const unauthorized = await fetch(`${base}/health`);
   if (unauthorized.status !== 401) throw new Error(`Expected health 401, received ${unauthorized.status}`);
 
@@ -161,7 +175,7 @@ try {
   });
   if (!configWrite.ok || !readFileSync(configPath, "utf8").includes("after")) throw new Error(`Config write failed: ${await configWrite.text()}`);
 
-  const authHeaders = { authorization: `Bearer ${token}` };
+  const authHeaders = { cookie: authCookie };
   const health = await fetch(`${base}/health`, { headers: authHeaders });
   const healthBody = await health.json();
   if (!health.ok || !healthBody.services?.nineRouter?.online) {

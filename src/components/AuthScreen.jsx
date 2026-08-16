@@ -35,16 +35,6 @@ const TELEMETRY = [
   ["MEMORY", "ACTIVE"],
 ];
 
-const STATIC_HOSTNAMES = new Set(["jarvis.huykl.id.vn"]);
-
-function isStaticShell() {
-  return (
-    window.location.protocol === "file:" ||
-    window.location.hostname.endsWith("github.io") ||
-    STATIC_HOSTNAMES.has(window.location.hostname)
-  );
-}
-
 export default function AuthScreen({ data, onUnlock }) {
   const [username, setUsername] = useState(data?.auth?.username || "admin");
   const [password, setPassword] = useState("");
@@ -55,7 +45,6 @@ export default function AuthScreen({ data, onUnlock }) {
   const timers = useRef([]);
 
   const expectedUsername = data?.auth?.username || "admin";
-  const expectedPassword = data?.auth?.password || "123456";
   const locked = attempts >= 5;
   const year = useMemo(() => new Date().getFullYear(), []);
 
@@ -82,7 +71,7 @@ export default function AuthScreen({ data, onUnlock }) {
         body: JSON.stringify({ username: username.trim(), password }),
       });
       const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) throw new Error("static_preview");
+      if (!contentType.includes("application/json")) throw new Error("server_unavailable");
       const result = await response.json();
       if (!response.ok) {
         const authError = new Error(result.error || "invalid_credentials");
@@ -93,15 +82,6 @@ export default function AuthScreen({ data, onUnlock }) {
       soundManager.play("success");
       timers.current.push(window.setTimeout(() => onUnlock(result), 900));
     } catch (loginError) {
-      const staticPreview =
-        loginError?.message === "static_preview" ||
-        isStaticShell();
-      if (staticPreview && username.trim() === expectedUsername && password === expectedPassword) {
-        setPhase("granting");
-        soundManager.play("success");
-        timers.current.push(window.setTimeout(() => onUnlock({ preview: true }), 900));
-        return;
-      }
       soundManager.play("warning");
       setAttempts((value) => value + 1);
       setPhase("denied");
