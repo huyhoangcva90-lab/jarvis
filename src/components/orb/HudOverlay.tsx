@@ -106,7 +106,7 @@ const paletteLabels: Record<Palette, string> = {
   green: "Green Mystic Core",
   red: "Stark Combat",
   violet: "Stark Quantum",
-  orange: "Arc Reactor",
+  orange: "Soul Core (Arc Reactor)",
   spider: "Spider 2099",
 };
 

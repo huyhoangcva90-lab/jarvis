@@ -104,7 +104,7 @@ export default function App() {
         event.preventDefault();
         setHudVisible((visible) => !visible);
       }
-      if (event.key === "Escape") setEnergyPalette("gold");
+      if (event.key === "Escape") setEnergyPalette("orange");
       if (event.key === "1") setActivity("idle");
       if (event.key === "2") setActivity("listening");
       if (event.key === "3") setActivity("thinking");
