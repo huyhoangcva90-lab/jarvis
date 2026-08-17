@@ -223,7 +223,7 @@ function PostFX({ activity, palette }: { activity: AiActivity; palette: string }
     const activityBoost = activity === "speaking" ? 1.25 : activity === "thinking" ? 1.12 : 1;
     const profiles: Record<string, { intensity: number; threshold: number; smoothing: number }> = {
       blue: { intensity: 1.32, threshold: 0.28, smoothing: 0.52 },
-      green: { intensity: 0.92, threshold: 0.42, smoothing: 0.42 },
+      green: { intensity: 1.35, threshold: 0.25, smoothing: 0.54 },
       red: { intensity: 1.18, threshold: 0.32, smoothing: 0.46 },
       violet: { intensity: 0.94, threshold: 0.44, smoothing: 0.4 },
       orange: { intensity: 0.9, threshold: 0.46, smoothing: 0.38 },

@@ -1,362 +1,667 @@
 import { useEffect, useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { AiActivity } from "../../App";
 import { activityEnergy, activityPulse, activitySpeed, seededRandom, segmentGeometry, pathGeometry } from "../shared/coreMotion";
 
-// ── Color Palette: Agamotto Green / Time Stone ──
-const EMERALD     = "#23e777";
-const MINT        = "#66ff9f";
-const PALE        = "#e0ffea";
+// ══════════════════════════════════════════════════════════════════
+// COLOR PALETTE — GREEN MYSTIC CORE (DOCTOR STRANGE / TIME STONE)
+// ══════════════════════════════════════════════════════════════════
+const NEON_GREEN  = "#00e676";
+const EMERALD     = "#1bff7a";
+const MINT        = "#1cff82";
 const LIME        = "#8eff66";
-const GOLD_ACCENT = "#ffdb4d";
-const DEEP_GREEN  = "#064d2a";
-const BRONZE      = "#8c6721";
-const WHITE       = "#ffffff";
+const PALE_CORE   = "#a9ffa6";
+const GOLD_MYSTIC = "#ffdb4d";
+const BRONZE_GOLD = "#d4a017";
+const DEEP_EMERALD= "#052e16";
+const DARK_VOID   = "#020f07";
+const WHITE_HOT   = "#ffffff";
 
 const TAU = Math.PI * 2;
 
+// ── Math Helpers for 3D Procedural Vector Geometry ──
+function polar(radius: number, angle: number, z = 0) {
+  return new THREE.Vector3(Math.cos(angle) * radius, Math.sin(angle) * radius, z);
+}
+
+function circlePoints(radius: number, segments = 96, z = 0) {
+  return Array.from({ length: segments + 1 }, (_, i) => polar(radius, (i / segments) * TAU, z));
+}
+
+function closePoints(points: THREE.Vector3[]) {
+  return [...points, points[0].clone()];
+}
+
+function polygonPoints(sides: number, radius: number, phase = 0, z = 0) {
+  return closePoints(Array.from({ length: sides }, (_, i) => polar(radius, phase + (i / sides) * TAU, z)));
+}
+
 // ══════════════════════════════════════════════════════════════════
-// 1. RAW TIME STONE CRYSTAL CORE
-//    Hexagonal bipyramid with volumetric inner glow + fracture veins
+// 1. CUSTOM MULTI-FACETED TIME STONE GEM CRYSTAL GEOMETRY
+//    Elongated hexagonal bipyramid with beveled facet edges
 // ══════════════════════════════════════════════════════════════════
+function createFacetedCrystalGeometry(): THREE.BufferGeometry {
+  const geom = new THREE.BufferGeometry();
+  const height = 1.15;
+  const midRadius = 0.32;
+  const capRadius = 0.14;
+  const capHeight = 0.45;
+  const segments = 8; // 8-sided faceted crystal
 
-const crystalVertexShader = `
-  uniform float uTime;
-  uniform float uEnergy;
-  varying vec3 vNormal;
-  varying vec3 vView;
-  varying vec3 vPosition;
-  varying float vFresnel;
+  const vertices: number[] = [];
+  const uvs: number[] = [];
 
-  void main() {
-    vNormal = normalize(normalMatrix * normal);
-    vPosition = position;
+  // Top Apex (0, height, 0)
+  // Top Cap Ring (capRadius at y = capHeight)
+  // Middle Equator Ring (midRadius at y = 0)
+  // Bottom Cap Ring (capRadius at y = -capHeight)
+  // Bottom Apex (0, -height, 0)
 
-    // Subtle breathing deformation
-    vec3 p = position + normal * sin(position.y * 8.0 + uTime * 1.6) * 0.012 * uEnergy;
-    vec4 mv = modelViewMatrix * vec4(p, 1.0);
-    vView = normalize(-mv.xyz);
-    vFresnel = pow(1.0 - max(dot(vNormal, vView), 0.0), 2.8);
-    gl_Position = projectionMatrix * mv;
-  }
-`;
+  const topApex = new THREE.Vector3(0, height, 0);
+  const bottomApex = new THREE.Vector3(0, -height, 0);
 
-const crystalFragmentShader = `
-  uniform float uTime;
-  uniform float uEnergy;
-  varying vec3 vNormal;
-  varying vec3 vView;
-  varying vec3 vPosition;
-  varying float vFresnel;
+  const topRing: THREE.Vector3[] = [];
+  const midRing: THREE.Vector3[] = [];
+  const botRing: THREE.Vector3[] = [];
 
-  // Pseudo-random hash
-  float hash(vec3 p) {
-    return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+  for (let i = 0; i < segments; i++) {
+    const a = (i / segments) * TAU;
+    // Slight organic irregularity for raw gem look
+    const rVar = 1 + (i % 2 === 0 ? 0.08 : -0.06);
+    topRing.push(new THREE.Vector3(Math.cos(a) * capRadius * rVar, capHeight, Math.sin(a) * capRadius * rVar));
+    midRing.push(new THREE.Vector3(Math.cos(a) * midRadius * rVar, 0, Math.sin(a) * midRadius * rVar));
+    botRing.push(new THREE.Vector3(Math.cos(a) * capRadius * rVar, -capHeight, Math.sin(a) * capRadius * rVar));
   }
 
-  // 3D noise for fracture veins
-  float noise3D(vec3 p) {
-    vec3 i = floor(p);
-    vec3 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(
-      mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x),
-          mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
-      mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
-          mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y),
-      f.z
-    );
+  function addTri(p1: THREE.Vector3, p2: THREE.Vector3, p3: THREE.Vector3) {
+    vertices.push(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, p3.x, p3.y, p3.z);
+    uvs.push(0.5, 1, 0, 0, 1, 0);
   }
 
-  void main() {
-    // Fracture vein pattern — bright energy cracks
-    float vein1 = pow(abs(sin(vPosition.x * 14.0 + vPosition.y * 9.0 + uTime * 0.8)), 12.0);
-    float vein2 = pow(abs(sin(vPosition.z * 11.0 - vPosition.y * 7.0 - uTime * 1.2)), 10.0);
-    float veins = vein1 + vein2;
-
-    // Volumetric inner glow
-    float inner = noise3D(vPosition * 6.0 + uTime * 0.4) * 0.6 + 0.4;
-    float pulse = 0.5 + 0.5 * sin(uTime * 2.8 + vPosition.y * 3.0);
-
-    // Core color mix
-    vec3 deepGreen = vec3(0.024, 0.302, 0.165);
-    vec3 emerald   = vec3(0.137, 0.905, 0.467);
-    vec3 mint      = vec3(0.557, 1.0, 0.4);
-    vec3 gold      = vec3(1.0, 0.858, 0.302);
-
-    vec3 base = mix(deepGreen, emerald, inner);
-    base = mix(base, mint, veins * 0.7);
-    base = mix(base, gold, veins * pulse * 0.35);
-
-    // Fresnel edge glow
-    base += emerald * vFresnel * 1.8;
-
-    float alpha = 0.82 + vFresnel * 0.18 + veins * 0.12;
-    gl_FragColor = vec4(base * (1.0 + uEnergy * 0.5), alpha);
+  function addQuad(p1: THREE.Vector3, p2: THREE.Vector3, p3: THREE.Vector3, p4: THREE.Vector3) {
+    addTri(p1, p2, p3);
+    addTri(p1, p3, p4);
   }
-`;
 
-function RawTimeStoneCrystal({ activity }: { activity: AiActivity }) {
-  const coreRef = useRef<THREE.Mesh>(null);
-  const shellRef = useRef<THREE.Mesh>(null);
-  const glowRef = useRef<THREE.Mesh>(null);
-  const innerRef = useRef<THREE.Mesh>(null);
-  const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const shardsRef = useRef<THREE.Group>(null);
+  for (let i = 0; i < segments; i++) {
+    const next = (i + 1) % segments;
+    // Top pyramid faces
+    addTri(topApex, topRing[next], topRing[i]);
+    // Upper facet quads
+    addQuad(topRing[i], topRing[next], midRing[next], midRing[i]);
+    // Lower facet quads
+    addQuad(midRing[i], midRing[next], botRing[next], botRing[i]);
+    // Bottom pyramid faces
+    addTri(bottomApex, botRing[i], botRing[next]);
+  }
 
-  // Build the faceted crystal geometry — hexagonal bipyramid (diamond-like)
-  const crystalGeom = useMemo(() => {
-    const geom = new THREE.OctahedronGeometry(0.32, 0);
-    // Scale Y to elongate
-    const pos = geom.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      pos.setY(i, pos.getY(i) * 1.42);
+  geom.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geom.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geom.computeVertexNormals();
+  return geom;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 2. SHADERS: VOLUMETRIC TIME STONE INNER ENERGY & FRACTURE VEINS
+// ══════════════════════════════════════════════════════════════════
+const crystalShader = {
+  vertexShader: `
+    uniform float uTime;
+    uniform float uEnergy;
+    varying vec3 vNormal;
+    varying vec3 vWorldPosition;
+    varying vec3 vViewPosition;
+    varying vec3 vModelPosition;
+
+    void main() {
+      vModelPosition = position;
+      vNormal = normalize(normalMatrix * normal);
+      vec4 worldPos = modelMatrix * vec4(position, 1.0);
+      vWorldPosition = worldPos.xyz;
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      vViewPosition = -mvPosition.xyz;
+      gl_Position = projectionMatrix * mvPosition;
     }
-    pos.needsUpdate = true;
-    geom.computeVertexNormals();
-    return geom;
-  }, []);
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform float uEnergy;
+    varying vec3 vNormal;
+    varying vec3 vWorldPosition;
+    varying vec3 vViewPosition;
+    varying vec3 vModelPosition;
 
-  // Satellite crystal shards
+    float hash(vec3 p) {
+      return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453);
+    }
+
+    float noise(vec3 p) {
+      vec3 i = floor(p);
+      vec3 f = fract(p);
+      f = f * f * (3.0 - 2.0 * f);
+      return mix(
+        mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x),
+            mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+        mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+            mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y),
+        f.z
+      );
+    }
+
+    void main() {
+      vec3 viewDir = normalize(vViewPosition);
+      vec3 norm = normalize(vNormal);
+
+      // Strong Fresnel edge highlight (crystal refraction brilliance)
+      float fresnel = pow(1.0 - max(dot(viewDir, norm), 0.0), 2.2);
+
+      // Internal energy plasma currents
+      float n1 = noise(vModelPosition * 5.5 + vec3(0.0, uTime * 0.9, 0.0));
+      float n2 = noise(vModelPosition * 12.0 - vec3(uTime * 0.7, 0.0, uTime * 0.5));
+      float plasma = n1 * 0.65 + n2 * 0.35;
+
+      // Temporal lightning fracture veins along the crystal body
+      float veinA = pow(abs(sin(vModelPosition.y * 16.0 + vModelPosition.x * 12.0 + uTime * 2.2)), 16.0);
+      float veinB = pow(abs(sin(vModelPosition.z * 14.0 - vModelPosition.y * 10.0 - uTime * 1.8)), 14.0);
+      float veins = (veinA + veinB) * (0.8 + uEnergy * 0.6);
+
+      // Color grading: Deep emerald base -> Neon mint -> Lime gold veins -> White hot core
+      vec3 colDeep   = vec3(0.015, 0.22, 0.08); // #043814
+      vec3 colNeon   = vec3(0.0, 0.95, 0.42);   // #00f26c
+      vec3 colMint   = vec3(0.55, 1.0, 0.65);   // #8cffa6
+      vec3 colGold   = vec3(1.0, 0.88, 0.35);   // #ffe059
+      vec3 colWhite  = vec3(1.0, 1.0, 1.0);
+
+      vec3 color = mix(colDeep, colNeon, plasma * 0.9);
+      color = mix(color, colMint, fresnel * 0.8);
+      color += colGold * veins * 1.5;
+      color += colWhite * pow(plasma, 4.0) * 1.2;
+
+      float alpha = clamp(0.78 + fresnel * 0.22 + veins * 0.35, 0.0, 1.0);
+      gl_FragColor = vec4(color * (1.2 + uEnergy * 0.6), alpha);
+    }
+  `
+};
+
+// ══════════════════════════════════════════════════════════════════
+// 3. DOCTOR STRANGE PROCEDURAL ELDRITCH MAGIC MANDALA SHADER
+// ══════════════════════════════════════════════════════════════════
+const eldritchMandalaShader = {
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform float uEnergy;
+    uniform float uDirection;
+    varying vec2 vUv;
+
+    void main() {
+      vec2 p = vUv - vec2(0.5);
+      float r = length(p) * 2.0;
+      float angle = atan(p.y, p.x);
+
+      // Concentric spell ring boundaries
+      float r1 = smoothstep(0.02, 0.0, abs(r - 0.26));
+      float r2 = smoothstep(0.015, 0.0, abs(r - 0.46));
+      float r3 = smoothstep(0.012, 0.0, abs(r - 0.68));
+      float r4 = smoothstep(0.014, 0.0, abs(r - 0.84));
+      float r5 = smoothstep(0.010, 0.0, abs(r - 0.95));
+
+      // 8-Fold sacred rosette symmetry
+      float p8 = abs(cos(angle * 8.0 + uTime * 0.7 * uDirection));
+      float star8 = smoothstep(0.68, 0.98, p8 * (1.0 - abs(r - 0.36) * 4.5));
+
+      // 16-Fold intricate chronal petals
+      float p16 = abs(sin(angle * 16.0 - uTime * 1.1 * uDirection));
+      float star16 = smoothstep(0.72, 0.99, p16 * (1.0 - abs(r - 0.57) * 5.5));
+
+      // 24-Fold outer gear teeth / chronal dial ticks
+      float p24 = abs(cos(angle * 24.0 + uTime * 1.4 * uDirection));
+      float gear24 = smoothstep(0.76, 0.99, p24 * (1.0 - abs(r - 0.76) * 6.5));
+
+      // 36 Outer Runes notches
+      float runes = step(0.86, sin(angle * 36.0 - uTime * 0.5 * uDirection)) * r4;
+
+      // 12 Cardinal radial laser spokes
+      float spokes = step(0.982, cos(angle * 12.0)) * smoothstep(0.24, 0.28, r) * smoothstep(0.96, 0.92, r);
+
+      // Interlocking triangles / hexagram pattern
+      float tri1 = abs(cos(angle * 3.0 + uTime * 0.3 * uDirection));
+      float triPattern = smoothstep(0.85, 0.98, tri1 * (1.0 - abs(r - 0.68) * 3.0));
+
+      float total = r1 + r2 + r3 + r4 + r5
+                  + star8 * 0.9 + star16 * 1.0 + gear24 * 0.75
+                  + runes * 0.85 + spokes * 0.8 + triPattern * 0.6;
+
+      // Color mapping: Neon Green (#00e676) -> Bright Lime (#8eff66) -> Gold Mystic (#ffdb4d)
+      vec3 colNeon = vec3(0.0, 0.95, 0.46);
+      vec3 colLime = vec3(0.55, 1.0, 0.4);
+      vec3 colGold = vec3(1.0, 0.86, 0.3);
+
+      vec3 color = mix(colNeon, colLime, r);
+      color = mix(color, colGold, runes * 0.6 + gear24 * 0.4);
+
+      float alpha = total * 0.82 * uEnergy * smoothstep(1.0, 0.86, r);
+      gl_FragColor = vec4(color * 1.8, alpha);
+    }
+  `
+};
+
+// ══════════════════════════════════════════════════════════════════
+// 4. FLOATING SATELLITE SIGILS (8 ORBITING MAGIC SEALS)
+// ══════════════════════════════════════════════════════════════════
+const sigilShader = {
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform float uIndex;
+    varying vec2 vUv;
+
+    void main() {
+      vec2 p = vUv - vec2(0.5);
+      float r = length(p) * 2.0;
+      float angle = atan(p.y, p.x);
+
+      float ring1 = smoothstep(0.04, 0.0, abs(r - 0.85));
+      float ring2 = smoothstep(0.03, 0.0, abs(r - 0.58));
+      float ring3 = smoothstep(0.025, 0.0, abs(r - 0.28));
+
+      // Star glyph
+      float star = step(0.86, cos(angle * (4.0 + uIndex * 2.0) + uTime * 0.8));
+      float cross = step(0.92, abs(cos(angle * 2.0))) * smoothstep(0.12, 0.16, r) * smoothstep(0.86, 0.82, r);
+
+      float total = ring1 + ring2 + ring3 + star * 0.8 + cross * 0.7;
+
+      vec3 colG = vec3(0.0, 0.95, 0.46);
+      vec3 colGold = vec3(1.0, 0.86, 0.3);
+      vec3 col = mix(colG, colGold, ring2 * 0.5);
+
+      float alpha = total * 0.75 * smoothstep(1.0, 0.84, r);
+      gl_FragColor = vec4(col * 1.6, alpha);
+    }
+  `
+};
+
+// ══════════════════════════════════════════════════════════════════
+// 5. HORIZONTAL PEDESTAL BASE RITUAL DISC (FLOOR MANDALA)
+// ══════════════════════════════════════════════════════════════════
+const pedestalShader = {
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform float uEnergy;
+    varying vec2 vUv;
+
+    void main() {
+      vec2 p = vUv - vec2(0.5);
+      float r = length(p) * 2.0;
+      float angle = atan(p.y, p.x);
+
+      float r1 = smoothstep(0.02, 0.0, abs(r - 0.35));
+      float r2 = smoothstep(0.015, 0.0, abs(r - 0.62));
+      float r3 = smoothstep(0.012, 0.0, abs(r - 0.82));
+      float r4 = smoothstep(0.010, 0.0, abs(r - 0.96));
+
+      // Hexagram on the floor
+      float hex = step(0.92, cos(angle * 6.0 + uTime * 0.25)) * smoothstep(0.3, 0.35, r) * smoothstep(0.94, 0.88, r);
+
+      // Radar scan line sweeping
+      float sweep = smoothstep(0.94, 1.0, cos(angle - uTime * 1.2)) * smoothstep(0.2, 0.25, r);
+
+      // Stepped concentric wave
+      float wave = smoothstep(0.03, 0.0, abs(fract(r * 4.0 - uTime * 0.4) - 0.5));
+
+      float total = r1 + r2 + r3 + r4 + hex * 0.7 + sweep * 0.5 + wave * 0.25;
+
+      vec3 colG = vec3(0.0, 0.95, 0.46);
+      vec3 colMint = vec3(0.6, 1.0, 0.7);
+      vec3 col = mix(colG, colMint, sweep * 0.6);
+
+      float alpha = total * 0.65 * uEnergy * smoothstep(1.0, 0.85, r);
+      gl_FragColor = vec4(col * 1.4, alpha);
+    }
+  `
+};
+
+// ══════════════════════════════════════════════════════════════════
+// 6. TIME DISTORTION SHOCKWAVES
+// ══════════════════════════════════════════════════════════════════
+const shockwaveShader = {
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform float uTime;
+    uniform float uEnergy;
+    uniform float uReversing;
+    varying vec2 vUv;
+
+    void main() {
+      vec2 p = vUv - vec2(0.5);
+      float dist = length(p) * 2.0;
+
+      float cycle1 = fract(uTime * 0.5);
+      float cycle2 = fract(uTime * 0.5 + 0.5);
+      float lw1 = uReversing > 0.5 ? (1.0 - cycle1) : cycle1;
+      float lw2 = uReversing > 0.5 ? (1.0 - cycle2) : cycle2;
+
+      float width = 0.055;
+      float ring1 = smoothstep(lw1 - width, lw1, dist) - smoothstep(lw1, lw1 + width, dist);
+      float ring2 = smoothstep(lw2 - width, lw2, dist) - smoothstep(lw2, lw2 + width, dist);
+      float fade = 1.0 - dist;
+
+      vec3 colMint = vec3(0.3, 1.0, 0.55);
+      vec3 colGold = vec3(1.0, 0.9, 0.4);
+      vec3 col = mix(colMint, colGold, ring1);
+
+      float alpha = (ring1 + ring2 * 0.6) * fade * 0.65 * uEnergy;
+      gl_FragColor = vec4(col * 2.0, alpha);
+    }
+  `
+};
+
+// ══════════════════════════════════════════════════════════════════
+// COMPONENT 1: RAW TIME STONE CRYSTAL CORE & SATELLITE SHARDS
+// ══════════════════════════════════════════════════════════════════
+function FacetedTimeStoneGem({ activity }: { activity: AiActivity }) {
+  const gemRef = useRef<THREE.Group>(null);
+  const coreMeshRef = useRef<THREE.Mesh>(null);
+  const wireMeshRef = useRef<THREE.LineSegments>(null);
+  const shaderMatRef = useRef<THREE.ShaderMaterial>(null);
+  const whiteNucleusRef = useRef<THREE.Mesh>(null);
+  const shardsGroupRef = useRef<THREE.Group>(null);
+
+  const crystalGeom = useMemo(() => createFacetedCrystalGeometry(), []);
+  const edgeGeom = useMemo(() => new THREE.EdgesGeometry(crystalGeom), [crystalGeom]);
+
   const shardData = useMemo(() => {
-    const rng = seededRandom(77721);
+    const rng = seededRandom(99312);
     return Array.from({ length: 6 }, (_, i) => ({
-      angle: (i / 6) * TAU + rng() * 0.5,
-      radius: 0.52 + rng() * 0.18,
-      y: (rng() - 0.5) * 0.3,
-      scale: 0.04 + rng() * 0.04,
-      speed: 0.15 + rng() * 0.25,
+      angle: (i / 6) * TAU,
+      radius: 0.58 + (i % 2) * 0.14,
+      y: (rng() - 0.5) * 0.5,
+      scale: 0.055 + rng() * 0.035,
+      speed: 0.22 + (i % 3) * 0.08,
       tilt: [rng() * Math.PI, rng() * Math.PI, rng() * Math.PI] as [number, number, number],
     }));
   }, []);
 
   useFrame(({ clock }, delta) => {
-    const time = clock.elapsedTime;
+    const t = clock.elapsedTime;
     const speed = activitySpeed(activity);
     const energy = activityEnergy(activity);
-    const pulse = activityPulse(activity, time);
+    const pulse = activityPulse(activity, t, 0.5);
 
-    if (coreRef.current) {
-      coreRef.current.rotation.y += delta * 0.4 * speed;
-      coreRef.current.rotation.x = Math.sin(time * 0.3) * 0.15;
-      coreRef.current.scale.setScalar(pulse * (0.92 + energy * 0.1));
+    if (gemRef.current) {
+      gemRef.current.rotation.y += delta * 0.35 * speed;
+      gemRef.current.rotation.x = Math.sin(t * 0.4) * 0.08;
+      gemRef.current.scale.setScalar(pulse * (0.95 + energy * 0.08));
     }
 
-    if (shellRef.current) {
-      shellRef.current.rotation.y -= delta * 0.25 * speed;
-      shellRef.current.rotation.z = Math.sin(time * 0.4) * 0.12;
-      shellRef.current.scale.setScalar(pulse * (1.08 + energy * 0.08));
+    if (shaderMatRef.current) {
+      shaderMatRef.current.uniforms.uTime.value = t;
+      shaderMatRef.current.uniforms.uEnergy.value = energy;
     }
 
-    if (materialRef.current) {
-      materialRef.current.uniforms.uTime.value = time;
-      materialRef.current.uniforms.uEnergy.value = energy;
+    if (whiteNucleusRef.current) {
+      const nScale = 0.12 + Math.sin(t * 6.0) * 0.02 * energy;
+      whiteNucleusRef.current.scale.setScalar(nScale);
     }
 
-    if (glowRef.current) {
-      const glowScale = 1.8 + Math.sin(time * 2.2) * 0.15 * energy;
-      glowRef.current.scale.setScalar(glowScale);
-    }
-
-    if (innerRef.current) {
-      innerRef.current.scale.setScalar(0.16 + Math.sin(time * 3.5) * 0.02 * energy);
-    }
-
-    if (shardsRef.current) {
-      shardsRef.current.children.forEach((shard, i) => {
+    if (shardsGroupRef.current) {
+      shardsGroupRef.current.children.forEach((shard, i) => {
         const d = shardData[i];
-        const angle = d.angle + time * d.speed * speed;
+        const angle = d.angle + t * d.speed * speed;
         shard.position.set(
           Math.cos(angle) * d.radius,
-          d.y + Math.sin(time * 1.2 + i * 1.3) * 0.05,
+          d.y + Math.sin(t * 1.5 + i * 1.2) * 0.08,
           Math.sin(angle) * d.radius
         );
-        shard.rotation.y += delta * 1.2;
-        shard.rotation.x += delta * 0.6;
+        shard.rotation.y += delta * 1.8;
+        shard.rotation.x += delta * 0.9;
       });
     }
   });
 
   return (
-    <group>
-      {/* White-hot nucleus center */}
-      <mesh ref={innerRef} position={[0, 0, 0]}>
+    <group ref={gemRef}>
+      {/* 1. White-hot pure nucleus light point */}
+      <mesh ref={whiteNucleusRef}>
         <sphereGeometry args={[1, 16, 16]} />
-        <meshBasicMaterial color={WHITE} toneMapped={false} />
+        <meshBasicMaterial color={WHITE_HOT} toneMapped={false} />
       </mesh>
 
-      {/* Volumetric glow halo */}
-      <mesh ref={glowRef}>
-        <sphereGeometry args={[0.32, 32, 32]} />
-        <meshBasicMaterial
-          blending={THREE.AdditiveBlending}
-          color={EMERALD}
-          depthWrite={false}
-          opacity={0.18}
-          toneMapped={false}
-          transparent
-        />
-      </mesh>
-
-      {/* Main faceted crystal */}
-      <mesh ref={coreRef} geometry={crystalGeom}>
+      {/* 2. Intense Volumetric Faceted Gem Crystal */}
+      <mesh ref={coreMeshRef} geometry={crystalGeom}>
         <shaderMaterial
-          ref={materialRef}
-          vertexShader={crystalVertexShader}
-          fragmentShader={crystalFragmentShader}
-          uniforms={{
-            uTime: { value: 0 },
-            uEnergy: { value: 1 },
-          }}
-          toneMapped={false}
+          ref={shaderMatRef}
+          vertexShader={crystalShader.vertexShader}
+          fragmentShader={crystalShader.fragmentShader}
+          uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 } }}
           transparent
+          side={THREE.DoubleSide}
         />
       </mesh>
 
-      {/* Second layer — glass refraction shell */}
-      <mesh ref={shellRef} scale={1.12}>
-        <octahedronGeometry args={[0.32, 1]} />
+      {/* 3. Glowing Emerald Crystal Facet Edges */}
+      <lineSegments ref={wireMeshRef} geometry={edgeGeom}>
+        <lineBasicMaterial
+          blending={THREE.AdditiveBlending}
+          color={LIME}
+          depthWrite={false}
+          opacity={0.88}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+
+      {/* 4. Outer Refraction Glass Gem Shell */}
+      <mesh geometry={crystalGeom} scale={1.03}>
         <meshPhysicalMaterial
           clearcoat={1}
-          clearcoatRoughness={0.04}
-          color="#0aad55"
+          clearcoatRoughness={0.02}
+          color={EMERALD}
           depthWrite={false}
-          ior={1.55}
-          metalness={0.08}
-          opacity={0.22}
-          roughness={0.06}
-          transmission={0.72}
+          envMapIntensity={2.2}
+          ior={1.68}
+          metalness={0.1}
+          opacity={0.3}
+          roughness={0.04}
+          transmission={0.85}
           transparent
         />
       </mesh>
 
-      {/* Satellite crystal shards */}
-      <group ref={shardsRef}>
+      {/* 5. 6 Orbiting Satellite Gem Shards */}
+      <group ref={shardsGroupRef}>
         {shardData.map((d, i) => (
-          <mesh key={i} rotation={d.tilt} scale={d.scale}>
-            <octahedronGeometry args={[1, 0]} />
-            <meshBasicMaterial
-              blending={THREE.AdditiveBlending}
-              color={i % 2 === 0 ? MINT : LIME}
-              depthWrite={false}
-              opacity={0.72}
+          <mesh key={i} rotation={d.tilt} scale={d.scale} geometry={crystalGeom}>
+            <meshStandardMaterial
+              color={i % 2 === 0 ? NEON_GREEN : GOLD_MYSTIC}
+              emissive={EMERALD}
+              emissiveIntensity={2.5}
+              roughness={0.1}
+              metalness={0.2}
               toneMapped={false}
-              transparent
             />
           </mesh>
         ))}
       </group>
 
-      {/* Core point light */}
-      <pointLight color={EMERALD} distance={7} intensity={5.5} decay={2} />
+      {/* Core Point Light */}
+      <pointLight color={EMERALD} distance={9} intensity={6.5} decay={2} />
     </group>
   );
 }
 
 // ══════════════════════════════════════════════════════════════════
-// 2. MAIN MYSTIC MANDALA — Eldritch Spell Disc (Doctor Strange)
-//    Tilted in 3D with Kamar-Taj geometric patterns
+// COMPONENT 2: 3D VECTOR GEOMETRIC RUNES & MANDALA ARCS
 // ══════════════════════════════════════════════════════════════════
+function create3DSpellRuneGeometry() {
+  const segs: Array<[THREE.Vector3, THREE.Vector3]> = [];
+  const r1 = 2.45;
+  const r2 = 2.78;
 
-const mandalaVertexShader = `
-  varying vec2 vUv;
-  void main() {
-    vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  // 36 Non-Latin Eldritch Runes arranged radially
+  for (let i = 0; i < 36; i++) {
+    const a = (i / 36) * TAU;
+    const center = polar((r1 + r2) / 2, a, 0);
+    const tangent = new THREE.Vector3(-Math.sin(a), Math.cos(a), 0);
+    const radial = new THREE.Vector3(Math.cos(a), Math.sin(a), 0);
+
+    const w = 0.048;
+    const h = 0.055;
+
+    // Outer and inner border tick
+    segs.push([polar(r1, a, 0), polar(r1 + 0.03, a, 0)]);
+    segs.push([polar(r2 - 0.03, a, 0), polar(r2, a, 0)]);
+
+    // Runic glyph strokes
+    const glyphType = i % 5;
+    if (glyphType === 0) {
+      // Chevron rune (ᚦ)
+      segs.push([
+        center.clone().add(radial.clone().multiplyScalar(h)),
+        center.clone().add(tangent.clone().multiplyScalar(w)),
+      ]);
+      segs.push([
+        center.clone().add(tangent.clone().multiplyScalar(w)),
+        center.clone().add(radial.clone().multiplyScalar(-h)),
+      ]);
+      segs.push([
+        center.clone().add(radial.clone().multiplyScalar(h)),
+        center.clone().add(radial.clone().multiplyScalar(-h)),
+      ]);
+    } else if (glyphType === 1) {
+      // Cross rune (ᛟ)
+      segs.push([
+        center.clone().add(tangent.clone().multiplyScalar(-w)).add(radial.clone().multiplyScalar(h)),
+        center.clone().add(tangent.clone().multiplyScalar(w)).add(radial.clone().multiplyScalar(-h)),
+      ]);
+      segs.push([
+        center.clone().add(tangent.clone().multiplyScalar(-w)).add(radial.clone().multiplyScalar(-h)),
+        center.clone().add(tangent.clone().multiplyScalar(w)).add(radial.clone().multiplyScalar(h)),
+      ]);
+    } else if (glyphType === 2) {
+      // Algiz trident rune (ᛉ)
+      segs.push([
+        center.clone().add(radial.clone().multiplyScalar(-h)),
+        center.clone().add(radial.clone().multiplyScalar(h)),
+      ]);
+      segs.push([
+        center.clone().add(tangent.clone().multiplyScalar(-w)).add(radial.clone().multiplyScalar(h)),
+        center.clone(),
+      ]);
+      segs.push([
+        center.clone().add(tangent.clone().multiplyScalar(w)).add(radial.clone().multiplyScalar(h)),
+        center.clone(),
+      ]);
+    } else {
+      // Diamond node rune (ᛋ)
+      segs.push([
+        center.clone().add(radial.clone().multiplyScalar(h)),
+        center.clone().add(tangent.clone().multiplyScalar(w)),
+      ]);
+      segs.push([
+        center.clone().add(tangent.clone().multiplyScalar(w)),
+        center.clone().add(radial.clone().multiplyScalar(-h)),
+      ]);
+      segs.push([
+        center.clone().add(radial.clone().multiplyScalar(-h)),
+        center.clone().add(tangent.clone().multiplyScalar(-w)),
+      ]);
+      segs.push([
+        center.clone().add(tangent.clone().multiplyScalar(-w)),
+        center.clone().add(radial.clone().multiplyScalar(h)),
+      ]);
+    }
   }
-`;
 
-const mandalaFragmentShader = `
-  uniform float uTime;
-  uniform float uEnergy;
-  uniform float uDirection;
-  varying vec2 vUv;
+  return segmentGeometry(segs);
+}
 
-  void main() {
-    vec2 p = vUv - vec2(0.5);
-    float r = length(p) * 2.0;
-    float angle = atan(p.y, p.x);
-
-    // Concentric magical glyph circles at different radii
-    float ring1 = smoothstep(0.025, 0.0, abs(r - 0.30));
-    float ring2 = smoothstep(0.018, 0.0, abs(r - 0.52));
-    float ring3 = smoothstep(0.015, 0.0, abs(r - 0.72));
-    float ring4 = smoothstep(0.012, 0.0, abs(r - 0.88));
-    float ring5 = smoothstep(0.010, 0.0, abs(r - 0.96));
-
-    // 8-fold rosette petals (inner)
-    float petals8 = abs(cos(angle * 8.0 + uTime * 0.6 * uDirection));
-    float pattern8 = smoothstep(0.55, 0.95, petals8 * (1.0 - abs(r - 0.42) * 4.0));
-
-    // 16-fold outer petals
-    float petals16 = abs(sin(angle * 16.0 - uTime * 0.9 * uDirection));
-    float pattern16 = smoothstep(0.62, 0.98, petals16 * (1.0 - abs(r - 0.62) * 5.0));
-
-    // 24-fold filigree
-    float petals24 = abs(cos(angle * 24.0 + uTime * 1.1 * uDirection));
-    float pattern24 = smoothstep(0.72, 0.99, petals24 * (1.0 - abs(r - 0.80) * 6.0));
-
-    // Radial spoke lines (12 spokes)
-    float spokes = step(0.975, cos(angle * 12.0)) * smoothstep(0.25, 0.28, r) * smoothstep(0.96, 0.92, r);
-
-    // Ancient glyph notches on outer rings
-    float notches = step(0.88, sin(angle * 36.0 + uTime * 0.4 * uDirection)) * ring4;
-
-    // Diamond/triangle marks at cardinal directions
-    float diamonds = step(0.92, cos(angle * 4.0)) * smoothstep(0.48, 0.52, r) * smoothstep(0.56, 0.52, r) * 0.8;
-
-    float mandala = ring1 + ring2 + ring3 + ring4 + ring5
-                  + pattern8 * 0.72 + pattern16 * 0.85 + pattern24 * 0.55
-                  + spokes * 0.65 + notches * 0.6 + diamonds;
-
-    vec3 colEmerald = vec3(0.137, 0.905, 0.466);
-    vec3 colMint    = vec3(0.400, 1.000, 0.623);
-    vec3 colGold    = vec3(1.0, 0.858, 0.302);
-    vec3 color = mix(colEmerald, colMint, r);
-    color = mix(color, colGold, notches * 0.5 + diamonds * 0.4);
-
-    float alpha = mandala * 0.72 * uEnergy * smoothstep(1.0, 0.82, r);
-    gl_FragColor = vec4(color * 1.6, alpha);
+function createSacredGeometryStarPaths() {
+  const paths: THREE.Vector3[][] = [];
+  // 12-point star formed by 4 overlapping triangles
+  for (let t = 0; t < 4; t++) {
+    const phase = (t / 4) * (TAU / 3);
+    paths.push(polygonPoints(3, 2.35, phase, 0));
   }
-`;
+  // Concentric structural circles
+  paths.push(circlePoints(1.22, 64));
+  paths.push(circlePoints(1.85, 96));
+  paths.push(circlePoints(2.42, 128));
+  paths.push(circlePoints(2.82, 128));
 
-function MainMysticMandala({ activity }: { activity: AiActivity }) {
-  const mat1 = useRef<THREE.ShaderMaterial>(null);
-  const mat2 = useRef<THREE.ShaderMaterial>(null);
-  const groupRef = useRef<THREE.Group>(null);
+  return pathGeometry(paths);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPONENT 3: MAIN TILTED 3D ELDRITCH MANDALA DISC
+// ══════════════════════════════════════════════════════════════════
+function MainEldritchSpellDisc({ activity }: { activity: AiActivity }) {
+  const mainDiscRef = useRef<THREE.Group>(null);
+  const runeLineRef = useRef<THREE.LineSegments>(null);
+  const starLineRef = useRef<THREE.LineSegments>(null);
+  const shaderMatRef = useRef<THREE.ShaderMaterial>(null);
+
+  const runeGeom = useMemo(() => create3DSpellRuneGeometry(), []);
+  const starGeom = useMemo(() => createSacredGeometryStarPaths(), []);
+
   const isThinking = activity === "thinking";
 
   useFrame(({ clock }, delta) => {
-    const time = clock.elapsedTime;
-    const energy = activityEnergy(activity);
+    const t = clock.elapsedTime;
     const speed = activitySpeed(activity);
-    const direction = isThinking ? -1 : 1;
+    const energy = activityEnergy(activity);
+    const dir = isThinking ? -1 : 1;
 
-    if (mat1.current) {
-      mat1.current.uniforms.uTime.value = time;
-      mat1.current.uniforms.uEnergy.value = energy;
-      mat1.current.uniforms.uDirection.value = direction;
+    if (mainDiscRef.current) {
+      mainDiscRef.current.rotation.z += delta * 0.065 * speed * dir;
     }
-    if (mat2.current) {
-      mat2.current.uniforms.uTime.value = time * 0.75;
-      mat2.current.uniforms.uEnergy.value = energy * 0.85;
-      mat2.current.uniforms.uDirection.value = -direction;
+
+    if (shaderMatRef.current) {
+      shaderMatRef.current.uniforms.uTime.value = t;
+      shaderMatRef.current.uniforms.uEnergy.value = energy;
+      shaderMatRef.current.uniforms.uDirection.value = dir;
     }
-    if (groupRef.current) {
-      groupRef.current.rotation.z += delta * 0.04 * speed * direction;
+
+    if (runeLineRef.current) {
+      runeLineRef.current.rotation.z -= delta * 0.02 * speed * dir;
     }
   });
 
   return (
-    <group ref={groupRef} rotation={[0.35, 0.12, 0]}>
-      {/* Inner mandala disc */}
-      <mesh position={[0, 0, -0.06]} scale={[3.2, 3.2, 1]}>
+    <group ref={mainDiscRef} rotation={[0.46, -0.25, 0]} scale={1.05}>
+      {/* 1. High-Res Additive Eldritch Energy Mandala Shader Disc */}
+      <mesh position={[0, 0, -0.02]} scale={[6.2, 6.2, 1]}>
         <planeGeometry args={[1, 1]} />
         <shaderMaterial
-          ref={mat1}
-          vertexShader={mandalaVertexShader}
-          fragmentShader={mandalaFragmentShader}
+          ref={shaderMatRef}
+          vertexShader={eldritchMandalaShader.vertexShader}
+          fragmentShader={eldritchMandalaShader.fragmentShader}
           uniforms={{
             uTime: { value: 0 },
             uEnergy: { value: 1 },
@@ -369,471 +674,425 @@ function MainMysticMandala({ activity }: { activity: AiActivity }) {
         />
       </mesh>
 
-      {/* Outer mandala disc */}
-      <mesh position={[0, 0, -0.14]} scale={[4.6, 4.6, 1]}>
-        <planeGeometry args={[1, 1]} />
-        <shaderMaterial
-          ref={mat2}
-          vertexShader={mandalaVertexShader}
-          fragmentShader={mandalaFragmentShader}
-          uniforms={{
-            uTime: { value: 0 },
-            uEnergy: { value: 1 },
-            uDirection: { value: -1 },
-          }}
+      {/* 2. Crisp 3D Glowing Runes Ring */}
+      <lineSegments ref={runeLineRef} geometry={runeGeom}>
+        <lineBasicMaterial
           blending={THREE.AdditiveBlending}
+          color={EMERALD}
           depthWrite={false}
+          opacity={0.88}
+          toneMapped={false}
           transparent
-          side={THREE.DoubleSide}
         />
+      </lineSegments>
+
+      {/* 3. Sacred Geometry 12-Point Star Mandala */}
+      <lineSegments ref={starLineRef} geometry={starGeom}>
+        <lineBasicMaterial
+          blending={THREE.AdditiveBlending}
+          color={GOLD_MYSTIC}
+          depthWrite={false}
+          opacity={0.72}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+
+      {/* 4. 3D Beveled Torus Accent Rings */}
+      <mesh position={[0, 0, 0.01]}>
+        <torusGeometry args={[2.42, 0.016, 6, 160]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={LIME} depthWrite={false} opacity={0.65} toneMapped={false} transparent />
+      </mesh>
+      <mesh position={[0, 0, -0.01]}>
+        <torusGeometry args={[2.82, 0.018, 6, 160]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={EMERALD} depthWrite={false} opacity={0.55} toneMapped={false} transparent />
+      </mesh>
+      <mesh position={[0, 0, 0.02]}>
+        <torusGeometry args={[1.22, 0.012, 6, 96]} />
+        <meshBasicMaterial blending={THREE.AdditiveBlending} color={GOLD_MYSTIC} depthWrite={false} opacity={0.7} toneMapped={false} transparent />
       </mesh>
     </group>
   );
 }
 
 // ══════════════════════════════════════════════════════════════════
-// 3. AUXILIARY GIMBAL RINGS — Spherical Gyroscope / Armillary
-//    Multi-axis counter-rotating rings with rune ticks
+// COMPONENT 4: AUXILIARY GIMBAL RINGS (SPHERICAL 3D GYROSCOPE)
 // ══════════════════════════════════════════════════════════════════
-
 function AuxiliaryGimbalRings({ activity }: { activity: AiActivity }) {
-  const ringA = useRef<THREE.Group>(null);
-  const ringB = useRef<THREE.Group>(null);
-  const ringC = useRef<THREE.Group>(null);
+  const gyroARef = useRef<THREE.Group>(null);
+  const gyroBRef = useRef<THREE.Group>(null);
 
-  const tickGeomA = useMemo(() => {
+  const tickGeom = useMemo(() => {
     const segs: Array<[THREE.Vector3, THREE.Vector3]> = [];
     for (let i = 0; i < 24; i++) {
-      if (i % 7 === 3) continue;
-      const angle = (i / 24) * TAU;
-      const inner = 1.92 - (i % 3) * 0.02;
-      const outer = 2.08 + (i % 4) * 0.015;
-      const cos_a = Math.cos(angle);
-      const sin_a = Math.sin(angle);
-      segs.push([
-        new THREE.Vector3(cos_a * inner, sin_a * inner, 0),
-        new THREE.Vector3(cos_a * outer, sin_a * outer, 0),
-      ]);
-    }
-    return segmentGeometry(segs);
-  }, []);
-
-  const tickGeomB = useMemo(() => {
-    const segs: Array<[THREE.Vector3, THREE.Vector3]> = [];
-    for (let i = 0; i < 18; i++) {
-      if (i % 5 === 2) continue;
-      const angle = (i / 18) * TAU;
-      const inner = 2.22;
-      const outer = 2.38 + (i % 3) * 0.012;
-      const cos_a = Math.cos(angle);
-      const sin_a = Math.sin(angle);
-      segs.push([
-        new THREE.Vector3(cos_a * inner, sin_a * inner, 0),
-        new THREE.Vector3(cos_a * outer, sin_a * outer, 0),
-      ]);
+      const a = (i / 24) * TAU;
+      segs.push([polar(2.95, a, 0), polar(3.12, a, 0)]);
     }
     return segmentGeometry(segs);
   }, []);
 
   useFrame((_, delta) => {
     const speed = activitySpeed(activity);
-    if (ringA.current) ringA.current.rotation.z += delta * 0.14 * speed;
-    if (ringB.current) ringB.current.rotation.z -= delta * 0.11 * speed;
-    if (ringC.current) ringC.current.rotation.z += delta * 0.08 * speed;
+    const dir = activity === "thinking" ? -1 : 1;
+    if (gyroARef.current) gyroARef.current.rotation.z += delta * 0.16 * speed * dir;
+    if (gyroBRef.current) gyroBRef.current.rotation.z -= delta * 0.12 * speed * dir;
   });
 
   return (
     <group>
-      {/* Ring A — tilted forward */}
-      <group ref={ringA} rotation={[Math.PI / 3.2, 0.15, 0]}>
+      {/* Gimbal Ring A (Tilted +55° on X) */}
+      <group ref={gyroARef} rotation={[Math.PI / 3.1, 0.18, 0]}>
         <mesh>
-          <torusGeometry args={[2.0, 0.022, 6, 160]} />
-          <meshBasicMaterial blending={THREE.AdditiveBlending} color={PALE} depthWrite={false} opacity={0.36} toneMapped={false} transparent />
+          <torusGeometry args={[3.05, 0.022, 6, 180]} />
+          <meshBasicMaterial blending={THREE.AdditiveBlending} color={PALE_CORE} depthWrite={false} opacity={0.42} toneMapped={false} transparent />
         </mesh>
-        <lineSegments geometry={tickGeomA}>
-          <lineBasicMaterial blending={THREE.AdditiveBlending} color={MINT} depthWrite={false} opacity={0.3} toneMapped={false} transparent />
+        <lineSegments geometry={tickGeom}>
+          <lineBasicMaterial blending={THREE.AdditiveBlending} color={EMERALD} depthWrite={false} opacity={0.35} toneMapped={false} transparent />
         </lineSegments>
       </group>
 
-      {/* Ring B — tilted backward */}
-      <group ref={ringB} rotation={[-Math.PI / 3.2, -0.15, 0]}>
+      {/* Gimbal Ring B (Tilted -55° on X) */}
+      <group ref={gyroBRef} rotation={[-Math.PI / 3.1, -0.18, 0]}>
         <mesh>
-          <torusGeometry args={[2.3, 0.018, 6, 160]} />
-          <meshBasicMaterial blending={THREE.AdditiveBlending} color={EMERALD} depthWrite={false} opacity={0.3} toneMapped={false} transparent />
+          <torusGeometry args={[3.18, 0.018, 6, 180]} />
+          <meshBasicMaterial blending={THREE.AdditiveBlending} color={LIME} depthWrite={false} opacity={0.38} toneMapped={false} transparent />
         </mesh>
-        <lineSegments geometry={tickGeomB}>
-          <lineBasicMaterial blending={THREE.AdditiveBlending} color={PALE} depthWrite={false} opacity={0.24} toneMapped={false} transparent />
+        <lineSegments geometry={tickGeom}>
+          <lineBasicMaterial blending={THREE.AdditiveBlending} color={GOLD_MYSTIC} depthWrite={false} opacity={0.28} toneMapped={false} transparent />
         </lineSegments>
-      </group>
-
-      {/* Ring C — equatorial */}
-      <group ref={ringC} rotation={[Math.PI / 2, 0.3, 0.2]}>
-        <mesh>
-          <torusGeometry args={[2.15, 0.015, 6, 160]} />
-          <meshBasicMaterial blending={THREE.AdditiveBlending} color={MINT} depthWrite={false} opacity={0.24} toneMapped={false} transparent />
-        </mesh>
       </group>
     </group>
   );
 }
 
 // ══════════════════════════════════════════════════════════════════
-// 4. FLOATING SIGIL ORBIT — 8 ancient glyph dials orbiting the core
+// COMPONENT 5: FLOATING SATELLITE SIGIL DIALS (8 SIGIL NODES)
 // ══════════════════════════════════════════════════════════════════
-
-const sigilFragmentShader = `
-  uniform float uTime;
-  uniform float uIndex;
-  varying vec2 vUv;
-
-  void main() {
-    vec2 p = vUv - vec2(0.5);
-    float r = length(p) * 2.0;
-    float angle = atan(p.y, p.x);
-
-    // Concentric ring
-    float ring = smoothstep(0.03, 0.0, abs(r - 0.82));
-    float ring2 = smoothstep(0.025, 0.0, abs(r - 0.55));
-
-    // Symbol pattern based on index
-    float sym = step(0.85, cos(angle * (4.0 + uIndex * 2.0) + uTime * 0.6));
-    float cross = step(0.92, abs(cos(angle * 2.0))) * smoothstep(0.15, 0.18, r) * smoothstep(0.72, 0.68, r);
-
-    float glyph = ring + ring2 + sym * 0.6 + cross * 0.5;
-
-    vec3 color = vec3(0.137, 0.905, 0.466);
-    float alpha = glyph * 0.65 * smoothstep(1.0, 0.8, r);
-    gl_FragColor = vec4(color * 1.4, alpha);
-  }
-`;
-
-function FloatingSigilOrbit({ activity }: { activity: AiActivity }) {
+function FloatingSigilOrbits({ activity }: { activity: AiActivity }) {
   const groupRef = useRef<THREE.Group>(null);
+  const connectorsRef = useRef<THREE.LineSegments>(null);
   const materialsRef = useRef<(THREE.ShaderMaterial | null)[]>([]);
 
   const sigilCount = 8;
   const sigilData = useMemo(() => {
-    const rng = seededRandom(55912);
+    const rng = seededRandom(11409);
     return Array.from({ length: sigilCount }, (_, i) => ({
-      angle: (i / sigilCount) * TAU + rng() * 0.3,
-      radius: 1.35 + rng() * 0.25,
-      y: (rng() - 0.5) * 0.6,
-      speed: 0.08 + rng() * 0.06,
-      selfSpin: (rng() - 0.5) * 0.8,
-      scale: 0.22 + rng() * 0.1,
-      tiltX: (rng() - 0.5) * 0.5,
+      baseAngle: (i / sigilCount) * TAU,
+      radius: 1.82 + (i % 2) * 0.28,
+      yOffset: (rng() - 0.5) * 0.45,
+      speed: 0.12 + (i % 3) * 0.04,
+      spinSpeed: (i % 2 === 0 ? 1 : -1) * (0.6 + rng() * 0.4),
+      scale: 0.34,
     }));
   }, []);
 
+  const connectorPositions = useMemo(() => new Float32Array(sigilCount * 6), []);
+  const connectorGeom = useMemo(() => {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute("position", new THREE.BufferAttribute(connectorPositions, 3));
+    return geom;
+  }, [connectorPositions]);
+
   useFrame(({ clock }, delta) => {
-    const time = clock.elapsedTime;
+    const t = clock.elapsedTime;
     const speed = activitySpeed(activity);
     const energy = activityEnergy(activity);
 
     if (groupRef.current) {
       groupRef.current.children.forEach((child, i) => {
         const d = sigilData[i];
-        const angle = d.angle + time * d.speed * speed;
-        child.position.set(
-          Math.cos(angle) * d.radius,
-          d.y + Math.sin(time * 0.8 + i * 1.1) * 0.12,
-          Math.sin(angle) * d.radius
-        );
-        child.rotation.y += delta * d.selfSpin * speed;
-        child.rotation.x = d.tiltX;
-        const sc = d.scale * (0.9 + energy * 0.12 + Math.sin(time * 2.2 + i * 0.9) * 0.04);
+        const angle = d.baseAngle + t * d.speed * speed;
+        const x = Math.cos(angle) * d.radius;
+        const y = d.yOffset + Math.sin(t * 1.8 + i * 0.8) * 0.1;
+        const z = Math.sin(angle) * d.radius * 0.65;
+
+        child.position.set(x, y, z);
+        child.rotation.z += delta * d.spinSpeed * speed;
+        const sc = d.scale * (0.92 + Math.sin(t * 3.0 + i) * 0.05 * energy);
         child.scale.setScalar(sc);
+
+        // Update connector lines to center
+        connectorPositions[i * 6] = 0;
+        connectorPositions[i * 6 + 1] = 0;
+        connectorPositions[i * 6 + 2] = 0;
+        connectorPositions[i * 6 + 3] = x;
+        connectorPositions[i * 6 + 4] = y;
+        connectorPositions[i * 6 + 5] = z;
       });
+      connectorGeom.attributes.position.needsUpdate = true;
     }
 
     materialsRef.current.forEach((mat) => {
-      if (mat) mat.uniforms.uTime.value = time;
+      if (mat) mat.uniforms.uTime.value = t;
     });
   });
 
   return (
-    <group ref={groupRef}>
-      {sigilData.map((d, i) => (
-        <mesh key={i}>
+    <group>
+      {/* 8 Floating Glowing Sigil Dials */}
+      <group ref={groupRef}>
+        {sigilData.map((_, i) => (
+          <group key={i}>
+            <mesh>
+              <planeGeometry args={[1, 1]} />
+              <shaderMaterial
+                ref={(el) => { materialsRef.current[i] = el; }}
+                vertexShader={sigilShader.vertexShader}
+                fragmentShader={sigilShader.fragmentShader}
+                uniforms={{
+                  uTime: { value: 0 },
+                  uIndex: { value: i },
+                }}
+                blending={THREE.AdditiveBlending}
+                depthWrite={false}
+                transparent
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+            {/* Center glowing node sphere */}
+            <mesh scale={0.06}>
+              <sphereGeometry args={[1, 12, 12]} />
+              <meshBasicMaterial color={PALE_CORE} toneMapped={false} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+
+      {/* Dynamic Laser Connector Streams */}
+      <lineSegments ref={connectorsRef} geometry={connectorGeom}>
+        <lineBasicMaterial
+          blending={THREE.AdditiveBlending}
+          color={MINT}
+          depthWrite={false}
+          opacity={0.25}
+          toneMapped={false}
+          transparent
+        />
+      </lineSegments>
+    </group>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+// COMPONENT 6: BASE PEDESTAL RITUAL MANDALA & VERTICAL LIGHT BEAMS
+// ══════════════════════════════════════════════════════════════════
+function BasePedestalRitualMandala({ activity }: { activity: AiActivity }) {
+  const pedestalRef = useRef<THREE.Group>(null);
+  const shaderMatRef = useRef<THREE.ShaderMaterial>(null);
+  const lightBeamsRef = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }, delta) => {
+    const t = clock.elapsedTime;
+    const speed = activitySpeed(activity);
+    const energy = activityEnergy(activity);
+
+    if (shaderMatRef.current) {
+      shaderMatRef.current.uniforms.uTime.value = t;
+      shaderMatRef.current.uniforms.uEnergy.value = energy;
+    }
+
+    if (pedestalRef.current) {
+      pedestalRef.current.rotation.y += delta * 0.04 * speed;
+    }
+
+    if (lightBeamsRef.current) {
+      lightBeamsRef.current.rotation.y -= delta * 0.08 * speed;
+    }
+  });
+
+  return (
+    <group position={[0, -2.1, 0]}>
+      {/* 1. Large Ground Ritual Disc (XZ Plane) */}
+      <group ref={pedestalRef} rotation={[Math.PI / 2, 0, 0]}>
+        <mesh scale={[5.8, 5.8, 1]}>
           <planeGeometry args={[1, 1]} />
           <shaderMaterial
-            ref={(el) => { materialsRef.current[i] = el; }}
-            vertexShader={`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`}
-            fragmentShader={sigilFragmentShader}
-            uniforms={{
-              uTime: { value: 0 },
-              uIndex: { value: i },
-            }}
+            ref={shaderMatRef}
+            vertexShader={pedestalShader.vertexShader}
+            fragmentShader={pedestalShader.fragmentShader}
+            uniforms={{ uTime: { value: 0 }, uEnergy: { value: 1 } }}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
             transparent
             side={THREE.DoubleSide}
           />
         </mesh>
+      </group>
+
+      {/* 2. Floating Tiered Stepped Altar Rings */}
+      {[0.2, 0.42, 0.68].map((y, idx) => (
+        <mesh key={idx} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[2.2 - idx * 0.45, 0.016, 6, 96]} />
+          <meshBasicMaterial
+            blending={THREE.AdditiveBlending}
+            color={idx === 0 ? GOLD_MYSTIC : EMERALD}
+            depthWrite={false}
+            opacity={0.45 - idx * 0.08}
+            toneMapped={false}
+            transparent
+          />
+        </mesh>
       ))}
+
+      {/* 3. Vertical Light Beam Pillar Ascending to Core */}
+      <group ref={lightBeamsRef}>
+        <mesh position={[0, 1.05, 0]}>
+          <cylinderGeometry args={[0.08, 0.45, 2.1, 16, 1, true]} />
+          <meshBasicMaterial
+            blending={THREE.AdditiveBlending}
+            color={EMERALD}
+            depthWrite={false}
+            opacity={0.12}
+            side={THREE.DoubleSide}
+            toneMapped={false}
+            transparent
+          />
+        </mesh>
+      </group>
     </group>
   );
 }
 
 // ══════════════════════════════════════════════════════════════════
-// 5. OUTER RUNE MATRIX — large-radius rune band, very slow rotation
+// COMPONENT 7: TIMELINE ENERGY SPLINES & TIME PACKETS
 // ══════════════════════════════════════════════════════════════════
-
-function OuterRuneMatrix({ activity }: { activity: AiActivity }) {
+function TimelineEnergyStreams({ activity }: { activity: AiActivity }) {
   const groupRef = useRef<THREE.Group>(null);
-
-  const runeGeom = useMemo(() => {
-    const segs: Array<[THREE.Vector3, THREE.Vector3]> = [];
-    const r1 = 2.72;
-    const r2 = 2.95;
-    for (let i = 0; i < 36; i++) {
-      const angle = (i / 36) * TAU;
-      const cos_a = Math.cos(angle);
-      const sin_a = Math.sin(angle);
-      // Radial tick
-      segs.push([
-        new THREE.Vector3(cos_a * r1, sin_a * r1, 0),
-        new THREE.Vector3(cos_a * r2, sin_a * r2, 0),
-      ]);
-      // Small cross-bar glyph
-      if (i % 3 === 0) {
-        const tangent = new THREE.Vector3(-sin_a, cos_a, 0).multiplyScalar(0.04);
-        const center = new THREE.Vector3(cos_a * ((r1 + r2) / 2), sin_a * ((r1 + r2) / 2), 0);
-        segs.push([center.clone().sub(tangent), center.clone().add(tangent)]);
-      }
-    }
-    return segmentGeometry(segs);
-  }, []);
-
-  const circleGeomInner = useMemo(() => {
-    const pts: THREE.Vector3[] = [];
-    for (let i = 0; i <= 128; i++) {
-      const a = (i / 128) * TAU;
-      pts.push(new THREE.Vector3(Math.cos(a) * 2.7, Math.sin(a) * 2.7, 0));
-    }
-    return pathGeometry([pts]);
-  }, []);
-
-  const circleGeomOuter = useMemo(() => {
-    const pts: THREE.Vector3[] = [];
-    for (let i = 0; i <= 128; i++) {
-      const a = (i / 128) * TAU;
-      pts.push(new THREE.Vector3(Math.cos(a) * 2.97, Math.sin(a) * 2.97, 0));
-    }
-    return pathGeometry([pts]);
-  }, []);
-
-  useFrame((_, delta) => {
-    if (groupRef.current) {
-      const dir = activity === "thinking" ? -1 : 1;
-      groupRef.current.rotation.z -= delta * 0.025 * activitySpeed(activity) * dir;
-    }
-  });
-
-  return (
-    <group ref={groupRef} position={[0, 0, -0.2]}>
-      <lineSegments geometry={runeGeom}>
-        <lineBasicMaterial blending={THREE.AdditiveBlending} color={EMERALD} depthWrite={false} opacity={0.42} toneMapped={false} transparent />
-      </lineSegments>
-      <lineSegments geometry={circleGeomInner}>
-        <lineBasicMaterial blending={THREE.AdditiveBlending} color={PALE} depthWrite={false} opacity={0.32} toneMapped={false} transparent />
-      </lineSegments>
-      <lineSegments geometry={circleGeomOuter}>
-        <lineBasicMaterial blending={THREE.AdditiveBlending} color={PALE} depthWrite={false} opacity={0.28} toneMapped={false} transparent />
-      </lineSegments>
-    </group>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════
-// 6. PEDESTAL BASE DISC — horizontal ritual disc on XZ plane
-//    Projecting energy beams upward to the core
-// ══════════════════════════════════════════════════════════════════
-
-const pedestalFragmentShader = `
-  uniform float uTime;
-  uniform float uEnergy;
-  varying vec2 vUv;
-
-  void main() {
-    vec2 p = vUv - vec2(0.5);
-    float r = length(p) * 2.0;
-    float angle = atan(p.y, p.x);
-
-    // Concentric circles
-    float ring1 = smoothstep(0.02, 0.0, abs(r - 0.4));
-    float ring2 = smoothstep(0.015, 0.0, abs(r - 0.65));
-    float ring3 = smoothstep(0.012, 0.0, abs(r - 0.85));
-    float ring4 = smoothstep(0.010, 0.0, abs(r - 0.95));
-
-    // 6-fold hex pattern
-    float hex = step(0.93, cos(angle * 6.0 + uTime * 0.3));
-    float hexPattern = hex * smoothstep(0.3, 0.35, r) * smoothstep(0.9, 0.85, r);
-
-    // Spinning scan line
-    float scan = smoothstep(0.95, 1.0, cos(angle - uTime * 1.5)) * smoothstep(0.2, 0.25, r);
-
-    float pattern = ring1 + ring2 + ring3 + ring4 + hexPattern * 0.6 + scan * 0.45;
-
-    vec3 colG = vec3(0.137, 0.905, 0.466);
-    vec3 colP = vec3(0.878, 1.0, 0.918);
-    vec3 color = mix(colG, colP, scan * 0.5 + hexPattern * 0.3);
-
-    float alpha = pattern * 0.5 * uEnergy * smoothstep(1.0, 0.88, r);
-    gl_FragColor = vec4(color * 1.3, alpha);
-  }
-`;
-
-function PedestalBaseDisc({ activity }: { activity: AiActivity }) {
-  const matRef = useRef<THREE.ShaderMaterial>(null);
-  const groupRef = useRef<THREE.Group>(null);
-
-  useFrame(({ clock }, delta) => {
-    if (matRef.current) {
-      matRef.current.uniforms.uTime.value = clock.elapsedTime;
-      matRef.current.uniforms.uEnergy.value = activityEnergy(activity);
-    }
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.03 * activitySpeed(activity);
-    }
-  });
-
-  return (
-    <group ref={groupRef} rotation={[Math.PI / 2, 0, 0]} position={[0, -1.8, 0]}>
-      <mesh scale={[4.5, 4.5, 1]}>
-        <planeGeometry args={[1, 1]} />
-        <shaderMaterial
-          ref={matRef}
-          vertexShader={`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`}
-          fragmentShader={pedestalFragmentShader}
-          uniforms={{
-            uTime: { value: 0 },
-            uEnergy: { value: 1 },
-          }}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          transparent
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════
-// 7. TIMELINE RIBBON STREAMS — energy tubes flowing outward
-// ══════════════════════════════════════════════════════════════════
-
-function TimelineRibbonStreams({ activity }: { activity: AiActivity }) {
-  const streamGroup = useRef<THREE.Group>(null);
-  const particlesRef = useRef<THREE.InstancedMesh>(null);
-  const particleCount = 48;
+  const packetsRef = useRef<THREE.InstancedMesh>(null);
+  const packetCount = 56;
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
   const curves = useMemo(() => {
     const list: THREE.CatmullRomCurve3[] = [];
-    const rng = seededRandom(452);
-    for (let b = 0; b < 6; b++) {
-      const side = b % 2 === 0 ? 1 : -1;
-      const points: THREE.Vector3[] = [];
-      for (let i = 0; i <= 5; i++) {
-        const t = i / 5;
-        points.push(new THREE.Vector3(
-          side * (0.35 + t * 2.0 + rng() * 0.2),
-          (b - 2.5) * 0.42 + Math.sin(t * Math.PI * 1.5 + b) * 0.35,
-          -0.25 - t * 0.7 + Math.cos(t * Math.PI) * 0.25
+    const rng = seededRandom(88192);
+    for (let b = 0; b < 7; b++) {
+      const theta = (b / 7) * TAU;
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 6; i++) {
+        const t = i / 6;
+        const r = 0.35 + t * (2.4 + rng() * 0.4);
+        const a = theta + Math.sin(t * Math.PI * 1.5) * 0.65;
+        pts.push(new THREE.Vector3(
+          Math.cos(a) * r,
+          (t - 0.5) * 2.2 + Math.sin(t * TAU) * 0.3,
+          Math.sin(a) * r * (0.8 + (b % 2) * 0.2)
         ));
       }
-      list.push(new THREE.CatmullRomCurve3(points));
+      list.push(new THREE.CatmullRomCurve3(pts));
     }
     return list;
   }, []);
 
-  const tubeGeometries = useMemo(() =>
-    curves.map((curve) => new THREE.TubeGeometry(curve, 36, 0.016, 6, false)),
-    [curves]
-  );
+  const tubeGeoms = useMemo(() => {
+    return curves.map((c) => new THREE.TubeGeometry(c, 36, 0.016, 6, false));
+  }, [curves]);
 
   useFrame(({ clock }) => {
-    const time = clock.elapsedTime;
+    const t = clock.elapsedTime;
     const speed = activitySpeed(activity);
 
-    if (streamGroup.current) {
-      streamGroup.current.position.z = Math.sin(time * 0.35) * 0.04;
-    }
-
-    if (particlesRef.current) {
+    if (packetsRef.current) {
       curves.forEach((curve, cIdx) => {
         for (let p = 0; p < 8; p++) {
-          const index = cIdx * 8 + p;
-          const progress = (time * 0.22 * speed + p / 8 + cIdx * 0.15) % 1.0;
+          const idx = cIdx * 8 + p;
+          const progress = (t * 0.25 * speed + p / 8 + cIdx * 0.12) % 1.0;
           const pt = curve.getPoint(progress);
           dummy.position.copy(pt);
-          dummy.scale.setScalar(0.035 + Math.sin(progress * Math.PI) * 0.018);
+          dummy.scale.setScalar(0.038 + Math.sin(progress * Math.PI) * 0.018);
           dummy.updateMatrix();
-          particlesRef.current?.setMatrixAt(index, dummy.matrix);
+          packetsRef.current?.setMatrixAt(idx, dummy.matrix);
         }
       });
-      particlesRef.current.instanceMatrix.needsUpdate = true;
+      packetsRef.current.instanceMatrix.needsUpdate = true;
     }
   });
 
   return (
-    <group ref={streamGroup}>
-      {tubeGeometries.map((geom, idx) => (
+    <group ref={groupRef}>
+      {tubeGeoms.map((geom, idx) => (
         <mesh key={idx} geometry={geom}>
           <meshBasicMaterial
-            color={MINT}
             blending={THREE.AdditiveBlending}
+            color={idx % 2 === 0 ? LIME : GOLD_MYSTIC}
             depthWrite={false}
-            opacity={0.38}
-            transparent
+            opacity={0.34}
             toneMapped={false}
+            transparent
           />
         </mesh>
       ))}
-      <instancedMesh ref={particlesRef} args={[undefined, undefined, particleCount]}>
-        <sphereGeometry args={[1, 6, 6]} />
-        <meshBasicMaterial color={PALE} toneMapped={false} />
+
+      {/* Streaming Energy Photons */}
+      <instancedMesh ref={packetsRef} args={[undefined, undefined, packetCount]}>
+        <sphereGeometry args={[1, 8, 8]} />
+        <meshBasicMaterial color={WHITE_HOT} toneMapped={false} />
       </instancedMesh>
     </group>
   );
 }
 
 // ══════════════════════════════════════════════════════════════════
-// 8. TIME DISTORTION SHOCKWAVES — expanding/contracting pulses
+// COMPONENT 8: ATMOSPHERIC MYSTIC EMBERS & SPARKS (420 PARTICLES)
 // ══════════════════════════════════════════════════════════════════
+function MysticEmberSparks({ activity }: { activity: AiActivity }) {
+  const count = 420;
+  const pointsRef = useRef<THREE.Points>(null);
+  const positions = useMemo(() => new Float32Array(count * 3), []);
 
-const shockwaveFragmentShader = `
-  uniform float uTime;
-  uniform float uEnergy;
-  uniform float uReversing;
-  varying vec2 vUv;
+  const params = useMemo(() => {
+    const rng = seededRandom(20261);
+    return Array.from({ length: count }, () => ({
+      radius: 0.5 + rng() * 3.4,
+      angle: rng() * TAU,
+      y: (rng() - 0.5) * 4.2,
+      speed: (0.05 + rng() * 0.35) * (rng() > 0.45 ? 1 : -1),
+      wobble: rng() * TAU,
+      helical: rng() > 0.65,
+    }));
+  }, []);
 
-  void main() {
-    vec2 p = vUv - vec2(0.5);
-    float dist = length(p) * 2.0;
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    const speed = activitySpeed(activity);
+    const energy = activityEnergy(activity);
 
-    // Two offset wave cycles
-    float cycle1 = fract(uTime * 0.45);
-    float cycle2 = fract(uTime * 0.45 + 0.5);
-    float lw1 = uReversing > 0.5 ? (1.0 - cycle1) : cycle1;
-    float lw2 = uReversing > 0.5 ? (1.0 - cycle2) : cycle2;
+    for (let i = 0; i < count; i++) {
+      const p = params[i];
+      const angle = p.angle + t * p.speed * speed;
+      const r = p.radius + Math.sin(t * 0.7 + p.wobble) * 0.08 * energy;
+      positions[i * 3] = Math.cos(angle) * r;
+      positions[i * 3 + 1] = p.helical ? Math.sin(angle * 3.0) * 0.6 + p.y * 0.5 : p.y + Math.sin(t * 0.5 + p.wobble) * 0.1;
+      positions[i * 3 + 2] = Math.sin(angle) * r * 0.75;
+    }
 
-    float width = 0.065;
-    float ring1 = smoothstep(lw1 - width, lw1, dist) - smoothstep(lw1, lw1 + width, dist);
-    float ring2 = smoothstep(lw2 - width, lw2, dist) - smoothstep(lw2, lw2 + width, dist);
-    float fade = (1.0 - dist);
+    if (pointsRef.current) {
+      pointsRef.current.rotation.y = t * 0.015;
+      pointsRef.current.geometry.attributes.position.needsUpdate = true;
+    }
+  });
 
-    vec3 mint = vec3(0.4, 1.0, 0.62);
-    vec3 pale = vec3(0.878, 1.0, 0.918);
-    vec3 col = mix(mint, pale, max(ring1, ring2));
+  return (
+    <points ref={pointsRef}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+      </bufferGeometry>
+      <pointsMaterial
+        blending={THREE.AdditiveBlending}
+        color={LIME}
+        depthWrite={false}
+        opacity={0.52}
+        size={0.028}
+        sizeAttenuation
+        toneMapped={false}
+        transparent
+      />
+    </points>
+  );
+}
 
-    float alpha = (ring1 + ring2 * 0.7) * fade * 0.55 * uEnergy;
-    gl_FragColor = vec4(col * 1.8, alpha);
-  }
-`;
-
+// ══════════════════════════════════════════════════════════════════
+// COMPONENT 9: TEMPORAL DISTORTION SHOCKWAVE DISC
+// ══════════════════════════════════════════════════════════════════
 function TimeDistortionShockwaves({ activity }: { activity: AiActivity }) {
   const matRef = useRef<THREE.ShaderMaterial>(null);
   const isReversing = activity === "thinking";
@@ -847,12 +1106,12 @@ function TimeDistortionShockwaves({ activity }: { activity: AiActivity }) {
   });
 
   return (
-    <mesh position={[0, 0, -0.06]} scale={[4.8, 4.8, 1]}>
+    <mesh position={[0, 0, -0.05]} scale={[5.2, 5.2, 1]}>
       <planeGeometry args={[1, 1]} />
       <shaderMaterial
         ref={matRef}
-        vertexShader={`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`}
-        fragmentShader={shockwaveFragmentShader}
+        vertexShader={shockwaveShader.vertexShader}
+        fragmentShader={shockwaveShader.fragmentShader}
         uniforms={{
           uTime: { value: 0 },
           uEnergy: { value: 1 },
@@ -867,241 +1126,43 @@ function TimeDistortionShockwaves({ activity }: { activity: AiActivity }) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// 9. MYSTIC EMBER SPARKS — 380+ floating magic dust particles
+// MAIN SCENE ROOT: GREEN MYSTIC CORE (TIME STONE)
 // ══════════════════════════════════════════════════════════════════
-
-function MysticEmberSparks({ activity }: { activity: AiActivity }) {
-  const count = 380;
-  const points = useRef<THREE.Points>(null);
-  const positions = useMemo(() => new Float32Array(count * 3), []);
-
-  const params = useMemo(() => {
-    const rng = seededRandom(44221);
-    return Array.from({ length: count }, () => ({
-      radius: 0.6 + rng() * 3.2,
-      angle: rng() * TAU,
-      y: (rng() - 0.5) * 3.8,
-      speed: (0.06 + rng() * 0.38) * (rng() > 0.5 ? 1 : -1),
-      wobble: rng() * TAU,
-      helical: rng() > 0.7,
-    }));
-  }, []);
-
-  useFrame(({ clock }) => {
-    const time = clock.elapsedTime;
-    const speed = activitySpeed(activity);
-    const energy = activityEnergy(activity);
-    for (let i = 0; i < count; i++) {
-      const param = params[i];
-      const angle = param.angle + time * param.speed * speed;
-      const radius = param.radius + Math.sin(time * 0.6 + param.wobble) * 0.06 * energy;
-      positions[i * 3] = Math.cos(angle) * radius;
-      positions[i * 3 + 1] = param.helical ? Math.sin(angle * 2.5) * 0.5 : param.y + Math.sin(time * 0.4 + param.wobble) * 0.08;
-      positions[i * 3 + 2] = Math.sin(angle) * radius * 0.7;
-    }
-    if (points.current) {
-      points.current.rotation.y = time * 0.012;
-      points.current.geometry.attributes.position.needsUpdate = true;
-    }
-  });
-
-  return (
-    <points ref={points}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <pointsMaterial
-        blending={THREE.AdditiveBlending}
-        color={MINT}
-        depthWrite={false}
-        opacity={0.44}
-        size={0.025}
-        sizeAttenuation
-        toneMapped={false}
-        transparent
-      />
-    </points>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════
-// 10. BRONZE MECHANICAL GEARS — extruded chronal gear layers
-// ══════════════════════════════════════════════════════════════════
-
-function createGearGeometry(radius: number, teeth: number, depth: number) {
-  const shape = new THREE.Shape();
-  const toothDepth = radius * 0.14;
-  const toothWidth = TAU / teeth;
-
-  for (let i = 0; i < teeth; i++) {
-    const angle = i * toothWidth;
-    const a1 = angle;
-    const a2 = angle + toothWidth * 0.28;
-    const a3 = angle + toothWidth * 0.52;
-    const a4 = angle + toothWidth * 0.78;
-
-    const rInner = radius;
-    const rOuter = radius + toothDepth;
-
-    if (i === 0) {
-      shape.moveTo(Math.cos(a1) * rInner, Math.sin(a1) * rInner);
-    } else {
-      shape.lineTo(Math.cos(a1) * rInner, Math.sin(a1) * rInner);
-    }
-    shape.lineTo(Math.cos(a2) * rOuter, Math.sin(a2) * rOuter);
-    shape.lineTo(Math.cos(a3) * rOuter, Math.sin(a3) * rOuter);
-    shape.lineTo(Math.cos(a4) * rInner, Math.sin(a4) * rInner);
-  }
-
-  const holePath = new THREE.Path();
-  const holeRadius = radius * 0.65;
-  for (let i = 0; i <= 32; i++) {
-    const a = (i / 32) * TAU;
-    if (i === 0) holePath.moveTo(Math.cos(a) * holeRadius, Math.sin(a) * holeRadius);
-    else holePath.lineTo(Math.cos(a) * holeRadius, Math.sin(a) * holeRadius);
-  }
-  shape.holes.push(holePath);
-
-  return new THREE.ExtrudeGeometry(shape, {
-    depth,
-    bevelEnabled: true,
-    bevelSegments: 2,
-    steps: 1,
-    bevelSize: 0.015,
-    bevelThickness: 0.015,
-  });
-}
-
-function ExtrudedChronalGears({ activity }: { activity: AiActivity }) {
-  const gear1Ref = useRef<THREE.Mesh>(null);
-  const gear2Ref = useRef<THREE.Mesh>(null);
-  const gear3Ref = useRef<THREE.Mesh>(null);
-
-  const gear1Geom = useMemo(() => createGearGeometry(0.85, 10, 0.06), []);
-  const gear2Geom = useMemo(() => createGearGeometry(1.28, 16, 0.06), []);
-  const gear3Geom = useMemo(() => createGearGeometry(1.72, 22, 0.06), []);
-
-  useFrame((_, delta) => {
-    const speed = activitySpeed(activity);
-    const dir = activity === "thinking" ? -1 : 1;
-    if (gear1Ref.current) gear1Ref.current.rotation.z += delta * 0.3 * speed * dir;
-    if (gear2Ref.current) gear2Ref.current.rotation.z -= delta * 0.19 * speed * dir;
-    if (gear3Ref.current) gear3Ref.current.rotation.z += delta * 0.12 * speed * dir;
-  });
-
-  return (
-    <group position={[0, 0, -0.32]}>
-      <mesh ref={gear1Ref} geometry={gear1Geom}>
-        <meshStandardMaterial color={BRONZE} metalness={0.82} roughness={0.28} emissive={MINT} emissiveIntensity={0.22} />
-      </mesh>
-      <mesh ref={gear2Ref} geometry={gear2Geom} position={[0, 0, -0.05]}>
-        <meshStandardMaterial color={BRONZE} metalness={0.85} roughness={0.25} emissive={EMERALD} emissiveIntensity={0.18} />
-      </mesh>
-      <mesh ref={gear3Ref} geometry={gear3Geom} position={[0, 0, -0.1]}>
-        <meshStandardMaterial color={BRONZE} metalness={0.88} roughness={0.22} emissive={MINT} emissiveIntensity={0.15} />
-      </mesh>
-    </group>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════
-// 11. ANCIENT GEOMETRY — intersecting sacred polygons
-// ══════════════════════════════════════════════════════════════════
-
-function AncientGeometryLayer({ activity }: { activity: AiActivity }) {
-  const groupRef = useRef<THREE.Group>(null);
-
-  const geometry = useMemo(() => {
-    const paths: THREE.Vector3[][] = [];
-
-    // Triangle up
-    const tri = (r: number, phase: number, z: number, sides: number) => {
-      const pts: THREE.Vector3[] = [];
-      for (let i = 0; i <= sides; i++) {
-        const a = phase + (i / sides) * TAU;
-        pts.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, z));
-      }
-      return pts;
-    };
-
-    paths.push(tri(3.2, Math.PI / 2, -0.08, 3));
-    paths.push(tri(3.2, -Math.PI / 2, -0.08, 3));
-    paths.push(tri(3.05, Math.PI / 4, -0.07, 4));
-    paths.push(tri(3.3, Math.PI / 8, -0.06, 8));
-
-    // Circle
-    const circle: THREE.Vector3[] = [];
-    for (let i = 0; i <= 128; i++) {
-      const a = (i / 128) * TAU;
-      circle.push(new THREE.Vector3(Math.cos(a) * 3.15, Math.sin(a) * 3.15, -0.09));
-    }
-    paths.push(circle);
-
-    return pathGeometry(paths);
-  }, []);
-
-  useFrame((_, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.z -= delta * 0.02 * activitySpeed(activity);
-    }
-  });
-
-  return (
-    <group ref={groupRef}>
-      <lineSegments geometry={geometry}>
-        <lineBasicMaterial blending={THREE.AdditiveBlending} color={PALE} depthWrite={false} opacity={0.2} toneMapped={false} transparent />
-      </lineSegments>
-    </group>
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════
-// MAIN TIME SCENE — assembly
-// ══════════════════════════════════════════════════════════════════
-
 export interface TimeSceneProps {
   activity?: AiActivity;
 }
 
 export function TimeScene({ activity = "idle" }: TimeSceneProps) {
   return (
-    <group name="green-mystic-core-time-stone-scene" scale={1.15}>
-      {/* Ambient & directional lighting */}
-      <ambientLight intensity={0.4} color={DEEP_GREEN} />
-      <directionalLight position={[3, 4, 4]} intensity={1.5} color={MINT} />
-      <pointLight position={[-2, 2, 3]} color={EMERALD} intensity={1.8} distance={10} />
+    <group name="green-mystic-core-doctor-strange-scene" scale={1.18}>
+      {/* 1. Atmospheric Ambient & Mystic Point Lighting */}
+      <ambientLight intensity={0.45} color={DEEP_EMERALD} />
+      <directionalLight position={[4, 5, 4]} intensity={1.8} color={LIME} />
+      <pointLight position={[-3, 2, 3]} color={EMERALD} intensity={2.2} distance={12} />
+      <pointLight position={[3, -2, -2]} color={GOLD_MYSTIC} intensity={1.5} distance={10} />
 
-      {/* Layer 8: Time distortion shockwaves (furthest back) */}
+      {/* 2. Temporal Distortion Shockwaves (Deep background layer) */}
       <TimeDistortionShockwaves activity={activity} />
 
-      {/* Layer 7: Ancient sacred geometry */}
-      <AncientGeometryLayer activity={activity} />
+      {/* 3. Base Pedestal Ritual Floor Mandala & Vertical Light Pillar */}
+      <BasePedestalRitualMandala activity={activity} />
 
-      {/* Layer 6: Outer Rune Matrix */}
-      <OuterRuneMatrix activity={activity} />
+      {/* 4. Main 3D Tilted Eldritch Spell Disc (Doctor Strange Mandala) */}
+      <MainEldritchSpellDisc activity={activity} />
 
-      {/* Layer 5: Bronze chronal gears */}
-      <ExtrudedChronalGears activity={activity} />
-
-      {/* Layer 4: Main Mystic Mandala disc */}
-      <MainMysticMandala activity={activity} />
-
-      {/* Layer 3: Auxiliary gimbal rings */}
+      {/* 5. Auxiliary Gimbal Gyroscope Rings (Multi-axis 3D sorcery) */}
       <AuxiliaryGimbalRings activity={activity} />
 
-      {/* Layer 2: Timeline ribbon streams */}
-      <TimelineRibbonStreams activity={activity} />
+      {/* 6. Timeline Energy Ribbon Streams & Photons */}
+      <TimelineEnergyStreams activity={activity} />
 
-      {/* Layer 1: Floating sigil orbit */}
-      <FloatingSigilOrbit activity={activity} />
+      {/* 7. 8 Floating Satellite Sigil Dials & Laser Connectors */}
+      <FloatingSigilOrbits activity={activity} />
 
-      {/* Layer 0: Pedestal base disc (horizontal) */}
-      <PedestalBaseDisc activity={activity} />
+      {/* 8. Central Raw Time Stone Crystal Core & Satellite Shards */}
+      <FacetedTimeStoneGem activity={activity} />
 
-      {/* Core: Raw Time Stone Crystal */}
-      <RawTimeStoneCrystal activity={activity} />
-
-      {/* Atmospheric ember sparks */}
+      {/* 9. Atmospheric Floating Mystic Embers & Sparks */}
       <MysticEmberSparks activity={activity} />
     </group>
   );
