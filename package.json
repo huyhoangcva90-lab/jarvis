@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --open /index.dev.html",
+    "dev": "vite --host 127.0.0.1 --open /index.html",
     "dev:tracker": "vite --host 127.0.0.1 --open /tracker.html",
     "gateway": "node server/gateway.mjs",
     "typecheck": "tsc --noEmit",
