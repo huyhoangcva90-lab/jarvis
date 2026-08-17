@@ -9,8 +9,6 @@ import ServiceDashboard from "./ServiceDashboard";
 import ObsidianVaultPanel from "./ObsidianVaultPanel";
 import UbuntuWorkspace from "./UbuntuWorkspace";
 import SpiderPersonalHub from "./SpiderPersonalHub";
-import WorldMonitorHub from "./WorldMonitorHub";
-import JavisOsHub from "./JavisOsHub";
 import {
   DEFAULT_HERMES_PROFILE_ID,
   HERMES_PROFILES,
