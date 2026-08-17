@@ -68,24 +68,26 @@ export const TopNavigation: React.FC = () => {
           <button
             type="button"
             onClick={goHome}
-            title="Back to J-Core home"
+            title="Quay lại J-Core Console"
             style={{
-              fontWeight: 'bold',
-              fontFamily: 'Space Grotesk',
-              fontSize: '14px',
-              letterSpacing: '0.1em',
-              color: theme.primary,
+              fontWeight: '700',
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: '12px',
+              letterSpacing: '0.08em',
+              color: '#ff3b56',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              background: 'none',
-              border: 'none',
+              gap: '8px',
+              background: 'rgba(255, 59, 86, 0.12)',
+              border: '1px solid rgba(255, 59, 86, 0.4)',
+              borderRadius: '6px',
               cursor: 'pointer',
-              padding: 0,
+              padding: '4px 10px',
               textTransform: 'uppercase',
+              transition: 'all 0.2s ease',
             }}
           >
-            {brand.shortName}
+            <span>← QUAY LẠI J-CORE</span>
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: theme.accent, boxShadow: `0 0 6px ${theme.accent}` }} />
           </button>
         </div>

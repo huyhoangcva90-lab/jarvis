@@ -232,23 +232,62 @@ function hideSpideyFooterBranding(html) {
     min-height: 100dvh !important;
     overflow: hidden !important;
   }
+
+  .jcore-spidey-back-btn {
+    position: fixed !important;
+    top: 14px !important;
+    left: 14px !important;
+    z-index: 999999 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 16px !important;
+    background: rgba(8, 14, 24, 0.94) !important;
+    color: #ff3b56 !important;
+    border: 1px solid rgba(255, 59, 86, 0.6) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 0 18px rgba(255, 59, 86, 0.4) !important;
+    font-family: ui-monospace, monospace, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    cursor: pointer !important;
+    text-decoration: none !important;
+    backdrop-filter: blur(8px) !important;
+    transition: all 0.2s ease !important;
+  }
+  .jcore-spidey-back-btn:hover {
+    background: #ff3b56 !important;
+    color: #07090d !important;
+    box-shadow: 0 0 26px rgba(255, 59, 86, 0.85) !important;
+    transform: translateY(-1px) !important;
+  }
 </style>`;
   const script = `
 <script id="jcore-spidey-home-link">
   document.addEventListener("DOMContentLoaded", function () {
+    if (!document.querySelector(".jcore-spidey-back-btn")) {
+      var btn = document.createElement("a");
+      btn.className = "jcore-spidey-back-btn";
+      btn.href = "../";
+      btn.innerHTML = "&#8592; QUAY LẠI J-CORE";
+      document.body.appendChild(btn);
+    }
     var logo = document.querySelector(".tracker-logo");
-    if (!logo) return;
-    logo.setAttribute("role", "link");
-    logo.setAttribute("tabindex", "0");
-    logo.setAttribute("aria-label", "Back to J-Core home");
-    function goHome() { window.location.href = "../"; }
-    logo.addEventListener("click", goHome);
-    logo.addEventListener("keydown", function (event) {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        goHome();
-      }
-    });
+    if (logo) {
+      logo.setAttribute("role", "link");
+      logo.setAttribute("tabindex", "0");
+      logo.setAttribute("aria-label", "Back to J-Core home");
+      function goHome() { window.location.href = "../"; }
+      logo.addEventListener("click", goHome);
+      logo.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          goHome();
+        }
+      });
+    }
   });
 </script>`;
   const injection = `${css}${script}`;
