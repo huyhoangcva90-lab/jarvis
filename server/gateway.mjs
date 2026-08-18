@@ -1078,6 +1078,9 @@ function proxyHttpDashboard(req, res, targetPort, stripPrefix = "") {
       const responseHeaders = { ...upstreamResponse.headers };
       delete responseHeaders["x-frame-options"];
       delete responseHeaders["content-security-policy"];
+      if (responseHeaders.location) {
+        responseHeaders.location = responseHeaders.location.replace(/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i, stripPrefix);
+      }
       responseHeaders["cache-control"] = responseHeaders["cache-control"] || "no-store";
       res.writeHead(upstreamResponse.statusCode || 200, responseHeaders);
       upstreamResponse.pipe(res);
