@@ -91,6 +91,7 @@ const NATIVE_DASHBOARD_PORTS = {
   hermes: Number(process.env.HERMES_DASHBOARD_PROXY_PORT || 9120),
   openclaw: Number(process.env.OPENCLAW_DASHBOARD_PROXY_PORT || 18790),
   nineRouter: Number(process.env.NINEROUTER_DASHBOARD_PROXY_PORT || 20129),
+  brain: Number(process.env.BRAIN_DASHBOARD_PORT || 7777),
 };
 const NATIVE_DASHBOARD_PROXY_HOST = process.env.JCORE_NATIVE_DASHBOARD_PROXY_HOST || "127.0.0.1";
 
@@ -1570,6 +1571,18 @@ const server = createServer(async (req, res) => {
     if (url.pathname.startsWith("/api/proxy/hermes")) {
       return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.hermes, "/api/proxy/hermes");
     }
+    if (url.pathname.startsWith("/api/proxy/brain")) {
+      return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.brain, "/api/proxy/brain");
+    }
+    if (url.pathname.startsWith("/api/brain/")) {
+      return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.brain, "/api/brain");
+    }
+    if (url.pathname === "/api/loops" || url.pathname.startsWith("/api/loops/")) {
+      return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.brain, "");
+    }
+    if (url.pathname === "/api/tts" || url.pathname.startsWith("/api/tts")) {
+      return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.brain, "/api");
+    }
 
     if (req.method === "GET" && url.pathname === "/api/native-dashboards") {
       return sendJson(req, res, 200, {
@@ -1577,6 +1590,7 @@ const server = createServer(async (req, res) => {
           hermes: "/api/proxy/hermes/",
           openclaw: "/api/proxy/openclaw/",
           nineRouter: "/api/proxy/9router/dashboard",
+          brain: "/api/proxy/brain/docs",
         },
       });
     }

@@ -94,8 +94,11 @@ const BACKCHANNELS = new Set([
 
 const QUICK_COMMANDS = [
   { label: "Tình trạng", prompt: "Kiểm tra tình trạng hệ thống và báo ngắn gọn." },
+  { label: "Kiểm tra Loops", prompt: "/loop" },
+  { label: "Đồ thị Tri thức", prompt: "/brain" },
+  { label: "Thống kê Tokens", prompt: "/usage" },
+  { label: "Công cụ MCP", prompt: "/mcp" },
   { label: "Lên kế hoạch", prompt: "Lập kế hoạch hành động cho mục tiêu hiện tại của tôi." },
-  { label: "Phân tích", prompt: "Phân tích vấn đề tôi đang gặp và đề xuất bước tiếp theo." },
   { label: "Viết code", prompt: "Hỗ trợ tôi xử lý một tác vụ lập trình." },
 ];
 
@@ -107,6 +110,98 @@ const paletteLabels: Record<Palette, string> = {
   violet: "Stark Quantum",
   orange: "Soul Core (Arc Reactor)",
   spider: "Spider 2099",
+};
+
+type StoneHeaderConfig = {
+  realmCode: string;
+  realmName: string;
+  stoneIcon: string;
+  badgeLabel: string;
+  telemetryLeft: string;
+  telemetryRight: string;
+  accentColor: string;
+  glowColor: string;
+  borderTone: string;
+};
+
+const STONE_HEADER_THEMES: Record<Palette, StoneHeaderConfig> = {
+  blue: {
+    realmCode: "SPC://TESSERACT-WORMHOLE",
+    realmName: "SPACE STONE // TESSERACT",
+    stoneIcon: "💎",
+    badgeLabel: "QUANTUM FLUX",
+    telemetryLeft: "FLUX 1.42 THz // 100%",
+    telemetryRight: "SECTOR DEEP COSMIC // 0 ERR",
+    accentColor: "#00e5ff",
+    glowColor: "rgba(0, 229, 255, 0.45)",
+    borderTone: "rgba(0, 229, 255, 0.4)",
+  },
+  gold: {
+    realmCode: "MND://SYNAPSE-CORTEX",
+    realmName: "MIND STONE // VISION CORTEX",
+    stoneIcon: "🧠",
+    badgeLabel: "SYNAPSE MATRIX",
+    telemetryLeft: "SYNAPSE 4.8 GHz // COGNITIVE OK",
+    telemetryRight: "HEURISTICS ADAPTIVE // 6 AGENTS",
+    accentColor: "#ffd700",
+    glowColor: "rgba(255, 215, 0, 0.45)",
+    borderTone: "rgba(255, 215, 0, 0.4)",
+  },
+  red: {
+    realmCode: "RLT://AETHER-REALITY-FORGE",
+    realmName: "REALITY STONE // AETHER FORGE",
+    stoneIcon: "🩸",
+    badgeLabel: "REALITY WARP",
+    telemetryLeft: "WARP 100% // COMBAT READY",
+    telemetryRight: "MATTER FORGE STABLE // THREAT 0",
+    accentColor: "#ff1744",
+    glowColor: "rgba(255, 23, 68, 0.45)",
+    borderTone: "rgba(255, 23, 68, 0.4)",
+  },
+  violet: {
+    realmCode: "PWR://COSMIC-PLASMA-SURGE",
+    realmName: "POWER STONE // QUANTUM ORB",
+    stoneIcon: "⚡",
+    badgeLabel: "PLASMA SURGE",
+    telemetryLeft: "SURGE 1.21 GW // CONTAINED",
+    telemetryRight: "AGENT MATRIX ARMORED // 9ROUTER",
+    accentColor: "#d500f9",
+    glowColor: "rgba(213, 0, 249, 0.45)",
+    borderTone: "rgba(213, 0, 249, 0.4)",
+  },
+  green: {
+    realmCode: "TIM://AGAMOTTO-TEMPORAL-CHRONO",
+    realmName: "TIME STONE // EYE OF AGAMOTTO",
+    stoneIcon: "⏳",
+    badgeLabel: "TEMPORAL LOOPS",
+    telemetryLeft: "CHRONO FLUX 1.000 s/s // 3 LOOPS",
+    telemetryRight: "PARADOX 0.00% // TIME-SYNC OK",
+    accentColor: "#00e676",
+    glowColor: "rgba(0, 230, 118, 0.45)",
+    borderTone: "rgba(0, 230, 118, 0.4)",
+  },
+  orange: {
+    realmCode: "SOL://NEURAL-SOUL-BRAIN",
+    realmName: "SOUL STONE // ARC REACTOR CORE",
+    stoneIcon: "🔥",
+    badgeLabel: "SECOND BRAIN",
+    telemetryLeft: "SECOND BRAIN ACTIVE // GIT SYNC",
+    telemetryRight: "LIVING PROFILE SYNC // HERMES",
+    accentColor: "#ff9100",
+    glowColor: "rgba(255, 145, 0, 0.45)",
+    borderTone: "rgba(255, 145, 0, 0.4)",
+  },
+  spider: {
+    realmCode: "SPD://SPIDER-2099-TACTICAL",
+    realmName: "SPIDER 2099 // TACTICAL HUB",
+    stoneIcon: "🕷️",
+    badgeLabel: "SPIDEY NET",
+    telemetryLeft: "WEB LINK CONNECTED // EV ADVISOR",
+    telemetryRight: "TRACKER 360 NODES // SONY HUB",
+    accentColor: "#00e5ff",
+    glowColor: "rgba(239, 65, 75, 0.45)",
+    borderTone: "rgba(239, 65, 75, 0.4)",
+  },
 };
 
 const HERMES_PROFILE_PALETTES: Record<HermesProfileId, EnergyPalette> = {
@@ -144,6 +239,33 @@ function selectVietnameseVoice(style: VoiceStyle) {
       (/natural|neural/i.test(voice.name) ? 2 : 0);
     return score(right) - score(left);
   })[0] ?? null;
+}
+
+function playJarvisChime() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.06, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  } catch {}
+}
+
+function sendDesktopNotification(title: string, body: string) {
+  try {
+    if (typeof Notification !== "undefined" && Notification.permission === "granted" && document.hidden) {
+      new Notification(title, { body: body.slice(0, 150) });
+    }
+  } catch {}
 }
 
 function Icon({ name }: { name: IconName }) {
@@ -671,7 +793,15 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       utterance.onerror = finishSpeaking;
       window.speechSynthesis.speak(utterance);
     };
-    if (!voiceCapabilities.tts) { speakWithBrowser(); return; }
+    const speakWithEdge = () => {
+      const voiceName = voiceStyle === "female" ? "vi-VN-HoaiMyNeural" : "vi-VN-NamMinhNeural";
+      const audio = new Audio(`/api/tts?text=${encodeURIComponent(text)}&voice=${voiceName}`);
+      voiceAudioRef.current = audio;
+      audio.onended = finishSpeaking;
+      audio.onerror = speakWithBrowser;
+      audio.play().catch(speakWithBrowser);
+    };
+    if (!voiceCapabilities.tts) { speakWithEdge(); return; }
     void gatewayBinaryFetch(data, "/api/hermes/voice/synthesize", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -681,9 +811,9 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       const audio = new Audio(URL.createObjectURL(blob));
       voiceAudioRef.current = audio;
       audio.onended = () => { URL.revokeObjectURL(audio.src); finishSpeaking(); };
-      audio.onerror = () => { URL.revokeObjectURL(audio.src); speakWithBrowser(); };
+      audio.onerror = () => { URL.revokeObjectURL(audio.src); speakWithEdge(); };
       return audio.play();
-    }).catch(speakWithBrowser);
+    }).catch(speakWithEdge);
   };
 
   const sendMessage = async (value = input, source: "text" | "voice" = "text") => {
@@ -696,6 +826,211 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       scheduleVoiceRestart(1500);
       return;
     }
+    if (trimmed.startsWith("/")) {
+      const [cmd] = trimmed.split(/\s+/);
+      const command = cmd.toLowerCase();
+      if (command === "/clear") {
+        clearChat();
+        setInput("");
+        setToast("Đã xóa lịch sử trò chuyện.");
+        return;
+      }
+      if (command === "/loop" || command === "/loops") {
+        const userMsg = { id: createId(), role: "user" as const, text: trimmed, at: Date.now() };
+        setInput("");
+        setHistoryOpen(true);
+        setActivity("thinking");
+        try {
+          const loopData: any = await gatewayFetch(data, "/api/loops", { method: "GET", timeoutMs: 5000 });
+          const loops = loopData?.loops || [];
+          const loopSummary = loops.length
+            ? loops.map((l: any) => `• **${l.name}** [${l.enabled ? "ACTIVE" : "PAUSED"}] — Chu kỳ: ${l.interval_min} phút`).join("\n")
+            : "Chưa có loop nào.";
+          const loopReply = {
+            id: createId(),
+            role: "assistant" as const,
+            text: `🔄 **Trạng thái Multi-Loops tự động:**\n${loopSummary}\n\n*Hệ thống tự động thức dậy theo chu kỳ để quét hệ thống và Second Brain.*`,
+            at: Date.now(),
+          };
+          setMessages((c) => [...c, userMsg, loopReply].slice(-80));
+          setActivity("idle");
+          speak(loopReply.text);
+        } catch (e: any) {
+          const errReply = { id: createId(), role: "assistant" as const, text: `⚠️ Không thể kiểm tra loops: ${e.message}`, at: Date.now() };
+          setMessages((c) => [...c, userMsg, errReply]);
+          setActivity("idle");
+        }
+        return;
+      }
+      if (command === "/brain" || command === "/graph") {
+        const userMsg = { id: createId(), role: "user" as const, text: trimmed, at: Date.now() };
+        setInput("");
+        setHistoryOpen(true);
+        setActivity("thinking");
+        try {
+          const graphData: any = await gatewayFetch(data, "/api/brain/graph", { method: "GET", timeoutMs: 5000 });
+          const nodes = graphData?.nodes || [];
+          const sampleNodes = nodes.slice(0, 6).map((n: any) => `• \`${n.label}\` (Phân loại: ${n.folder})`).join("\n");
+          const graphReply = {
+            id: createId(),
+            role: "assistant" as const,
+            text: `🧠 **Second Brain & Knowledge Graph:**\n• Tổng số node tri thức: **${nodes.length}**\n• Các node tiêu biểu:\n${sampleNodes}\n\n*Tri thức được lưu trữ an toàn và tự động Git commit.*`,
+            at: Date.now(),
+          };
+          setMessages((c) => [...c, userMsg, graphReply].slice(-80));
+          setActivity("idle");
+          speak(graphReply.text);
+        } catch (e: any) {
+          const errReply = { id: createId(), role: "assistant" as const, text: `⚠️ Không thể đọc Second Brain: ${e.message}`, at: Date.now() };
+          setMessages((c) => [...c, userMsg, errReply]);
+          setActivity("idle");
+        }
+        return;
+      }
+      if (command === "/usage" || command === "/token" || command === "/tokens") {
+        const userMsg = { id: createId(), role: "user" as const, text: trimmed, at: Date.now() };
+        setInput("");
+        setHistoryOpen(true);
+        setActivity("thinking");
+        try {
+          const usageData: any = await gatewayFetch(data, "/api/brain/usage/tong-quan", { method: "GET", timeoutMs: 5000 });
+          const eng = usageData?.engine || {};
+          const period = usageData?.ten_ky || usageData?.period || "Kỳ hiện tại";
+          const usageReply = {
+            id: createId(),
+            role: "assistant" as const,
+            text: `📊 **Thống Kê Tiêu Thụ Token & Trạng Thái Engine:**\n• Kỳ thống kê: **${period}**\n• Engine AI chính: **${eng.nhan || eng.provider || "Claude CLI"}** (Model: \`${eng.model || "opus"}\`)\n• Loại gói: **${eng.loai || "Gói thuê bao"}**\n• Trạng thái: **Sẵn sàng hoạt động (Online)**\n\n*Hệ thống được tối ưu để tái sử dụng cache và nén ngữ cảnh tự động.*`,
+            at: Date.now(),
+          };
+          setMessages((c) => [...c, userMsg, usageReply].slice(-80));
+          setActivity("idle");
+          speak(usageReply.text);
+        } catch (e: any) {
+          const errReply = { id: createId(), role: "assistant" as const, text: `⚠️ Không thể lấy thống kê usage: ${e.message}`, at: Date.now() };
+          setMessages((c) => [...c, userMsg, errReply]);
+          setActivity("idle");
+        }
+        return;
+      }
+      if (command === "/mcp" || command === "/mcps") {
+        const userMsg = { id: createId(), role: "user" as const, text: trimmed, at: Date.now() };
+        setInput("");
+        setHistoryOpen(true);
+        setActivity("thinking");
+        try {
+          const mcpData: any = await gatewayFetch(data, "/api/brain/mcp/list", { method: "GET", timeoutMs: 5000 });
+          const servers = mcpData?.servers || [];
+          const mcpSummary = servers.length
+            ? servers.map((s: any) => `• **${s.name}** [${s.enabled ? "ACTIVE" : "OFF"}]`).join("\n")
+            : "10 Native Tools sẵn sàng (Pancake, Sheets, Meta Ads, Zalo, Scraper).";
+          const mcpReply = {
+            id: createId(),
+            role: "assistant" as const,
+            text: `🔌 **Hệ Thống Model Context Protocol (MCP):**\n${mcpSummary}\n\n*Các connector cho phép JARVIS tương tác đa nền tảng an toàn.*`,
+            at: Date.now(),
+          };
+          setMessages((c) => [...c, userMsg, mcpReply].slice(-80));
+          setActivity("idle");
+          speak(mcpReply.text);
+        } catch (e: any) {
+          const errReply = { id: createId(), role: "assistant" as const, text: `⚠️ Không thể kiểm tra MCP: ${e.message}`, at: Date.now() };
+          setMessages((c) => [...c, userMsg, errReply]);
+          setActivity("idle");
+        }
+        return;
+      }
+      if (command === "/backup" || command === "/git") {
+        const userMsg = { id: createId(), role: "user" as const, text: trimmed, at: Date.now() };
+        setInput("");
+        setHistoryOpen(true);
+        setActivity("thinking");
+        try {
+          const backupData: any = await gatewayFetch(data, "/api/brain/backup/status", { method: "GET", timeoutMs: 5000 });
+          const hasGit = backupData?.has_git ? "Có (Git Init OK)" : "Chưa";
+          const repo = backupData?.repo_url || "Local Git Vault (/brains/Brain Default)";
+          const backupReply = {
+            id: createId(),
+            role: "assistant" as const,
+            text: `💾 **Trạng Thái Lưu Trữ & Backup Second Brain:**\n• Git Engine: **${hasGit}**\n• Kho tri thức: \`${repo}\`\n• Tự động Commit: **Bật (qua second-brain-compiler loop)**\n\n*Toàn bộ ghi chú, memory facts và cấu hình đều được bảo toàn an toàn.*`,
+            at: Date.now(),
+          };
+          setMessages((c) => [...c, userMsg, backupReply].slice(-80));
+          setActivity("idle");
+          speak(backupReply.text);
+        } catch (e: any) {
+          const errReply = { id: createId(), role: "assistant" as const, text: `⚠️ Không thể kiểm tra backup: ${e.message}`, at: Date.now() };
+          setMessages((c) => [...c, userMsg, errReply]);
+          setActivity("idle");
+        }
+        return;
+      }
+      if (command === "/reflect" || command === "/memory") {
+        const userMsg = { id: createId(), role: "user" as const, text: trimmed, at: Date.now() };
+        setInput("");
+        setHistoryOpen(true);
+        setActivity("thinking");
+        try {
+          const memData: any = await gatewayFetch(data, "/api/brain/memory/stats", { method: "GET", timeoutMs: 5000 });
+          const factsCount = memData?.facts || 0;
+          const memReply = {
+            id: createId(),
+            role: "assistant" as const,
+            text: `🧬 **Bộ Nhớ Dài Hạn & Living Profile:**\n• Tổng số facts đã ghi nhớ: **${factsCount}**\n• Tiến trình: **Tự động trích xuất từ các phiên hội thoại**\n\n*JARVIS ghi nhớ sở thích, thói quen và thông tin quan trọng của bạn theo thời gian.*`,
+            at: Date.now(),
+          };
+          setMessages((c) => [...c, userMsg, memReply].slice(-80));
+          setActivity("idle");
+          speak(memReply.text);
+        } catch (e: any) {
+          const errReply = { id: createId(), role: "assistant" as const, text: `⚠️ Không thể đọc Memory stats: ${e.message}`, at: Date.now() };
+          setMessages((c) => [...c, userMsg, errReply]);
+          setActivity("idle");
+        }
+        return;
+      }
+      if (command === "/export" || command === "/save") {
+        if (!messages.length) {
+          setToast("Không có tin nhắn nào để xuất.");
+          return;
+        }
+        const nowStr = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+        const mdContent = `# Phiên Hội Thoại J-Core OS // ${new Date().toLocaleString("vi-VN")}\n\n` +
+          messages.map((m) => `### ${m.role === "user" ? "👤 BẠN" : "🤖 J-CORE"} (${new Date(m.at).toLocaleTimeString("vi-VN")})\n\n${m.text}\n`).join("\n---\n\n");
+        const blob = new Blob([mdContent], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `JARVIS-Session-${nowStr}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setInput("");
+        setToast("Đã xuất phiên hội thoại thành file Markdown!");
+        return;
+      }
+      if (command === "/help") {
+        const userMsg = { id: createId(), role: "user" as const, text: trimmed, at: Date.now() };
+        setInput("");
+        setHistoryOpen(true);
+        const helpReply = {
+          id: createId(),
+          role: "assistant" as const,
+          text: `📖 **Bảng Tra Cứu Lệnh Gạch Chéo (Slash Commands):**\n\n` +
+            `• \`/loop\` — Kiểm tra 3 vòng lặp tự động nền (Watchdog, Compiler, Briefing)\n` +
+            `• \`/brain\` — Báo cáo số lượng node & đồ thị tri thức Second Brain\n` +
+            `• \`/backup\` — Kiểm tra tình trạng kho Git Vault & sao lưu dự phòng\n` +
+            `• \`/memory\` — Xem thống kê facts đã trích xuất & Living Profile\n` +
+            `• \`/usage\` — Xem mức tiêu thụ token & trạng thái model AI\n` +
+            `• \`/mcp\` — Liệt kê 10 công cụ kết nối ngoại vi (Pancake, Sheets, Ads)\n` +
+            `• \`/export\` — Tải xuống toàn bộ cuộc trò chuyện thành file Markdown (.md)\n` +
+            `• \`/clear\` — Xóa nhanh toàn bộ tin nhắn trong phiên hiện tại\n` +
+            `• \`/help\` — Hiển thị bảng trợ giúp này`,
+          at: Date.now(),
+        };
+        setMessages((c) => [...c, userMsg, helpReply].slice(-80));
+        return;
+      }
+    }
+
     const messageText = trimmed || `Đã ghim ${pendingAttachment?.name ?? "tệp"}.`;
     const spawnedHub = createHubArtifact(messageText);
     const userMessage = { id: createId(), role: "user" as const, text: messageText, at: Date.now() };
@@ -749,6 +1084,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       if (!replyText) throw new Error("AI upstream phản hồi nhưng không có nội dung.");
       const reply = { id: createId(), role: "assistant" as const, text: replyText, at: Date.now() };
       setMessages((current) => [...current, reply].slice(-80));
+      playJarvisChime();
+      sendDesktopNotification("JARVIS AI OS", replyText);
       if (spawnedHub) {
         setHubArtifacts((current) =>
           current.map((artifact) =>

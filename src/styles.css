@@ -2985,6 +2985,125 @@ body.hud-dragging {
   }
 }
 
+/* Stone Realm Tactical Topbar: unique identity per stone mode */
+.stone-realm-topbar {
+  pointer-events: auto;
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  right: 10px;
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 12px;
+  min-height: 34px;
+  background: rgba(4, 8, 12, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  backdrop-filter: blur(14px);
+  font-family: "JetBrains Mono", monospace;
+  transition: all 250ms ease;
+}
+
+.stone-realm-left,
+.stone-realm-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.stone-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  border: 1px solid;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.stone-icon {
+  font-style: normal;
+  font-size: 10px;
+}
+
+.stone-code {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+
+.stone-telemetry {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+}
+
+.stone-switcher-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stone-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.stone-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.stone-pill-btn.active {
+  font-weight: 900;
+}
+
+.stone-active-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.stone-active-label .pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: pulseDot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
+}
+
+@media (max-width: 900px) {
+  .stone-telemetry, .stone-code { display: none; }
+  .stone-realm-topbar { top: 4px; left: 6px; right: 6px; padding: 3px 8px; }
+  .stone-pill-btn b { display: none; }
+}
+
 /* J-Core OS: original cyber command desktop and window manager. */
 .os-taskbar {
   pointer-events: auto;
