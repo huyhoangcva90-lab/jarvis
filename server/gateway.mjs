@@ -1772,34 +1772,88 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/hermes/chat") {
       const body = await readJson(req);
-      if (!services.hermes.chat) {
-        return sendJson(req, res, 503, { error: "hermes_not_configured" });
+      let proxied = null;
+
+      if (services.hermes.chat && getCircuit("hermes").openUntil <= Date.now()) {
+        proxied = await proxyHermesChat(body, body.profile || HERMES_DEFAULT_PROFILE);
       }
 
-      const proxied = await proxyHermesChat(body, body.profile || HERMES_DEFAULT_PROFILE);
-      if (proxied.configError) {
+      // If Hermes returned a valid response, return it
+      if (proxied?.result?.ok) {
+        const { result, profile } = proxied;
+        recordUpstreamResult("hermes", result);
+        return sendJson(req, res, 200, {
+          reply: normalizeReply(result.data),
+          upstreamStatus: result.status,
+          raw: result.data,
+          source: "hermes",
+          profile,
+          session: {
+            mode: HERMES_SESSION_MODE,
+            continuity: Boolean(result.upstreamHeaders?.sessionId),
+            memoryScope: Boolean(result.upstreamHeaders?.sessionKey),
+            transcriptSource: HERMES_SESSION_MODE === "telegram" ? "telegram" : "web",
+          },
+        }, {
+          "x-jcore-upstream": "hermes",
+          "server-timing": `hermes;dur=${result.latencyMs}`,
+        });
+      }
+
+      // Fallback 1: 9Router
+      if (services.nineRouter.chat && getCircuit("nineRouter").openUntil <= Date.now()) {
+        const fallbackResult = await proxyJson(services.nineRouter.chat, toOpenAiPayload(body, services.nineRouter.model), services.nineRouter.apiKey);
+        recordUpstreamResult("nineRouter", fallbackResult);
+        if (fallbackResult.ok) {
+          return sendJson(req, res, 200, {
+            reply: normalizeReply(fallbackResult.data),
+            upstreamStatus: fallbackResult.status,
+            raw: fallbackResult.data,
+            source: "nineRouter",
+            profile: body.profile || "jarvis",
+          }, {
+            "x-jcore-upstream": "9router",
+            "server-timing": `9router;dur=${fallbackResult.latencyMs}`,
+          });
+        }
+      }
+
+      // Fallback 2: OpenClaw
+      if (services.openclaw.chat && getCircuit("openclaw").openUntil <= Date.now()) {
+        const fallbackResult = await proxyJson(services.openclaw.chat, toOpenAiPayload(body, "openclaw/default"), services.openclaw.apiKey);
+        recordUpstreamResult("openclaw", fallbackResult);
+        if (fallbackResult.ok) {
+          return sendJson(req, res, 200, {
+            reply: normalizeReply(fallbackResult.data),
+            upstreamStatus: fallbackResult.status,
+            raw: fallbackResult.data,
+            source: "openclaw",
+            profile: body.profile || "jarvis",
+          }, {
+            "x-jcore-upstream": "openclaw",
+            "server-timing": `openclaw;dur=${fallbackResult.latencyMs}`,
+          });
+        }
+      }
+
+      if (proxied?.configError) {
         return sendJson(req, res, proxied.status || 400, {
           error: proxied.configError,
           profile: proxied.profile || String(body.profile || ""),
         });
       }
-      const { result, profile } = proxied;
-      recordUpstreamResult("hermes", result);
-      return sendJson(req, res, result.ok ? 200 : 502, {
-        reply: normalizeReply(result.data),
-        upstreamStatus: result.status,
-        raw: result.data,
-        source: "hermes",
-        profile,
-        session: {
-          mode: HERMES_SESSION_MODE,
-          continuity: Boolean(result.upstreamHeaders?.sessionId),
-          memoryScope: Boolean(result.upstreamHeaders?.sessionKey),
-          transcriptSource: HERMES_SESSION_MODE === "telegram" ? "telegram" : "web",
-        },
-      }, {
-        "x-jcore-upstream": "hermes",
-        "server-timing": `hermes;dur=${result.latencyMs}`,
+
+      if (!services.hermes.chat && !services.nineRouter.chat && !services.openclaw.chat) {
+        return sendJson(req, res, 503, { error: "ai_not_configured" });
+      }
+
+      const failedResult = proxied?.result || { status: 502, data: { error: "upstream_offline" }, latencyMs: 0 };
+      recordUpstreamResult("hermes", failedResult);
+      return sendJson(req, res, 502, {
+        error: "all_ai_upstreams_failed",
+        message: "Hermes, 9Router và OpenClaw hiện không phản hồi.",
+        upstreamStatus: failedResult.status,
+        source: "gateway",
       });
     }
 

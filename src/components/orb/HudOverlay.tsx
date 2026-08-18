@@ -715,7 +715,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     requestControllerRef.current = controller;
 
     try {
-      const targetUrl = "/api/hermes/chat";
+      const targetUrl = "/api/ai/chat";
 
       const response: any = await gatewayFetch(
         data,
