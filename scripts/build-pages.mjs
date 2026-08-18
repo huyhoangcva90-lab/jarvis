@@ -267,11 +267,22 @@ function hideSpideyFooterBranding(html) {
   const script = `
 <script id="jcore-spidey-home-link">
   document.addEventListener("DOMContentLoaded", function () {
+    function goHome(e) {
+      if (e) e.preventDefault();
+      try {
+        var raw = localStorage.getItem("jarvis.commandOrb.v2");
+        var stored = raw ? JSON.parse(raw) : {};
+        stored.palette = "orange";
+        localStorage.setItem("jarvis.commandOrb.v2", JSON.stringify(stored));
+      } catch (err) {}
+      window.location.href = "../";
+    }
     if (!document.querySelector(".jcore-spidey-back-btn")) {
       var btn = document.createElement("a");
       btn.className = "jcore-spidey-back-btn";
       btn.href = "../";
       btn.innerHTML = "&#8592; QUAY LẠI J-CORE";
+      btn.addEventListener("click", goHome);
       document.body.appendChild(btn);
     }
     var logo = document.querySelector(".tracker-logo");
@@ -279,7 +290,6 @@ function hideSpideyFooterBranding(html) {
       logo.setAttribute("role", "link");
       logo.setAttribute("tabindex", "0");
       logo.setAttribute("aria-label", "Back to J-Core home");
-      function goHome() { window.location.href = "../"; }
       logo.addEventListener("click", goHome);
       logo.addEventListener("keydown", function (event) {
         if (event.key === "Enter" || event.key === " ") {

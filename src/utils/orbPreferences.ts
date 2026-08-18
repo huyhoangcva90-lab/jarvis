@@ -18,10 +18,34 @@ export function isEnergyPalette(value: unknown): value is EnergyPalette {
   return typeof value === "string" && ENERGY_PALETTE_SET.has(value);
 }
 
+const MODE_TO_PALETTE: Record<string, EnergyPalette> = {
+  soul: "orange",
+  mind: "gold",
+  power: "violet",
+  reality: "red",
+  time: "green",
+  space: "blue",
+  spider: "spider",
+};
+
 export function loadStoredEnergyPalette(): EnergyPalette {
   if (typeof window === "undefined") return "orange";
 
   try {
+    const params = new URLSearchParams(window.location.search);
+    const paramPalette = params.get("palette");
+    const paramMode = params.get("mode");
+
+    if (paramPalette && isEnergyPalette(paramPalette)) {
+      saveStoredEnergyPalette(paramPalette);
+      return paramPalette;
+    }
+    if (paramMode && MODE_TO_PALETTE[paramMode.toLowerCase()]) {
+      const p = MODE_TO_PALETTE[paramMode.toLowerCase()];
+      saveStoredEnergyPalette(p);
+      return p;
+    }
+
     const raw = window.localStorage.getItem(ORB_UI_STORAGE_KEY);
     if (!raw) return "orange";
     const stored = JSON.parse(raw) as { palette?: unknown };

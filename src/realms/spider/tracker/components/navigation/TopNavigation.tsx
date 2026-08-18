@@ -36,6 +36,11 @@ export const TopNavigation: React.FC = () => {
   };
 
   const goHome = () => {
+    try {
+      const raw = localStorage.getItem('jarvis.commandOrb.v2');
+      const stored = raw ? JSON.parse(raw) : {};
+      localStorage.setItem('jarvis.commandOrb.v2', JSON.stringify({ ...stored, palette: 'orange' }));
+    } catch {}
     window.location.href = './';
   };
 

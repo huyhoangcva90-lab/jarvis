@@ -1442,7 +1442,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         messages={messages}
         isSending={isSending}
         onAskEv={(prompt) => void sendMessage(prompt)}
-        onExit={() => onPaletteChange("gold")}
+        onExit={() => onPaletteChange("orange")}
         onResetView={onResetView}
       />
     );
