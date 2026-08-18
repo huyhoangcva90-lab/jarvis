@@ -538,6 +538,9 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [gatewayTestMessage, setGatewayTestMessage] = useState("");
   const [gatewayHealth, setGatewayHealth] = useState<any>(null);
   const [nativeDashboards, setNativeDashboards] = useState<NativeDashboards | null>(null);
+  const [agentsTab, setAgentsTab] = useState<"gui" | "config">("gui");
+  const [routerTab, setRouterTab] = useState<"gui" | "config">("gui");
+  const [hermesTab, setHermesTab] = useState<"gui" | "service" | "config">("gui");
   const [selectedHermesProfileId, setSelectedHermesProfileId] = useState<HermesProfileId>(() => {
     const configured = data?.ai?.hermesProfile;
     return configured ? configured as HermesProfileId : loadStoredHermesProfileId();
@@ -1770,15 +1773,34 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setAgentsOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setAgentsMinimized(true)}
         >
-          <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
-            <div className="flex items-center justify-between bg-zinc-900/80 p-3 rounded-lg border border-purple-500/30">
-              <div className="flex items-center gap-2">
-                <span className={`h-2.5 w-2.5 rounded-full ${connections.openclaw ? "bg-emerald-400 animate-pulse" : "bg-rose-500"}`} />
-                <span className="font-bold text-purple-300">OPENCLAW RUNTIME: {connections.openclaw ? "ONLINE (HTTP 200)" : "DISCONNECTED"}</span>
-              </div>
-              <span className="text-[10px] text-zinc-400">PORT 18789 // LOCAL ENGINE</span>
+          <div className="flex flex-col h-full">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/90 border-b border-zinc-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setAgentsTab("gui")}
+                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${agentsTab === "gui" ? "bg-purple-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
+              >
+                🖥️ Dashboard Web GUI
+              </button>
+              <button
+                type="button"
+                onClick={() => setAgentsTab("config")}
+                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${agentsTab === "config" ? "bg-purple-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
+              >
+                ⚙️ Cấu hình JSON
+              </button>
             </div>
-            <AppConfigEditor data={data} service="openclaw" />
+            {agentsTab === "gui" ? (
+              <NativeDashboardFrame
+                label="OpenClaw Control UI"
+                url={nativeDashboards?.openclaw || ""}
+                online={connections.openclaw}
+              />
+            ) : (
+              <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
+                <AppConfigEditor data={data} service="openclaw" />
+              </div>
+            )}
           </div>
         </OsWindow>
       )}
@@ -1795,15 +1817,34 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setRouterOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setRouterMinimized(true)}
         >
-          <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
-            <div className="flex items-center justify-between bg-zinc-900/80 p-3 rounded-lg border border-blue-500/30">
-              <div className="flex items-center gap-2">
-                <span className={`h-2.5 w-2.5 rounded-full ${connections.nineRouter ? "bg-emerald-400 animate-pulse" : "bg-rose-500"}`} />
-                <span className="font-bold text-blue-300">9ROUTER ENGINE: {connections.nineRouter ? "ONLINE (HTTP 200)" : "DISCONNECTED"}</span>
-              </div>
-              <span className="text-[10px] text-zinc-400">ACTIVE MODEL: {nineRouterModel}</span>
+          <div className="flex flex-col h-full">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/90 border-b border-zinc-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setRouterTab("gui")}
+                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${routerTab === "gui" ? "bg-blue-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
+              >
+                🖥️ Dashboard Web GUI
+              </button>
+              <button
+                type="button"
+                onClick={() => setRouterTab("config")}
+                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${routerTab === "config" ? "bg-blue-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
+              >
+                ⚙️ Cấu hình JSON
+              </button>
             </div>
-            <AppConfigEditor data={data} service="9router" />
+            {routerTab === "gui" ? (
+              <NativeDashboardFrame
+                label="9Router Admin"
+                url={nativeDashboards?.nineRouter || ""}
+                online={connections.nineRouter}
+              />
+            ) : (
+              <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
+                <AppConfigEditor data={data} service="9router" />
+              </div>
+            )}
           </div>
         </OsWindow>
       )}
@@ -1820,25 +1861,62 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setHermesOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setHermesMinimized(true)}
         >
-          <ServiceDashboard
-            data={data}
-            label="Hermes"
-            description="Lõi điều phối tác nhân và trí tuệ ngữ cảnh"
-            online={connections.hermes}
-            state={servicePanels.hermes.state}
-            health={connections.services?.hermes}
-            overview={servicePanels.hermes.overview}
-            error={servicePanels.hermes.error}
-            prompt={servicePanels.hermes.prompt}
-            reply={servicePanels.hermes.reply}
-            sending={servicePanels.hermes.sending}
-            selectedProfileId={selectedHermesProfileId}
-            profiles={hermesProfiles}
-            onSelectProfile={selectHermesProfile}
-            onPromptChange={(prompt) => updateServicePanel("hermes", { prompt })}
-            onRefresh={() => void refreshServicePanel("hermes")}
-            onSubmit={() => void testServicePanel("hermes")}
-          />
+          <div className="flex flex-col h-full">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/90 border-b border-zinc-800 text-xs">
+              <button
+                type="button"
+                onClick={() => setHermesTab("gui")}
+                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${hermesTab === "gui" ? "bg-amber-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
+              >
+                🖥️ Dashboard Web GUI
+              </button>
+              <button
+                type="button"
+                onClick={() => setHermesTab("service")}
+                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${hermesTab === "service" ? "bg-amber-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
+              >
+                🎭 Profile & Diagnostics
+              </button>
+              <button
+                type="button"
+                onClick={() => setHermesTab("config")}
+                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${hermesTab === "config" ? "bg-amber-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
+              >
+                ⚙️ Cấu hình JSON
+              </button>
+            </div>
+            {hermesTab === "gui" ? (
+              <NativeDashboardFrame
+                label="Hermes Dashboard"
+                url={nativeDashboards?.hermes || ""}
+                online={connections.hermes}
+              />
+            ) : hermesTab === "service" ? (
+              <ServiceDashboard
+                data={data}
+                label="Hermes"
+                description="Lõi điều phối tác nhân và trí tuệ ngữ cảnh"
+                online={connections.hermes}
+                state={servicePanels.hermes.state}
+                health={connections.services?.hermes}
+                overview={servicePanels.hermes.overview}
+                error={servicePanels.hermes.error}
+                prompt={servicePanels.hermes.prompt}
+                reply={servicePanels.hermes.reply}
+                sending={servicePanels.hermes.sending}
+                selectedProfileId={selectedHermesProfileId}
+                profiles={hermesProfiles}
+                onSelectProfile={selectHermesProfile}
+                onPromptChange={(prompt) => updateServicePanel("hermes", { prompt })}
+                onRefresh={() => void refreshServicePanel("hermes")}
+                onSubmit={() => void testServicePanel("hermes")}
+              />
+            ) : (
+              <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
+                <AppConfigEditor data={data} service="hermes" />
+              </div>
+            )}
+          </div>
         </OsWindow>
       )}
 

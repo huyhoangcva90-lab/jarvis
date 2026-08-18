@@ -1059,6 +1059,43 @@ function proxyNineRouter(req, res) {
   });
 }
 
+function proxyHttpDashboard(req, res, targetPort, stripPrefix = "") {
+  return new Promise((resolve) => {
+    const upstreamUrl = req.url.replace(stripPrefix, "") || "/";
+    const headers = { ...req.headers, host: `127.0.0.1:${targetPort}` };
+    delete headers.authorization;
+    delete headers["x-forwarded-host"];
+    delete headers["x-forwarded-proto"];
+
+    const upstream = httpRequest({
+      protocol: "http:",
+      hostname: "127.0.0.1",
+      port: targetPort,
+      method: req.method,
+      path: upstreamUrl,
+      headers,
+    }, (upstreamResponse) => {
+      const responseHeaders = { ...upstreamResponse.headers };
+      delete responseHeaders["x-frame-options"];
+      delete responseHeaders["content-security-policy"];
+      responseHeaders["cache-control"] = responseHeaders["cache-control"] || "no-store";
+      res.writeHead(upstreamResponse.statusCode || 200, responseHeaders);
+      upstreamResponse.pipe(res);
+      upstreamResponse.on("end", resolve);
+    });
+
+    upstream.on("error", () => {
+      if (!res.headersSent) {
+        sendJson(req, res, 502, { error: "upstream_dashboard_offline" });
+      } else {
+        res.end();
+      }
+      resolve();
+    });
+    req.pipe(upstream);
+  });
+}
+
 function nativeDashboardUrl(req, port, pathname = "/") {
   const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
   const protocol = forwardedProto || (req.socket.encrypted ? "https" : "http");
@@ -1521,12 +1558,22 @@ const server = createServer(async (req, res) => {
       return sendJson(req, res, 401, { error: "unauthorized" });
     }
 
+    if (url.pathname.startsWith("/api/proxy/9router")) {
+      return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.nineRouter, "/api/proxy/9router");
+    }
+    if (url.pathname.startsWith("/api/proxy/openclaw")) {
+      return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.openclaw, "/api/proxy/openclaw");
+    }
+    if (url.pathname.startsWith("/api/proxy/hermes")) {
+      return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.hermes, "/api/proxy/hermes");
+    }
+
     if (req.method === "GET" && url.pathname === "/api/native-dashboards") {
       return sendJson(req, res, 200, {
         dashboards: {
-          hermes: nativeDashboardUrl(req, NATIVE_DASHBOARD_PORTS.hermes),
-          openclaw: nativeDashboardUrl(req, NATIVE_DASHBOARD_PORTS.openclaw),
-          nineRouter: nativeDashboardUrl(req, NATIVE_DASHBOARD_PORTS.nineRouter, "/dashboard"),
+          hermes: "/api/proxy/hermes/",
+          openclaw: "/api/proxy/openclaw/",
+          nineRouter: "/api/proxy/9router/dashboard",
         },
       });
     }
