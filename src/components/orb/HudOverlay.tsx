@@ -4,6 +4,7 @@ import { gatewayBinaryFetch, gatewayFetch, getGatewayConfig, getGatewayReply } f
 import { useStoneState } from "../../utils/stoneState.jsx";
 import { ORB_UI_STORAGE_KEY } from "../../utils/orbPreferences";
 import { DEFAULT_NINEROUTER_MODEL, NINEROUTER_MODELS, getNineRouterModel } from "../../utils/nineRouterModels.js";
+import AppConfigEditor from "./AppConfigEditor";
 import DynamicHub from "./DynamicHub";
 import ServiceDashboard from "./ServiceDashboard";
 import ObsidianVaultPanel from "./ObsidianVaultPanel";
@@ -1759,7 +1760,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
       {agentsOpen && (
         <OsWindow
-          title="Agent Matrix & OpenClaw Console"
+          title="OpenClaw Control & Agent Matrix"
           code="PWR://OPENCLAW"
           drag={agentsDrag}
           minimized={agentsMinimized}
@@ -1769,17 +1770,22 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setAgentsOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setAgentsMinimized(true)}
         >
-          <NativeDashboardFrame
-            label="OpenClaw Control UI"
-            url={nativeDashboards?.openclaw || ""}
-            online={connections.openclaw}
-          />
+          <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
+            <div className="flex items-center justify-between bg-zinc-900/80 p-3 rounded-lg border border-purple-500/30">
+              <div className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${connections.openclaw ? "bg-emerald-400 animate-pulse" : "bg-rose-500"}`} />
+                <span className="font-bold text-purple-300">OPENCLAW RUNTIME: {connections.openclaw ? "ONLINE (HTTP 200)" : "DISCONNECTED"}</span>
+              </div>
+              <span className="text-[10px] text-zinc-400">PORT 18789 // LOCAL ENGINE</span>
+            </div>
+            <AppConfigEditor data={data} service="openclaw" />
+          </div>
         </OsWindow>
       )}
 
       {routerOpen && (
         <OsWindow
-          title="9Router Config & Provider Control"
+          title="9Router Model & Provider Control"
           code="SPC://9ROUTER-ADMIN"
           drag={routerDrag}
           minimized={routerMinimized}
@@ -1789,17 +1795,22 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setRouterOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setRouterMinimized(true)}
         >
-          <NativeDashboardFrame
-            label="9Router Admin"
-            url={nativeDashboards?.nineRouter || ""}
-            online={connections.nineRouter}
-          />
+          <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
+            <div className="flex items-center justify-between bg-zinc-900/80 p-3 rounded-lg border border-blue-500/30">
+              <div className="flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${connections.nineRouter ? "bg-emerald-400 animate-pulse" : "bg-rose-500"}`} />
+                <span className="font-bold text-blue-300">9ROUTER ENGINE: {connections.nineRouter ? "ONLINE (HTTP 200)" : "DISCONNECTED"}</span>
+              </div>
+              <span className="text-[10px] text-zinc-400">ACTIVE MODEL: {nineRouterModel}</span>
+            </div>
+            <AppConfigEditor data={data} service="9router" />
+          </div>
         </OsWindow>
       )}
 
       {hermesOpen && (
         <OsWindow
-          title="Hermes Core"
+          title="Hermes Core & Profiles"
           code="AI://HERMES"
           drag={hermesDrag}
           minimized={hermesMinimized}
@@ -1809,10 +1820,24 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setHermesOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setHermesMinimized(true)}
         >
-          <NativeDashboardFrame
-            label="Hermes Dashboard"
-            url={nativeDashboards?.hermes || ""}
+          <ServiceDashboard
+            data={data}
+            label="Hermes"
+            description="Lõi điều phối tác nhân và trí tuệ ngữ cảnh"
             online={connections.hermes}
+            state={servicePanels.hermes.state}
+            health={connections.services?.hermes}
+            overview={servicePanels.hermes.overview}
+            error={servicePanels.hermes.error}
+            prompt={servicePanels.hermes.prompt}
+            reply={servicePanels.hermes.reply}
+            sending={servicePanels.hermes.sending}
+            selectedProfileId={selectedHermesProfileId}
+            profiles={hermesProfiles}
+            onSelectProfile={selectHermesProfile}
+            onPromptChange={(prompt) => updateServicePanel("hermes", { prompt })}
+            onRefresh={() => void refreshServicePanel("hermes")}
+            onSubmit={() => void testServicePanel("hermes")}
           />
         </OsWindow>
       )}
