@@ -51,7 +51,7 @@ export const defaultData = {
     hermesProfile: 'jarvis',
   },
   auth: {
-    loginEnabled: true,
+    loginEnabled: false,
     username: 'admin',
     password: '123456',
   },

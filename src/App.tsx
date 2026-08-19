@@ -14,11 +14,11 @@ export type { EnergyPalette } from "./utils/orbPreferences";
 const SESSION_CHECK_TIMEOUT_MS = 1800;
 
 export default function App() {
-  const [booting, setBooting] = useState(true);
+  const [booting, setBooting] = useState(false);
   const [data, setData] = useState(() => loadData());
   const [now, setNow] = useState(() => new Date());
-  const [authenticated, setAuthenticated] = useState(() => data.auth?.loginEnabled === false);
-  const [authChecking, setAuthChecking] = useState(() => data.auth?.loginEnabled !== false);
+  const [authenticated, setAuthenticated] = useState(true);
+  const [authChecking, setAuthChecking] = useState(false);
   const [activity, setActivity] = useState<AiActivity>("idle");
   const [energyPalette, setEnergyPalette] = useState<EnergyPalette>(loadStoredEnergyPalette);
   const [resetViewSignal, setResetViewSignal] = useState(0);
@@ -27,10 +27,8 @@ export default function App() {
   const previousPaletteRef = useRef<EnergyPalette>(energyPalette);
 
   useEffect(() => {
-    const bootTimer = window.setTimeout(() => setBooting(false), 2000);
     const clockTimer = window.setInterval(() => setNow(new Date()), 1000);
     return () => {
-      window.clearTimeout(bootTimer);
       window.clearInterval(clockTimer);
     };
   }, []);
