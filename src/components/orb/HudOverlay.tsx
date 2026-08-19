@@ -675,8 +675,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     )
   );
   const [activeHubId, setActiveHubId] = useState<string | null>(() => initial?.activeHubId ?? initial?.hubArtifacts?.[0]?.id ?? null);
-  const [activeWindow, setActiveWindow] = useState("chat");
-  const [intelMode, setIntelMode] = useState<"youtube" | "docs" | "files" | "obsidian">("youtube");
+  const [intelMode, setIntelMode] = useState<"obsidian" | "docs" | "files">("obsidian");
   const [selectedIntelDocument, setSelectedIntelDocument] = useState("gateway");
   const [youtubeDraft, setYoutubeDraft] = useState("https://www.youtube.com/watch?v=ciNHn38EyRc");
   const [youtubeVideoId, setYoutubeVideoId] = useState("ciNHn38EyRc");
@@ -2392,99 +2391,39 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 <button
                   type="button"
                   role="tab"
-                  aria-label="YouTube"
-                  aria-selected={intelMode === "youtube"}
-                  className={intelMode === "youtube" ? "active" : ""}
-                  onClick={() => setIntelMode("youtube")}
-                >
-                  <Icon name="media" /><span>YouTube</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-label="Tài liệu"
-                  aria-selected={intelMode === "docs"}
-                  className={intelMode === "docs" ? "active" : ""}
-                  onClick={() => setIntelMode("docs")}
-                >
-                  <Icon name="document" /><span>Tài liệu</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-label="Ubuntu Files"
-                  aria-selected={intelMode === "files"}
-                  className={intelMode === "files" ? "active" : ""}
-                  onClick={() => setIntelMode("files")}
-                >
-                  <Icon name="terminal" /><span>Ubuntu Files</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-label="Obsidian Vault"
+                  aria-label="Second Brain & Cloud Vault"
                   aria-selected={intelMode === "obsidian"}
                   className={intelMode === "obsidian" ? "active" : ""}
                   onClick={() => setIntelMode("obsidian")}
                 >
-                  <Icon name="document" /><span>Obsidian</span>
+                  <Icon name="document" /><span>🧠 Second Brain & Cloud Vault</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-label="Wiki & Tài liệu"
+                  aria-selected={intelMode === "docs"}
+                  className={intelMode === "docs" ? "active" : ""}
+                  onClick={() => setIntelMode("docs")}
+                >
+                  <Icon name="media" /><span>📚 Wiki & Tài Liệu</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-label="Ubuntu File Explorer"
+                  aria-selected={intelMode === "files"}
+                  className={intelMode === "files" ? "active" : ""}
+                  onClick={() => setIntelMode("files")}
+                >
+                  <Icon name="terminal" /><span>🗂️ Ubuntu Files</span>
                 </button>
               </div>
-              <div className="intel-secure-status"><i /><span>ISOLATED VIEWER</span></div>
+              <div className="intel-secure-status"><i /><span>SECURE VAULT</span></div>
             </header>
 
-            {intelMode === "youtube" ? (
-              <section className="intel-youtube" role="tabpanel" aria-label="YouTube viewer">
-                <form className="intel-address-bar" onSubmit={loadYouTubeVideo}>
-                  <label htmlFor="intel-youtube-url">YouTube URL / video ID</label>
-                  <div>
-                    <span>HTTPS://</span>
-                    <input
-                      id="intel-youtube-url"
-                      value={youtubeDraft}
-                      onChange={(event) => {
-                        setYoutubeDraft(event.target.value);
-                        if (youtubeError) setYoutubeError("");
-                      }}
-                      inputMode="url"
-                      autoComplete="off"
-                      spellCheck={false}
-                    />
-                    <button type="submit">LOAD</button>
-                  </div>
-                  {youtubeError && <p role="alert">{youtubeError}</p>}
-                </form>
-
-                <div className="intel-video-frame">
-                  <div className="intel-frame-label"><span>LIVE MEDIA FEED</span><b>ID::{youtubeVideoId}</b></div>
-                  <iframe
-                    key={youtubeVideoId}
-                    src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId}?rel=0`}
-                    title="J-Core YouTube viewer"
-                    loading="lazy"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
-                </div>
-
-                <div className="intel-video-queries" aria-label="Tìm nhanh trên YouTube">
-                  <span>SEARCH CHANNELS</span>
-                  {[
-                    ["Ethical hacking", "ethical+hacking+fundamentals"],
-                    ["Network defense", "network+defense+fundamentals"],
-                    ["AI security", "AI+security+fundamentals"],
-                  ].map(([label, query]) => (
-                    <button
-                      type="button"
-                      key={label}
-                      onClick={() => window.open(`https://www.youtube.com/results?search_query=${query}`, "_blank", "noopener,noreferrer")}
-                    >
-                      <Icon name="external" /><span>{label}</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
+            {intelMode === "obsidian" ? (
+              <ObsidianVaultPanel data={data} />
             ) : intelMode === "docs" ? (
               <section className="intel-docs" role="tabpanel" aria-label="Tài liệu nội bộ">
                 <nav className="intel-doc-index" aria-label="Chỉ mục tài liệu">
@@ -2520,10 +2459,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                   <footer>J-CORE KNOWLEDGE NODE // READ-ONLY // LOCAL CACHE</footer>
                 </article>
               </section>
-            ) : intelMode === "files" ? (
-              <UbuntuWorkspace />
             ) : (
-              <ObsidianVaultPanel data={data} />
+              <UbuntuWorkspace />
             )}
           </div>
         </OsWindow>
