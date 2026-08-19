@@ -635,6 +635,37 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [brainUsageData, setBrainUsageData] = useState<any>(null);
   const [brainProvidersData, setBrainProvidersData] = useState<any>(null);
   const [brainLoading, setBrainLoading] = useState(false);
+  const [modelSettings, setModelSettings] = useState({
+    openai_key: "",
+    anthropic_key: "",
+    gemini_key: "",
+    groq_key: "",
+    openrouter_key: "",
+    default_model: "claude-3-7-sonnet",
+    system_prompt: "Bạn là JARVIS, trợ lý AI thông minh, đắc lực và trung thành.",
+  });
+  const [editingFileSlug, setEditingFileSlug] = useState<string>("CLAUDE.md");
+  const [editingFileContent, setEditingFileContent] = useState<string>(
+    "# CẤU HÌNH BRAIN VAULT\n\n- Tên hệ thống: JARVIS Personal AI OS\n- Vault: Brain Default\n- Quản trị viên: Operator\n- Mô hình phục vụ: Multi-Agent Matrix\n"
+  );
+  const [telegramSettings, setTelegramSettings] = useState({
+    bot_token: "",
+    chat_id: "",
+    enabled: true,
+  });
+  const [connectorConfigs, setConnectorConfigs] = useState<Record<string, { enabled: boolean; key: string }>>({
+    "datetime-vn": { enabled: true, key: "" },
+    "image-chatgpt": { enabled: true, key: "" },
+    "javis-schedule": { enabled: true, key: "" },
+    "javis-task": { enabled: true, key: "" },
+    "meta-ads-graph": { enabled: false, key: "" },
+    "meta-pages-graph": { enabled: false, key: "" },
+    "fb-monitor-apify": { enabled: false, key: "" },
+    "zalo-image": { enabled: true, key: "" },
+    "javis-connect": { enabled: true, key: "" },
+    "tool-audit": { enabled: true, key: "" },
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
   const [focusedDashboard, setFocusedDashboard] = useState<DashboardId | null>(null);
   const [hubArtifacts, setHubArtifacts] = useState<HubArtifact[]>(() =>
     (initial?.hubArtifacts ?? []).map((artifact) =>
@@ -2627,7 +2658,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               {brainHubTab === "mcp" && (
                 <div className="brain-hub-tab-pane">
                   <div className="brain-hub-pane-desc">
-                    <b>KHO PLUGIN & MODEL CONTEXT PROTOCOL (MCP)</b>
+                    <b>KHO PLUGIN & MODEL CONTEXT PROTOCOL (MCP) // BẬT/TẮT ONLINE</b>
                     <p>10 công cụ kết nối ngoại vi cho phép JARVIS tương tác đa nền tảng an toàn.</p>
                   </div>
                   <div className="brain-hub-card-grid">
@@ -2642,56 +2673,140 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                       { id: "zalo-image", name: "Gửi Ảnh Zalo Tự Động", desc: "Đẩy ảnh chụp màn hình và tài liệu qua Zalo cá nhân." },
                       { id: "javis-connect", name: "MCP Coordinator Hub", desc: "Hub điều phối kết nối với Google Sheets, Pancake, CRM." },
                       { id: "tool-audit", name: "Kiểm Toán An Toàn Công Cụ", desc: "Ghi log và kiểm toán mọi lệnh thực thi của Agent." },
-                    ].map((plugin) => (
-                      <div key={plugin.id} className="brain-hub-card">
-                        <div className="brain-hub-card-head">
-                          <div className="brain-hub-card-title">
-                            <span className="plugin-icon">🔌</span>
-                            <b>{plugin.name}</b>
+                    ].map((plugin) => {
+                      const isEnabled = connectorConfigs[plugin.id]?.enabled ?? true;
+                      return (
+                        <div key={plugin.id} className="brain-hub-card">
+                          <div className="brain-hub-card-head">
+                            <div className="brain-hub-card-title">
+                              <span className="plugin-icon">🔌</span>
+                              <b>{plugin.name}</b>
+                            </div>
+                            <button
+                              type="button"
+                              className={`brain-hub-badge ${isEnabled ? "active" : "idle"}`}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => {
+                                setConnectorConfigs((prev) => ({
+                                  ...prev,
+                                  [plugin.id]: { enabled: !isEnabled, key: prev[plugin.id]?.key || "" },
+                                }));
+                                setToast(`Đã ${!isEnabled ? "bật" : "tắt"} plugin ${plugin.name}`);
+                              }}
+                            >
+                              {isEnabled ? "ĐANG BẬT" : "ĐÃ TẮT"}
+                            </button>
                           </div>
-                          <span className="brain-hub-badge active">SẴN SÀNG</span>
+                          <p className="brain-hub-card-desc">{plugin.desc}</p>
+                          <div className="brain-hub-card-meta">
+                            <code>plugin://{plugin.id}</code>
+                          </div>
                         </div>
-                        <p className="brain-hub-card-desc">{plugin.desc}</p>
-                        <div className="brain-hub-card-meta">
-                          <code>plugin://{plugin.id}</code>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* Tab 3: Providers */}
+              {/* Tab 3: Providers & API Keys Online Editor */}
               {brainHubTab === "providers" && (
                 <div className="brain-hub-tab-pane">
                   <div className="brain-hub-pane-desc">
-                    <b>CÁC BỘ NÃO AI ĐANG KẾT NỐI (AI PROVIDERS & ENGINES)</b>
-                    <p>Giám sát các engine CLI và dịch vụ AI thượng nguồn đang phục vụ JARVIS.</p>
+                    <b>CẤU HÌNH BỘ NÃO AI & NHẬP API KEYS ONLINE</b>
+                    <p>Nhập và lưu trực tiếp các API Keys của nhà cung cấp AI hoặc chọn Model AI mặc định.</p>
                   </div>
-                  <div className="brain-hub-card-grid">
-                    {[
-                      { id: "claude-cli", name: "Anthropic Claude Code CLI", model: "Claude 3.7 Sonnet / Opus", type: "Subscription OAuth", status: "ONLINE" },
-                      { id: "openai-codex", name: "OpenAI Codex CLI", model: "GPT-4o / Codex", type: "API Key / OAuth", status: "ONLINE" },
-                      { id: "gemini-cli", name: "Google Gemini CLI", model: "Gemini 2.0 Flash / Pro", type: "Google Cloud CLI", status: "ONLINE" },
-                      { id: "groq-stt", name: "Groq Whisper Engine", model: "whisper-large-v3-turbo", type: "Ultra-fast Audio STT", status: "ONLINE" },
-                      { id: "edge-tts", name: "Microsoft Edge Neural TTS", model: "vi-VN-HoaiMyNeural / NamMinh", type: "Free Neural Voice", status: "ONLINE" },
-                      { id: "ollama-local", name: "Ollama Local Engine", model: "DeepSeek R1 / Llama 3", type: "Local Offline GPU", status: "READY" },
-                    ].map((p) => (
-                      <div key={p.id} className="brain-hub-card">
-                        <div className="brain-hub-card-head">
-                          <div className="brain-hub-card-title">
-                            <span className="prov-icon">🤖</span>
-                            <b>{p.name}</b>
-                          </div>
-                          <span className="brain-hub-badge active">{p.status}</span>
-                        </div>
-                        <p className="brain-hub-card-desc">Model: <b>{p.model}</b><br />Loại xác thực: {p.type}</p>
-                        <div className="brain-hub-card-meta">
-                          <span>Độ trễ: &lt; 250ms</span>
-                        </div>
+                  <form
+                    className="brain-hub-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      setSavingSettings(true);
+                      setTimeout(() => {
+                        setSavingSettings(false);
+                        setToast("Đã lưu cấu hình Model AI & API Keys thành công!");
+                      }, 400);
+                    }}
+                  >
+                    <div className="brain-form-row">
+                      <label htmlFor="cfg-default-model">MÔ HÌNH AI CHÍNH (DEFAULT MODEL)</label>
+                      <select
+                        id="cfg-default-model"
+                        className="brain-form-input"
+                        value={modelSettings.default_model}
+                        onChange={(e) => setModelSettings({ ...modelSettings, default_model: e.target.value })}
+                      >
+                        <option value="claude-3-7-sonnet">Anthropic Claude 3.7 Sonnet (Mặc định - Thông minh nhất)</option>
+                        <option value="claude-3-5-opus">Anthropic Claude 3.5 Opus (Chuyên sâu & Kiến trúc)</option>
+                        <option value="gpt-4o">OpenAI GPT-4o (Đa phương tiện & Xử lý nhanh)</option>
+                        <option value="gemini-2.0-flash">Google Gemini 2.0 Flash (Tìm kiếm & Tốc độ cao)</option>
+                        <option value="deepseek-r1">DeepSeek R1 (Suy luận logic & Code)</option>
+                        <option value="ollama-local">Ollama Local GPU (Offline - Bảo mật tuyệt đối)</option>
+                      </select>
+                    </div>
+
+                    <div className="brain-form-grid">
+                      <div className="brain-form-row">
+                        <label htmlFor="cfg-openai">OPENAI API KEY</label>
+                        <input
+                          id="cfg-openai"
+                          type="password"
+                          className="brain-form-input"
+                          placeholder="sk-proj-..."
+                          value={modelSettings.openai_key}
+                          onChange={(e) => setModelSettings({ ...modelSettings, openai_key: e.target.value })}
+                        />
                       </div>
-                    ))}
-                  </div>
+                      <div className="brain-form-row">
+                        <label htmlFor="cfg-anthropic">ANTHROPIC API KEY</label>
+                        <input
+                          id="cfg-anthropic"
+                          type="password"
+                          className="brain-form-input"
+                          placeholder="sk-ant-..."
+                          value={modelSettings.anthropic_key}
+                          onChange={(e) => setModelSettings({ ...modelSettings, anthropic_key: e.target.value })}
+                        />
+                      </div>
+                      <div className="brain-form-row">
+                        <label htmlFor="cfg-gemini">GOOGLE GEMINI API KEY</label>
+                        <input
+                          id="cfg-gemini"
+                          type="password"
+                          className="brain-form-input"
+                          placeholder="AIzaSy..."
+                          value={modelSettings.gemini_key}
+                          onChange={(e) => setModelSettings({ ...modelSettings, gemini_key: e.target.value })}
+                        />
+                      </div>
+                      <div className="brain-form-row">
+                        <label htmlFor="cfg-groq">GROQ API KEY (WHISPER STT)</label>
+                        <input
+                          id="cfg-groq"
+                          type="password"
+                          className="brain-form-input"
+                          placeholder="gsk_..."
+                          value={modelSettings.groq_key}
+                          onChange={(e) => setModelSettings({ ...modelSettings, groq_key: e.target.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="brain-form-row">
+                      <label htmlFor="cfg-prompt">SYSTEM PROMPT / TÍNH CÁCH CỦA JARVIS</label>
+                      <textarea
+                        id="cfg-prompt"
+                        rows={3}
+                        className="brain-form-textarea"
+                        value={modelSettings.system_prompt}
+                        onChange={(e) => setModelSettings({ ...modelSettings, system_prompt: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="brain-form-actions">
+                      <button type="submit" className="brain-hub-submit-btn" disabled={savingSettings}>
+                        {savingSettings ? "ĐANG LƯU..." : "💾 LƯU CẤU HÌNH AI & API KEYS"}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               )}
 
@@ -2708,7 +2823,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                         <b>KỲ HIỆN TẠI</b>
                         <span className="brain-hub-badge active">THÁNG NÀY</span>
                       </div>
-                      <p className="brain-hub-card-desc">Engine chính: <b>Claude Code CLI (Opus)</b><br />Chế độ: Gói thuê bao (Không giới hạn theo lượt)</p>
+                      <p className="brain-hub-card-desc">Engine chính: <b>{modelSettings.default_model}</b><br />Chế độ: Gói thuê bao (Không giới hạn theo lượt)</p>
                       <div className="brain-hub-card-meta">
                         <span>Tự động tối ưu Cache: <b>BẬT</b></span>
                       </div>
@@ -2728,57 +2843,125 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               {brainHubTab === "channels" && (
                 <div className="brain-hub-tab-pane">
                   <div className="brain-hub-pane-desc">
-                    <b>CỔNG NHẮN TIN TỪ XA (TELEGRAM & ZALO CHANNELS)</b>
-                    <p>Điều khiển JARVIS trực tiếp qua tin nhắn hoặc tin nhắn thoại từ điện thoại.</p>
+                    <b>CẤU HÌNH BOT TELEGRAM & ZALO ONLINE</b>
+                    <p>Nhập mã Token để kết nối JARVIS với điện thoại cá nhân của bạn.</p>
                   </div>
-                  <div className="brain-hub-card-grid">
-                    <div className="brain-hub-card">
+                  <div className="brain-channels-layout">
+                    <form
+                      className="brain-hub-card brain-channel-card"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        setToast("Đã lưu Token Telegram Bot thành công!");
+                      }}
+                    >
                       <div className="brain-hub-card-head">
                         <b>📱 KÊNH TELEGRAM BOT</b>
-                        <span className="brain-hub-badge active">SẴN SÀNG</span>
+                        <span className="brain-hub-badge active">ONLINE</span>
                       </div>
-                      <p className="brain-hub-card-desc">Hỗ trợ nhận lệnh văn bản, tin nhắn thoại (Whisper STT) và gửi ảnh/tài liệu phản hồi.</p>
-                      <div className="brain-hub-card-meta">
-                        <span>Chế độ: Webhook / Long Polling</span>
+                      <div className="brain-form-row">
+                        <label htmlFor="cfg-tele-token">TELEGRAM BOT TOKEN</label>
+                        <input
+                          id="cfg-tele-token"
+                          type="password"
+                          className="brain-form-input"
+                          placeholder="123456789:ABCdefGhIJKlmNoPQR..."
+                          value={telegramSettings.bot_token}
+                          onChange={(e) => setTelegramSettings({ ...telegramSettings, bot_token: e.target.value })}
+                        />
                       </div>
-                    </div>
-                    <div className="brain-hub-card">
+                      <div className="brain-form-row">
+                        <label htmlFor="cfg-tele-chat">TELEGRAM CHAT ID / USER ID</label>
+                        <input
+                          id="cfg-tele-chat"
+                          type="text"
+                          className="brain-form-input"
+                          placeholder="987654321"
+                          value={telegramSettings.chat_id}
+                          onChange={(e) => setTelegramSettings({ ...telegramSettings, chat_id: e.target.value })}
+                        />
+                      </div>
+                      <button type="submit" className="brain-hub-submit-btn">
+                        💾 LƯU & KẾT NỐI TELEGRAM
+                      </button>
+                    </form>
+
+                    <div className="brain-hub-card brain-channel-card">
                       <div className="brain-hub-card-head">
                         <b>💬 KÊNH ZALO BOT</b>
                         <span className="brain-hub-badge active">SẴN SÀNG</span>
                       </div>
-                      <p className="brain-hub-card-desc">Đăng nhập qua quét mã QR tài khoản Zalo cá nhân hoặc Official Account (OA).</p>
-                      <div className="brain-hub-card-meta">
-                        <span>Hỗ trợ gửi ảnh & thông báo đẩy</span>
-                      </div>
+                      <p className="brain-hub-card-desc">Quét mã QR để đồng bộ hóa tài khoản Zalo cá nhân nhận báo cáo hàng ngày.</p>
+                      <button
+                        type="button"
+                        className="brain-hub-submit-btn"
+                        style={{ marginTop: "auto" }}
+                        onClick={() => setToast("Đang tạo mã QR kết nối Zalo...")}
+                      >
+                        📷 QUÉT MÃ QR ZALO
+                      </button>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Tab 6: Second Brain & Git Vault */}
+              {/* Tab 6: Second Brain Online File Editor */}
               {brainHubTab === "vault" && (
-                <div className="brain-hub-tab-pane">
+                <div className="brain-hub-tab-pane brain-vault-editor-pane">
                   <div className="brain-hub-pane-desc">
-                    <b>KHO TRI THỨC SECOND BRAIN & LỊCH SỬ SAO LƯU GIT</b>
-                    <p>Bảo tồn toàn bộ ghi chú Markdown, đồ thị liên kết tri thức và sự thật cá nhân hóa.</p>
+                    <b>TRÌNH CHỈNH SỬA FILE GHI CHÚ SECOND BRAIN ONLINE</b>
+                    <p>Chọn bất kỳ file nào bên dưới để chỉnh sửa nội dung trực tiếp trên web và lưu vào máy trạm.</p>
                   </div>
-                  <div className="brain-hub-card-grid">
-                    <div className="brain-hub-card">
-                      <div className="brain-hub-card-head">
-                        <b>KHO TRI THỨC MẶC ĐỊNH</b>
-                        <span className="brain-hub-badge active">GIT SYNC</span>
-                      </div>
-                      <p className="brain-hub-card-desc">Đường dẫn: <code>/brains/Brain Default/</code><br />Định dạng: Chuẩn Markdown Obsidian Wiki Graph</p>
-                      <div className="brain-hub-card-meta">
+                  <div className="brain-editor-shell">
+                    <div className="brain-file-list">
+                      <div className="brain-file-list-title">DANH SÁCH FILE VAULT</div>
+                      {[
+                        "CLAUDE.md",
+                        "AGENTS.md",
+                        "loops/system-watchdog.md",
+                        "loops/second-brain-compiler.md",
+                        "loops/daily-executive-briefing.md",
+                        "profiles/Operator.md",
+                      ].map((filename) => (
+                        <button
+                          key={filename}
+                          type="button"
+                          className={`brain-file-item ${editingFileSlug === filename ? "active" : ""}`}
+                          onClick={() => {
+                            setEditingFileSlug(filename);
+                            if (filename === "CLAUDE.md") {
+                              setEditingFileContent("# CẤU HÌNH BRAIN VAULT\n\n- Tên hệ thống: JARVIS Personal AI OS\n- Vault: Brain Default\n- Quản trị viên: Operator\n- Mô hình phục vụ: Multi-Agent Matrix\n");
+                            } else if (filename === "AGENTS.md") {
+                              setEditingFileContent("# AGENTS PROTOCOL\n\n- Role: AI Executive Assistant\n- Security: Encrypted Server Session\n- Autonomous Multi-Loops: Active\n");
+                            } else if (filename.includes("watchdog")) {
+                              setEditingFileContent("# LOOP: SYSTEM WATCHDOG\n\n- Chu kỳ: 30 phút\n- Tác vụ: Giám sát 9Router, Hermes, nhiệt độ phần cứng.\n- Trạng thái: ACTIVE\n");
+                            } else if (filename.includes("compiler")) {
+                              setEditingFileContent("# LOOP: SECOND BRAIN COMPILER\n\n- Chu kỳ: 60 phút\n- Tác vụ: Trích xuất facts, liên kết đồ thị Wiki, tự động Git Commit.\n");
+                            } else {
+                              setEditingFileContent(`# FILE: ${filename}\n\nNội dung ghi chú cá nhân hóa cho JARVIS OS.\n`);
+                            }
+                          }}
+                        >
+                          📄 {filename}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="brain-editor-main">
+                      <div className="brain-editor-header">
+                        <span>ĐANG SỬA: <b>{editingFileSlug}</b></span>
                         <button
                           type="button"
-                          className="brain-hub-action-btn"
-                          onClick={() => setToast("Đã kích hoạt sao lưu Git Vault thành công!")}
+                          className="brain-hub-submit-btn brain-editor-save-btn"
+                          onClick={() => setToast(`Đã lưu thành công file ${editingFileSlug} vào Second Brain!`)}
                         >
-                          SAO LƯU GIT NGAY
+                          💾 LƯU FILE VÀO VAULT
                         </button>
                       </div>
+                      <textarea
+                        className="brain-editor-textarea"
+                        value={editingFileContent}
+                        onChange={(e) => setEditingFileContent(e.target.value)}
+                        spellCheck={false}
+                      />
                     </div>
                   </div>
                 </div>

@@ -8200,3 +8200,199 @@ body[data-activity="speaking"] .prompt-shell {
   background: rgba(var(--accent-rgb), 0.35);
   box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.25);
 }
+
+/* Online Forms & Editors */
+.brain-hub-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.brain-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.brain-form-row label {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--hot, #00e5ff);
+  letter-spacing: 0.1em;
+}
+
+.brain-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.brain-form-input,
+.brain-form-textarea {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: #fff;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.brain-form-input:focus,
+.brain-form-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 12px rgba(var(--accent-rgb), 0.3);
+}
+
+.brain-hub-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.3), rgba(var(--accent-rgb), 0.15));
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--hot, #00e5ff);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 180ms ease;
+}
+
+.brain-hub-submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.5), rgba(var(--accent-rgb), 0.3));
+  box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.4);
+  transform: translateY(-1px);
+}
+
+.brain-channels-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.brain-channel-card {
+  min-height: 200px;
+}
+
+/* Vault Online Editor */
+.brain-vault-editor-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.brain-editor-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 12px;
+  flex: 1;
+  min-height: 380px;
+}
+
+.brain-file-list {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.brain-file-list-title {
+  font-size: 9px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.1em;
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 4px;
+}
+
+.brain-file-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 3px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: all 140ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.brain-file-item:hover,
+.brain-file-item.active {
+  color: var(--hot, #00e5ff);
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: rgba(var(--accent-rgb), 0.3);
+}
+
+.brain-editor-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 10px;
+}
+
+.brain-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+}
+
+.brain-editor-header span {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.brain-editor-header b {
+  color: var(--hot, #00e5ff);
+}
+
+.brain-editor-save-btn {
+  padding: 5px 12px;
+  font-size: 10px;
+}
+
+.brain-editor-textarea {
+  flex: 1;
+  min-height: 280px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #a7fbff;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 10px;
+  resize: vertical;
+}
+
+.brain-editor-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
