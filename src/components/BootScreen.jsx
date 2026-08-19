@@ -21,6 +21,12 @@ export default function BootScreen() {
           <p className={connections.gateway ? "text-greenCore font-bold" : "text-warningCore"}>
             &gt; Gateway Link: {connections.gateway ? "CONNECTED (ONLINE)" : "SEARCHING / OFFLINE"}
           </p>
+          <p className="text-greenCore font-bold">
+            &gt; Python Brain & Autonomous Loops: READY
+          </p>
+          <p className="text-cyanCore font-bold">
+            &gt; Second Brain & Cloud Vault: SYNCHRONIZED
+          </p>
           <p className={connections.hermes ? "text-greenCore font-bold" : "text-cyan-100/40"}>
             &gt; Hermes Core: {connections.hermes ? "READY" : "STANDBY"}
           </p>
@@ -28,10 +34,10 @@ export default function BootScreen() {
             &gt; OpenClaw Workforce: {connections.openclaw ? "ACTIVE" : "STANDBY"}
           </p>
           <p className={connections.nineRouter ? "text-cyanCore font-bold" : "text-cyan-100/40"}>
-            &gt; 9Router Router: {connections.nineRouter ? "ONLINE" : "STANDBY"}
+            &gt; 9Router Model Matrix: {connections.nineRouter ? "ONLINE" : "STANDBY"}
           </p>
           <p className={connections.claude ? "text-amberCore font-bold" : "text-cyan-100/40"}>
-            &gt; Claude Bridge: {connections.claude ? "ONLINE" : "STANDBY"}
+            &gt; Claude Code CLI Bridge: {connections.claude ? "ONLINE" : "STANDBY"}
           </p>
         </div>
         <div className="mt-6 h-1 overflow-hidden rounded-full bg-cyan-950">
