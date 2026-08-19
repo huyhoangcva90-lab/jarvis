@@ -48,6 +48,13 @@ body[data-palette="orange"] {
   --accent-secondary: #ff5e12;
 }
 
+body[data-palette="yellow"] {
+  --accent: #ffd700;
+  --accent-rgb: 255, 215, 0;
+  --hot: #fff8b3;
+  --accent-secondary: #ffaa00;
+}
+
 body[data-palette="spider"] {
   --accent: #f04b55;
   --accent-rgb: 240, 75, 85;
