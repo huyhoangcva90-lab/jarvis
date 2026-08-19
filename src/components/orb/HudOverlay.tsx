@@ -675,6 +675,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     )
   );
   const [activeHubId, setActiveHubId] = useState<string | null>(() => initial?.activeHubId ?? initial?.hubArtifacts?.[0]?.id ?? null);
+  const [activeWindow, setActiveWindow] = useState<string>("chat");
   const [intelMode, setIntelMode] = useState<"obsidian" | "docs" | "files">("obsidian");
   const [selectedIntelDocument, setSelectedIntelDocument] = useState("gateway");
   const [youtubeDraft, setYoutubeDraft] = useState("https://www.youtube.com/watch?v=ciNHn38EyRc");
