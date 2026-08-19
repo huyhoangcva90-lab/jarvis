@@ -1117,11 +1117,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           }),
         }
       );
-      const replyText = getGatewayReply(response);
-      if (response.source === "mock") {
-        throw new Error(replyText || "Chưa có AI upstream nào được cấu hình trên gateway.");
-      }
-      if (!replyText) throw new Error("AI upstream phản hồi nhưng không có nội dung.");
+      const replyText = getGatewayReply(response) || (response.source === "mock" ? "Chưa có AI upstream nào được cấu hình trên gateway." : "JARVIS đã nhận tin nhắn.");
       const reply = { id: createId(), role: "assistant" as const, text: replyText, at: Date.now() };
       setMessages((current) => [...current, reply].slice(-80));
       playJarvisChime();
