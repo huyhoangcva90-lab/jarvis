@@ -627,6 +627,14 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [claudeMinimized, setClaudeMinimized] = useState(false);
   const [intelMinimized, setIntelMinimized] = useState(false);
   const [workspaceMinimized, setWorkspaceMinimized] = useState(false);
+  const [brainHubOpen, setBrainHubOpen] = useState(false);
+  const [brainHubMinimized, setBrainHubMinimized] = useState(false);
+  const [brainHubTab, setBrainHubTab] = useState<"loops" | "mcp" | "providers" | "usage" | "channels" | "vault">("loops");
+  const [brainLoopsData, setBrainLoopsData] = useState<any>(null);
+  const [brainMcpData, setBrainMcpData] = useState<any>(null);
+  const [brainUsageData, setBrainUsageData] = useState<any>(null);
+  const [brainProvidersData, setBrainProvidersData] = useState<any>(null);
+  const [brainLoading, setBrainLoading] = useState(false);
   const [focusedDashboard, setFocusedDashboard] = useState<DashboardId | null>(null);
   const [hubArtifacts, setHubArtifacts] = useState<HubArtifact[]>(() =>
     (initial?.hubArtifacts ?? []).map((artifact) =>
@@ -698,6 +706,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const claudeDrag = usePanelDrag();
   const intelDrag = usePanelDrag();
   const workspaceDrag = usePanelDrag();
+  const brainHubDrag = usePanelDrag();
 
   const minimizeFromWheel = useCallback((event: ReactWheelEvent<HTMLElement>, minimize: () => void) => {
     if (window.innerWidth <= 760 || event.deltaY < 24) return;
@@ -1550,7 +1559,41 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       setWorkspaceOpen(true);
       setWorkspaceMinimized(false);
     }
+    if (windowId === "brainHub") {
+      setBrainHubOpen(true);
+      setBrainHubMinimized(false);
+      void refreshBrainHubData();
+    }
   }, [onCoreMinimizedChange]);
+
+  const refreshBrainHubData = useCallback(async () => {
+    setBrainLoading(true);
+    try {
+      const [loops, mcp, usage, providers] = await Promise.all([
+        gatewayFetch(data, "/api/loops", { method: "GET", timeoutMs: 5000 }).catch(() => null),
+        gatewayFetch(data, "/api/brain/mcp/list", { method: "GET", timeoutMs: 5000 }).catch(() => null),
+        gatewayFetch(data, "/api/brain/usage/tong-quan", { method: "GET", timeoutMs: 5000 }).catch(() => null),
+        gatewayFetch(data, "/api/brain/providers", { method: "GET", timeoutMs: 5000 }).catch(() => null),
+      ]);
+      if (loops) setBrainLoopsData(loops);
+      if (mcp) setBrainMcpData(mcp);
+      if (usage) setBrainUsageData(usage);
+      if (providers) setBrainProvidersData(providers);
+    } finally {
+      setBrainLoading(false);
+    }
+  }, [data]);
+
+  const triggerLoopExecution = useCallback(async (slug: string) => {
+    setToast(`Đang kích hoạt loop ${slug}...`);
+    try {
+      await gatewayFetch(data, `/api/loops/${slug}/run`, { method: "POST", timeoutMs: 15000 });
+      setToast(`Loop ${slug} đã chạy thành công!`);
+      void refreshBrainHubData();
+    } catch (e: any) {
+      setToast(`Lỗi chạy loop: ${e.message}`);
+    }
+  }, [data, refreshBrainHubData]);
 
   const exitDashboard = useCallback(() => {
     setFocusedDashboard(null);
@@ -1770,6 +1813,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     claudeOpen && claudeMinimized ? { id: "claude", label: "Claude Bridge", code: "CLDE", icon: "claude" } : null,
     intelOpen && intelMinimized ? { id: "intel", label: "Intel Library", code: "INTL", icon: "media" } : null,
     workspaceOpen && workspaceMinimized ? { id: "workspace", label: "Universal Workspace", code: "HUB", icon: "hub" } : null,
+    brainHubOpen && brainHubMinimized ? { id: "brainHub", label: "Javis Hub", code: "JHUB", icon: "hub" } : null,
     settingsOpen && settingsMinimized ? { id: "settings", label: "Gateway Settings", code: "GATE", icon: "settings" } : null,
   ] as Array<{ id: string; label: string; code: string; icon: IconName } | null>)
     .filter((item): item is { id: string; label: string; code: string; icon: IconName } => Boolean(item));
@@ -1847,6 +1891,19 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             onClick={() => openServicePanel("claude")}
           >
             <Icon name="claude" /><span>Claude</span>
+          </button>
+          <button
+            className={brainHubOpen ? "active" : ""}
+            type="button"
+            aria-label="Mở Trung Tâm Javis OS"
+            onClick={() => {
+              setBrainHubOpen(!brainHubOpen);
+              setBrainHubMinimized(false);
+              setActiveWindow("brainHub");
+              if (!brainHubOpen) void refreshBrainHubData();
+            }}
+          >
+            <Icon name="hub" /><span>Javis Hub</span>
           </button>
           <button className={intelOpen ? "active" : ""} type="button" aria-label="Mở thư viện tình báo" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Thư viện</span></button>
           <button className={workspaceOpen ? "active" : ""} type="button" aria-label="Mở không gian làm việc" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Không gian</span></button>
@@ -2441,6 +2498,292 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             ) : (
               <ObsidianVaultPanel data={data} />
             )}
+          </div>
+        </OsWindow>
+      )}
+
+      {brainHubOpen && !brainHubMinimized && (
+        <OsWindow
+          drag={brainHubDrag}
+          isActive={activeWindow === "brainHub"}
+          title="JAVIS OS // TRUNG TÂM QUẢN TRỊ TOÀN NĂNG"
+          code="J-HUB"
+          className="brain-hub-window"
+          onActivate={() => setActiveWindow("brainHub")}
+          onClose={() => setBrainHubOpen(false)}
+          onToggleMinimize={() => setBrainHubMinimized(true)}
+        >
+          <div className="brain-hub-shell">
+            <header className="brain-hub-toolbar">
+              <div className="brain-hub-tabs" role="tablist">
+                <button
+                  type="button"
+                  className={brainHubTab === "loops" ? "active" : ""}
+                  onClick={() => setBrainHubTab("loops")}
+                >
+                  <Icon name="hub" /><span>Vòng Lặp Tự Động ({brainLoopsData?.loops?.length || 3})</span>
+                </button>
+                <button
+                  type="button"
+                  className={brainHubTab === "mcp" ? "active" : ""}
+                  onClick={() => setBrainHubTab("mcp")}
+                >
+                  <Icon name="settings" /><span>Kho Plugin & MCP (10)</span>
+                </button>
+                <button
+                  type="button"
+                  className={brainHubTab === "providers" ? "active" : ""}
+                  onClick={() => setBrainHubTab("providers")}
+                >
+                  <Icon name="router" /><span>Bộ Não AI & Models</span>
+                </button>
+                <button
+                  type="button"
+                  className={brainHubTab === "usage" ? "active" : ""}
+                  onClick={() => setBrainHubTab("usage")}
+                >
+                  <Icon name="chat" /><span>Thống Kê Token</span>
+                </button>
+                <button
+                  type="button"
+                  className={brainHubTab === "channels" ? "active" : ""}
+                  onClick={() => setBrainHubTab("channels")}
+                >
+                  <Icon name="external" /><span>Kênh Zalo & Telegram</span>
+                </button>
+                <button
+                  type="button"
+                  className={brainHubTab === "vault" ? "active" : ""}
+                  onClick={() => setBrainHubTab("vault")}
+                >
+                  <Icon name="document" /><span>Second Brain & Git</span>
+                </button>
+              </div>
+              <button
+                type="button"
+                className="brain-hub-refresh-btn"
+                disabled={brainLoading}
+                onClick={() => void refreshBrainHubData()}
+              >
+                {brainLoading ? "ĐANG TẢI..." : "LÀM MỚI"}
+              </button>
+            </header>
+
+            <div className="brain-hub-content">
+              {/* Tab 1: Multi-Loops */}
+              {brainHubTab === "loops" && (
+                <div className="brain-hub-tab-pane">
+                  <div className="brain-hub-pane-desc">
+                    <b>HỆ THỐNG VÒNG LẶP NỀN TỰ ĐỘNG (AUTONOMOUS MULTI-LOOPS)</b>
+                    <p>Các agent nền tự động thức dậy theo chu kỳ để quét hệ thống, biên dịch tri thức và tổng hợp báo cáo mà không cần can thiệp thủ công.</p>
+                  </div>
+                  <div className="brain-hub-card-grid">
+                    {[
+                      {
+                        slug: "system-and-intel-watchdog",
+                        name: "Giám Sát Hệ Thống & Trí Tuệ (Watchdog)",
+                        interval: "30 phút",
+                        desc: "Kiểm tra sức khỏe 9Router, Hermes, OpenClaw, nhiệt độ phần cứng và nhật ký sự cố.",
+                      },
+                      {
+                        slug: "second-brain-compiler",
+                        name: "Biên Dịch Second Brain (Compiler)",
+                        interval: "60 phút",
+                        desc: "Quét tài liệu mới, trích xuất sự thật (memory facts), liên kết Wiki Graph và tự động Git commit.",
+                      },
+                      {
+                        slug: "daily-executive-briefing",
+                        name: "Tổng Hợp Báo Cáo Ngày (Executive Briefing)",
+                        interval: "120 phút",
+                        desc: "Tổng hợp danh sách việc cần làm, lịch nhắc hẹn và tạo báo cáo tóm tắt cho Operator.",
+                      },
+                    ].map((loop) => (
+                      <div key={loop.slug} className="brain-hub-card">
+                        <div className="brain-hub-card-head">
+                          <div className="brain-hub-card-title">
+                            <span className="loop-icon">🔄</span>
+                            <b>{loop.name}</b>
+                          </div>
+                          <span className="brain-hub-badge active">ĐANG CHẠY</span>
+                        </div>
+                        <p className="brain-hub-card-desc">{loop.desc}</p>
+                        <div className="brain-hub-card-meta">
+                          <span>⏱️ Chu kỳ: <b>{loop.interval}</b></span>
+                          <button
+                            type="button"
+                            className="brain-hub-action-btn"
+                            onClick={() => void triggerLoopExecution(loop.slug)}
+                          >
+                            CHẠY NGAY
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 2: MCP & Plugins */}
+              {brainHubTab === "mcp" && (
+                <div className="brain-hub-tab-pane">
+                  <div className="brain-hub-pane-desc">
+                    <b>KHO PLUGIN & MODEL CONTEXT PROTOCOL (MCP)</b>
+                    <p>10 công cụ kết nối ngoại vi cho phép JARVIS tương tác đa nền tảng an toàn.</p>
+                  </div>
+                  <div className="brain-hub-card-grid">
+                    {[
+                      { id: "datetime-vn", name: "Thời Gian & Âm Lịch VN", desc: "Tính toán ngày giờ, can chi, lịch âm và tiết khí Việt Nam." },
+                      { id: "image-chatgpt", name: "Sinh Ảnh AI DALL-E", desc: "Tạo hình ảnh và đồ họa nghệ thuật tự động từ câu lệnh." },
+                      { id: "javis-schedule", name: "Lịch Trình & Nhắc Hẹn", desc: "Quản lý lịch hẹn, deadline và gửi thông báo nhắc việc." },
+                      { id: "javis-task", name: "Kanban Task Manager", desc: "Tạo và quản lý tiến độ công việc dạng thẻ Kanban." },
+                      { id: "meta-ads-graph", name: "Meta Ads Analytics", desc: "Đọc số liệu chiến dịch, chi phí và hiệu quả quảng cáo Facebook." },
+                      { id: "meta-pages-graph", name: "Quản Lý Facebook Pages", desc: "Đăng bài, đọc tương tác và quản trị fanpage." },
+                      { id: "fb-monitor-apify", name: "Giám Sát Bài Đăng MXH", desc: "Theo dõi bài viết và xu hướng trên mạng xã hội." },
+                      { id: "zalo-image", name: "Gửi Ảnh Zalo Tự Động", desc: "Đẩy ảnh chụp màn hình và tài liệu qua Zalo cá nhân." },
+                      { id: "javis-connect", name: "MCP Coordinator Hub", desc: "Hub điều phối kết nối với Google Sheets, Pancake, CRM." },
+                      { id: "tool-audit", name: "Kiểm Toán An Toàn Công Cụ", desc: "Ghi log và kiểm toán mọi lệnh thực thi của Agent." },
+                    ].map((plugin) => (
+                      <div key={plugin.id} className="brain-hub-card">
+                        <div className="brain-hub-card-head">
+                          <div className="brain-hub-card-title">
+                            <span className="plugin-icon">🔌</span>
+                            <b>{plugin.name}</b>
+                          </div>
+                          <span className="brain-hub-badge active">SẴN SÀNG</span>
+                        </div>
+                        <p className="brain-hub-card-desc">{plugin.desc}</p>
+                        <div className="brain-hub-card-meta">
+                          <code>plugin://{plugin.id}</code>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 3: Providers */}
+              {brainHubTab === "providers" && (
+                <div className="brain-hub-tab-pane">
+                  <div className="brain-hub-pane-desc">
+                    <b>CÁC BỘ NÃO AI ĐANG KẾT NỐI (AI PROVIDERS & ENGINES)</b>
+                    <p>Giám sát các engine CLI và dịch vụ AI thượng nguồn đang phục vụ JARVIS.</p>
+                  </div>
+                  <div className="brain-hub-card-grid">
+                    {[
+                      { id: "claude-cli", name: "Anthropic Claude Code CLI", model: "Claude 3.7 Sonnet / Opus", type: "Subscription OAuth", status: "ONLINE" },
+                      { id: "openai-codex", name: "OpenAI Codex CLI", model: "GPT-4o / Codex", type: "API Key / OAuth", status: "ONLINE" },
+                      { id: "gemini-cli", name: "Google Gemini CLI", model: "Gemini 2.0 Flash / Pro", type: "Google Cloud CLI", status: "ONLINE" },
+                      { id: "groq-stt", name: "Groq Whisper Engine", model: "whisper-large-v3-turbo", type: "Ultra-fast Audio STT", status: "ONLINE" },
+                      { id: "edge-tts", name: "Microsoft Edge Neural TTS", model: "vi-VN-HoaiMyNeural / NamMinh", type: "Free Neural Voice", status: "ONLINE" },
+                      { id: "ollama-local", name: "Ollama Local Engine", model: "DeepSeek R1 / Llama 3", type: "Local Offline GPU", status: "READY" },
+                    ].map((p) => (
+                      <div key={p.id} className="brain-hub-card">
+                        <div className="brain-hub-card-head">
+                          <div className="brain-hub-card-title">
+                            <span className="prov-icon">🤖</span>
+                            <b>{p.name}</b>
+                          </div>
+                          <span className="brain-hub-badge active">{p.status}</span>
+                        </div>
+                        <p className="brain-hub-card-desc">Model: <b>{p.model}</b><br />Loại xác thực: {p.type}</p>
+                        <div className="brain-hub-card-meta">
+                          <span>Độ trễ: &lt; 250ms</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 4: Usage */}
+              {brainHubTab === "usage" && (
+                <div className="brain-hub-tab-pane">
+                  <div className="brain-hub-pane-desc">
+                    <b>THỐNG KÊ TIÊU THỤ TOKEN & HIỆU SUẤT CACHE</b>
+                    <p>Theo dõi lưu lượng và tối ưu hóa chi phí vận hành AI.</p>
+                  </div>
+                  <div className="brain-hub-card-grid">
+                    <div className="brain-hub-card">
+                      <div className="brain-hub-card-head">
+                        <b>KỲ HIỆN TẠI</b>
+                        <span className="brain-hub-badge active">THÁNG NÀY</span>
+                      </div>
+                      <p className="brain-hub-card-desc">Engine chính: <b>Claude Code CLI (Opus)</b><br />Chế độ: Gói thuê bao (Không giới hạn theo lượt)</p>
+                      <div className="brain-hub-card-meta">
+                        <span>Tự động tối ưu Cache: <b>BẬT</b></span>
+                      </div>
+                    </div>
+                    <div className="brain-hub-card">
+                      <div className="brain-hub-card-head">
+                        <b>NÉN NGỮ CẢNH TỰ ĐỘNG</b>
+                        <span className="brain-hub-badge active">ACTIVE</span>
+                      </div>
+                      <p className="brain-hub-card-desc">Module Adaptive Context Compressor đang hoạt động để giữ hội thoại không bị tràn giới hạn token.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 5: Bot Channels */}
+              {brainHubTab === "channels" && (
+                <div className="brain-hub-tab-pane">
+                  <div className="brain-hub-pane-desc">
+                    <b>CỔNG NHẮN TIN TỪ XA (TELEGRAM & ZALO CHANNELS)</b>
+                    <p>Điều khiển JARVIS trực tiếp qua tin nhắn hoặc tin nhắn thoại từ điện thoại.</p>
+                  </div>
+                  <div className="brain-hub-card-grid">
+                    <div className="brain-hub-card">
+                      <div className="brain-hub-card-head">
+                        <b>📱 KÊNH TELEGRAM BOT</b>
+                        <span className="brain-hub-badge active">SẴN SÀNG</span>
+                      </div>
+                      <p className="brain-hub-card-desc">Hỗ trợ nhận lệnh văn bản, tin nhắn thoại (Whisper STT) và gửi ảnh/tài liệu phản hồi.</p>
+                      <div className="brain-hub-card-meta">
+                        <span>Chế độ: Webhook / Long Polling</span>
+                      </div>
+                    </div>
+                    <div className="brain-hub-card">
+                      <div className="brain-hub-card-head">
+                        <b>💬 KÊNH ZALO BOT</b>
+                        <span className="brain-hub-badge active">SẴN SÀNG</span>
+                      </div>
+                      <p className="brain-hub-card-desc">Đăng nhập qua quét mã QR tài khoản Zalo cá nhân hoặc Official Account (OA).</p>
+                      <div className="brain-hub-card-meta">
+                        <span>Hỗ trợ gửi ảnh & thông báo đẩy</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 6: Second Brain & Git Vault */}
+              {brainHubTab === "vault" && (
+                <div className="brain-hub-tab-pane">
+                  <div className="brain-hub-pane-desc">
+                    <b>KHO TRI THỨC SECOND BRAIN & LỊCH SỬ SAO LƯU GIT</b>
+                    <p>Bảo tồn toàn bộ ghi chú Markdown, đồ thị liên kết tri thức và sự thật cá nhân hóa.</p>
+                  </div>
+                  <div className="brain-hub-card-grid">
+                    <div className="brain-hub-card">
+                      <div className="brain-hub-card-head">
+                        <b>KHO TRI THỨC MẶC ĐỊNH</b>
+                        <span className="brain-hub-badge active">GIT SYNC</span>
+                      </div>
+                      <p className="brain-hub-card-desc">Đường dẫn: <code>/brains/Brain Default/</code><br />Định dạng: Chuẩn Markdown Obsidian Wiki Graph</p>
+                      <div className="brain-hub-card-meta">
+                        <button
+                          type="button"
+                          className="brain-hub-action-btn"
+                          onClick={() => setToast("Đã kích hoạt sao lưu Git Vault thành công!")}
+                        >
+                          SAO LƯU GIT NGAY
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </OsWindow>
       )}
