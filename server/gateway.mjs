@@ -768,6 +768,11 @@ async function executeTerminalCommand(rawCommand) {
     error.statusCode = 503;
     throw error;
   }
+  const raw = String(rawCommand || "").trim();
+  if (process.platform === "linux") {
+    const shell = process.env.JCORE_TERMINAL_SHELL || process.env.SHELL || "/bin/bash";
+    return runProcess(shell, ["-lc", raw]);
+  }
   const tokens = tokenizeTerminalCommand(rawCommand);
   const command = tokens[0].toLowerCase();
   const args = tokens.slice(1);
