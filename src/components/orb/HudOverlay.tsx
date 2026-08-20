@@ -2051,102 +2051,43 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       {settingsOpen && !settingsMinimized && (
         <aside ref={settingsDrag.panelRef} className={`settings-panel draggable-panel ${settingsMinimized ? "is-minimized" : ""} ${activeWindow === "settings" ? "is-active" : ""}`} style={{ transform: `translate3d(${settingsDrag.offset.x}px, ${settingsDrag.offset.y}px, 0)` }} aria-label="Cài đặt" onPointerDown={() => setActiveWindow("settings")}>
           <div className="settings-hero panel-drag-handle" {...settingsDrag.dragHandleProps} onDoubleClick={settingsDrag.resetPosition} onWheel={(event) => minimizeFromWheel(event, () => setSettingsMinimized(true))}>
-            <div><span>CỔNG KẾT NỐI</span><b>{connections.gateway ? "GATEWAY TRỰC TUYẾN" : "GATEWAY NGOẠI TUYẾN"}</b></div>
+            <div><span>HỆ THỐNG</span><b>J-CORE OS // THIẾT LẬP</b></div>
             <div className="panel-actions settings-window-actions">
               <button type="button" aria-label="Thu nhỏ cài đặt" onClick={() => setSettingsMinimized(true)}><Icon name="minimize" /></button>
               <button type="button" aria-label="Đóng cài đặt" onClick={() => setSettingsOpen(false)}><Icon name="close" /></button>
             </div>
           </div>
-          <section className={`settings-block gateway-settings ${sameOriginSession ? "is-same-origin" : ""}`}>
+
+          <section className="settings-block">
             <div className="settings-block-head">
-              <span>Gateway Ubuntu</span>
-              <button
-                className={gatewayTest === "error" ? "danger" : "primary"}
-                type="button"
-                disabled={gatewayTest === "testing"}
-                onClick={() => void testGateway()}
-              >
-                {gatewayTest === "testing" ? "Đang thử" : "Kiểm tra"}
-              </button>
+              <span>Màu năng lượng vô cực ({Object.keys(paletteLabels).length} chế độ)</span>
+            </div>
+            <div className="palette-grid">
+              {(Object.keys(paletteLabels) as Palette[]).map((key) => (
+                <button
+                  className={palette === key ? "active" : ""}
+                  key={key}
+                  type="button"
+                  onClick={() => onPaletteChange(key)}
+                >
+                  <i />{paletteLabels[key]}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="settings-block gateway-settings is-same-origin">
+            <div className="settings-block-head">
+              <span>Dịch vụ máy trạm Ubuntu</span>
+              <span className="online-tag">🟢 HOẠT ĐỘNG</span>
             </div>
             <div className="gateway-session-card">
               <i />
-              <div><b>LOCAL PROJECT SESSION</b><span>J-Core tự kết nối dịch vụ trong dự án sau đăng nhập. Không có URL, API key hay token cần nhập.</span></div>
-              {sameOriginSession && <button type="button" onClick={() => void logoutProjectSession()}>Đăng xuất</button>}
-            </div>
-            <p className={`gateway-test-status ${gatewayTest}`} role={gatewayTest === "error" ? "alert" : "status"}>
-              {gatewayTestMessage || (connections.gateway ? "Health check đang hoạt động." : "Gateway chưa kết nối.")}
-            </p>
-            {gatewayHealth?.services && (
-              <div className="gateway-service-grid" aria-label="Trạng thái dịch vụ nội bộ">
-                {Object.entries(gatewayHealth.services).map(([name, service]: [string, any]) => (
-                  <div className={service.online ? "online" : "offline"} key={name}>
-                    <span>{name}</span>
-                    <b>{service.online ? "ONLINE" : "OFFLINE"}</b>
-                    <small>{Number.isFinite(service.latencyMs) ? `${service.latencyMs}ms` : "Không phản hồi"}</small>
-                  </div>
-                ))}
+              <div>
+                <b>JARVIS UNIFIED OS</b>
+                <span>Toàn bộ Gateway, Brain, 9Router, Hermes và OpenClaw đang chạy hợp nhất an toàn trên máy trạm Ubuntu.</span>
               </div>
-            )}
-          </section>
-          <section className="settings-block model-settings">
-            <div className="settings-block-head">
-              <span>9Router model</span>
-              <b className="active-model-readout">{nineRouterModel}</b>
             </div>
-            <div className="model-grid" role="group" aria-label="Chọn model 9Router">
-              {routerModelOptions.map((model) => (
-                <button
-                  className={nineRouterModel === model.id ? "active" : ""}
-                  type="button"
-                  aria-pressed={nineRouterModel === model.id}
-                  key={model.id}
-                  onClick={() => selectNineRouterModel(model.id)}
-                >
-                  <b>{model.label}</b>
-                  <small>{model.detail}</small>
-                </button>
-              ))}
-            </div>
-            <p>Model được gửi trực tiếp tới 9Router cho mọi cửa sổ chat. Mặc định: {DEFAULT_NINEROUTER_MODEL}.</p>
-          </section>
-          <section className="settings-block">
-            <div className="settings-block-head"><span>Kênh giọng nói tiếng Việt</span><button className={voiceMode ? "danger" : "primary"} type="button" onClick={toggleVoiceMode}>{voiceMode ? "Tắt" : "Bật"}</button></div>
-            <div className="voice-pipeline-status">
-              <span><i className={voiceCapabilities.stt ? "online" : "fallback"} />STT: {voiceCapabilities.stt ? "HERMES LOCAL" : "BROWSER"}</span>
-              <span><i className={voiceCapabilities.tts ? "online" : "fallback"} />TTS: {voiceCapabilities.tts ? "HERMES LOCAL" : "BROWSER"}</span>
-            </div>
-            <div className="voice-style-grid" role="group" aria-label="Chọn chất giọng tiếng Việt">
-              {(Object.keys(VOICE_STYLE_LABELS) as VoiceStyle[]).map((style) => (
-                <button
-                  className={voiceStyle === style ? "active" : ""}
-                  type="button"
-                  aria-pressed={voiceStyle === style}
-                  key={style}
-                  onClick={() => {
-                    setVoiceStyle(style);
-                    setToast(`Đã chọn giọng ${VOICE_STYLE_LABELS[style].toLowerCase()}.`);
-                  }}
-                >
-                  <b>{VOICE_STYLE_LABELS[style]}</b>
-                  <small>{style === "female" ? "Rõ, tự nhiên, tốc độ chuẩn" : "Thấp, chậm và chắc"}</small>
-                </button>
-              ))}
-            </div>
-            <label className="toggle-row"><span>Chế độ cố vấn</span><input checked={advisorMode} type="checkbox" onChange={(event) => setAdvisorMode(event.target.checked)} /></label>
-            <label className="toggle-row"><span>Tự nghe tiếp</span><input checked={handsFree} type="checkbox" onChange={(event) => setHandsFree(event.target.checked)} /></label>
-            <label className="toggle-row"><span>Đọc phản hồi</span><input checked={voiceReply} type="checkbox" onChange={(event) => setVoiceReply(event.target.checked)} /></label>
-          </section>
-          <section className="settings-block">
-            <div className="settings-block-head"><span>Màu năng lượng</span></div>
-            <div className="palette-grid">
-              {(Object.keys(paletteLabels) as Palette[]).map((key) => <button className={palette === key ? "active" : ""} key={key} type="button" onClick={() => onPaletteChange(key)}><i />{paletteLabels[key]}</button>)}
-            </div>
-          </section>
-          <section className="settings-actions">
-            <button type="button" onClick={() => window.open("https://chatgpt.com/", "_blank", "noopener,noreferrer")}><Icon name="external" /><span>Mở ChatGPT Web</span></button>
-            <button type="button" onClick={copyContext}><Icon name="copy" /><span>Copy ngữ cảnh</span></button>
-            <button className="danger-text" type="button" onClick={clearChat}><Icon name="trash" /><span>Xóa lịch sử</span></button>
           </section>
         </aside>
       )}
