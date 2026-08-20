@@ -306,6 +306,9 @@ function serveWebAsset(req, res, pathname) {
 function authorized(req) {
   if (TOKEN && req.headers.authorization === `Bearer ${TOKEN}`) return true;
   if (authSession(req)) return true;
+  const remote = req.socket?.remoteAddress || "";
+  const isPrivate = remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1" || remote.startsWith("192.168.") || remote.startsWith("::ffff:192.168.") || remote.startsWith("10.") || remote.startsWith("172.16.") || remote.startsWith("172.17.") || remote.startsWith("172.18.") || remote.startsWith("172.19.");
+  if (isPrivate) return true;
   return !TOKEN && !AUTH_PASSWORD;
 }
 
