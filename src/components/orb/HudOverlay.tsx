@@ -9,7 +9,6 @@ import DynamicHub from "./DynamicHub";
 import ServiceDashboard from "./ServiceDashboard";
 import ObsidianVaultPanel from "./ObsidianVaultPanel";
 import UbuntuWorkspace from "./UbuntuWorkspace";
-import SpiderPersonalHub from "./SpiderPersonalHub";
 import MatrixNetworkDiagram from "./MatrixNetworkDiagram";
 import {
   DEFAULT_HERMES_PROFILE_ID,
@@ -1859,21 +1858,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     settingsOpen && settingsMinimized ? { id: "settings", label: "Gateway Settings", code: "GATE", icon: "settings" } : null,
   ] as Array<{ id: string; label: string; code: string; icon: IconName } | null>)
     .filter((item): item is { id: string; label: string; code: string; icon: IconName } => Boolean(item));
-
-  if (palette === "spider") {
-    return (
-      <SpiderPersonalHub
-        currentTime={currentTime}
-        username={data?.username || "Operator"}
-        connections={connections}
-        messages={messages}
-        isSending={isSending}
-        onAskEv={(prompt) => void sendMessage(prompt)}
-        onExit={() => onPaletteChange("orange")}
-        onResetView={onResetView}
-      />
-    );
-  }
 
   const isNativeDashboardFocus = focusedDashboard === "agents" || focusedDashboard === "router" || focusedDashboard === "hermes";
 
