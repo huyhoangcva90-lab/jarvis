@@ -2037,7 +2037,7 @@ const server = createServer(async (req, res) => {
       return sendJson(req, res, 200, { events: terminalAudit.slice(-100), total: terminalAudit.length });
     }
 
-    if (req.method === "POST" && url.pathname === "/api/system/terminal") {
+    if (req.method === "POST" && (url.pathname === "/api/system/terminal" || url.pathname === "/api/terminal/command")) {
       const body = await readJson(req);
       const command = String(body.command || "").trim();
       if (!command) return sendJson(req, res, 400, { error: "terminal_missing_command" });
