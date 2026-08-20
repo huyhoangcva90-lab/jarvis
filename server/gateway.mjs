@@ -883,6 +883,10 @@ async function executeTerminalCommand(rawCommand) {
     const models = Array.isArray(result.data?.data) ? result.data.data.map((model) => model.id || model.name).filter(Boolean) : [];
     return { output: models.join("\n") || normalizeReply(result.data) || `9Router returned HTTP ${result.status}`, exitCode: result.ok ? 0 : 1, durationMs: result.latencyMs };
   }
+  if (process.platform === "linux") {
+    const shell = process.env.JCORE_TERMINAL_SHELL || process.env.SHELL || "/bin/bash";
+    return runProcess(shell, ["-lc", rawCommand]);
+  }
   const error = new Error("terminal_command_not_allowed");
   error.statusCode = 400;
   throw error;

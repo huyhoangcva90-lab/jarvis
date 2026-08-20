@@ -8719,3 +8719,348 @@ body[data-activity="speaking"] .prompt-shell {
   height: 100%;
 }
 
+/* ==========================================================================
+   GLOBAL COPY & TEXT SELECTION FIX
+   ========================================================================== */
+body, .jarvis-shell, .history-panel, .chat-message, .message-bubble, .os-window,
+.obsidian-editor-pane, .obsidian-markdown-input, .terminal-window, .intel-doc-viewer,
+pre, code, p, span, textarea, input, .brain-hub-window {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+
+/* ==========================================================================
+   ALWAYS LIT J-CORE OS BUTTON
+   ========================================================================== */
+.os-start.always-lit {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.35), rgba(var(--accent-rgb), 0.18)) !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.4), inset 0 0 8px rgba(var(--accent-rgb), 0.25) !important;
+}
+
+.os-start.always-lit b {
+  color: var(--hot, #fff) !important;
+  text-shadow: 0 0 8px var(--accent);
+}
+
+.os-start.always-lit span {
+  background: var(--accent) !important;
+  color: #000 !important;
+  box-shadow: 0 0 8px var(--accent);
+}
+
+/* ==========================================================================
+   DYNAMIC TACTICAL TOPBAR PER STONE REALM
+   ========================================================================== */
+.stone-tactical-topbar {
+  position: fixed;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 18px;
+  min-width: min(920px, calc(100vw - 32px));
+  height: 32px;
+  border-radius: 4px;
+  background: rgba(3, 8, 16, 0.88);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.stone-realm-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stone-realm-icon {
+  font-size: 14px;
+}
+
+.stone-realm-code {
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.stone-realm-name {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.stone-realm-telemetry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.stone-badge {
+  padding: 2px 7px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.stone-tel-sep {
+  opacity: 0.3;
+}
+
+.stone-realm-time {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.stone-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+/* Adjust os-taskbar top position to sit neatly below the tactical topbar */
+.os-taskbar {
+  top: 44px !important;
+}
+
+/* ==========================================================================
+   MATRIX NETWORK DIAGRAM (KHÔNG GIAN)
+   ========================================================================== */
+.matrix-diagram-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: rgba(2, 6, 12, 0.95);
+  font-family: "JetBrains Mono", monospace;
+}
+
+.matrix-diagram-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.2);
+  background: rgba(var(--accent-rgb), 0.04);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.matrix-filter-buttons {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.matrix-filter-buttons button {
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.matrix-filter-buttons button:hover,
+.matrix-filter-buttons button.active {
+  color: var(--hot, #00e5ff);
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: rgba(var(--accent-rgb), 0.4);
+}
+
+.matrix-pulse-btn {
+  padding: 5px 12px;
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.3), rgba(var(--accent-rgb), 0.15));
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--hot, #00e5ff);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.matrix-diagram-body {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.matrix-canvas-wrapper {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, rgba(0, 229, 255, 0.06), transparent 70%);
+}
+
+.matrix-svg-canvas {
+  width: 100%;
+  height: 100%;
+  max-height: 520px;
+}
+
+.matrix-link-line {
+  transition: stroke 200ms ease, stroke-width 200ms ease;
+}
+
+.matrix-link-line.highlighted {
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+.node-active-pulse {
+  animation: nodePulse 2s infinite ease-in-out;
+}
+
+@keyframes nodePulse {
+  0%, 100% { stroke-width: 2.5; }
+  50% { stroke-width: 4; stroke: #fff; }
+}
+
+.matrix-node-inspector {
+  background: rgba(0, 0, 0, 0.5);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inspector-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inspector-badge {
+  padding: 2px 7px;
+  border: 1px solid;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.inspector-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00e676;
+  box-shadow: 0 0 6px #00e676;
+}
+
+.inspector-header small {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.inspector-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inspector-title h3 {
+  margin: 0;
+  font-size: 15px;
+  color: #fff;
+  font-weight: 800;
+}
+
+.inspector-title code {
+  color: var(--hot, #00e5ff);
+  font-size: 10px;
+}
+
+.inspector-desc {
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0;
+}
+
+.inspector-metrics-box {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inspector-metrics-box b {
+  color: var(--hot, #00e5ff);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.inspector-metrics-box p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.4;
+}
+
+.inspector-connections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 10px;
+}
+
+.inspector-connections b {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+
+.connections-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.connection-pill-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 150ms ease;
+}
+
+.connection-pill-btn:hover {
+  color: var(--hot, #00e5ff);
+  background: rgba(var(--accent-rgb), 0.12);
+  border-color: rgba(var(--accent-rgb), 0.35);
+}
+
+

@@ -10,6 +10,7 @@ import ServiceDashboard from "./ServiceDashboard";
 import ObsidianVaultPanel from "./ObsidianVaultPanel";
 import UbuntuWorkspace from "./UbuntuWorkspace";
 import SpiderPersonalHub from "./SpiderPersonalHub";
+import MatrixNetworkDiagram from "./MatrixNetworkDiagram";
 import {
   DEFAULT_HERMES_PROFILE_ID,
   HERMES_PROFILES,
@@ -44,13 +45,13 @@ type DashboardId = "workspace" | "terminal" | "agents" | "router" | "hermes" | "
 type NativeDashboards = { hermes: string; openclaw: string; nineRouter: string };
 
 const DASHBOARD_META: Record<DashboardId, { eyebrow: string; title: string }> = {
-  workspace: { eyebrow: "JARVIS://HUB-RUNTIME", title: "Không gian hoạch định" },
-  terminal: { eyebrow: "LOCAL://UBUNTU", title: "Ubuntu local" },
-  agents: { eyebrow: "PWR://OPENCLAW", title: "OpenClaw & tác nhân" },
+  workspace: { eyebrow: "JARVIS://MATRIX-GRAPH", title: "Không gian Ma Trận Nodes" },
+  terminal: { eyebrow: "LOCAL://UBUNTU", title: "Ubuntu Shell Workstation" },
+  agents: { eyebrow: "PWR://OPENCLAW", title: "OpenClaw AI Matrix" },
   router: { eyebrow: "SPC://9ROUTER", title: "9Router Control" },
   hermes: { eyebrow: "AI://HERMES", title: "Hermes Core" },
   claude: { eyebrow: "AI://CLAUDE", title: "Claude Bridge" },
-  intel: { eyebrow: "NET://KNOWLEDGE", title: "Thư viện & Ubuntu Files" },
+  intel: { eyebrow: "NET://KNOWLEDGE", title: "Thư viện Second Brain & Cloud" },
 };
 type ServicePanelState = {
   state: "idle" | "loading" | "ready" | "error";
@@ -1768,11 +1769,25 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
         openOsWindow(target);
         pushTerminal(`Window '${target}' opened.`);
       } else {
-        pushTerminal("Unknown app. Use: system, chat, agents, router, hermes, claude, settings, intel.");
+        pushTerminal("Unknown app. Use: system, chat, agents, router, hermes, claude, settings, intel, workspace.");
       }
       return;
     }
-    pushTerminal("Lệnh shell hệ thống không được chạy từ website. Dùng 'files' để sửa dữ liệu Ubuntu local, hoặc mở Ubuntu Terminal của máy nếu cần thực thi lệnh.");
+
+    // Execute real command directly on the Ubuntu Workstation!
+    try {
+      const res: any = await gatewayFetch(data, "/api/terminal/command", {
+        method: "POST",
+        body: JSON.stringify({ command: raw }),
+      });
+      if (res?.output) {
+        pushTerminal(String(res.output).split("\n"));
+      } else if (res?.exitCode === 0) {
+        pushTerminal("[OK - Lệnh thực thi thành công trên Ubuntu]");
+      }
+    } catch (err: any) {
+      pushTerminal(`[UBUNTU SHELL ERROR] ${err?.message || "Không thể thực thi lệnh trên Ubuntu"}`);
+    }
   };
 
   useEffect(() => {
@@ -1885,16 +1900,35 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           <div className="dashboard-local-session"><i /><span>LOCAL SESSION</span><time>{currentTime}</time></div>
         </header>
       )}
+      {/* Dynamic Tactical Topbar Header per Stone Mode */}
+      <header className={`stone-tactical-topbar realm-${palette}`} style={{ borderColor: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).borderTone, boxShadow: `0 0 16px ${(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).glowColor}` }}>
+        <div className="stone-realm-info">
+          <span className="stone-realm-icon">{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).stoneIcon}</span>
+          <span className="stone-realm-code" style={{ color: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor }}>{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).realmCode}</span>
+          <b className="stone-realm-name">{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).realmName}</b>
+        </div>
+        <div className="stone-realm-telemetry">
+          <span className="stone-badge" style={{ borderColor: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor, color: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor }}>{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).badgeLabel}</span>
+          <span className="stone-tel-left">{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).telemetryLeft}</span>
+          <span className="stone-tel-sep">|</span>
+          <span className="stone-tel-right">{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).telemetryRight}</span>
+        </div>
+        <div className="stone-realm-time">
+          <span className="stone-live-dot" style={{ background: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor, boxShadow: `0 0 8px ${(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor}` }} />
+          <time>{currentTime}</time>
+        </div>
+      </header>
+
       <div className={`system-signal ${activity}`} aria-hidden="true"><i /><i /><i /></div>
       <nav className="os-taskbar" aria-label="J-Core OS taskbar">
-        <button className={`os-start ${coreMinimized ? "" : "active"}`} type="button" aria-label={coreMinimized ? "Khôi phục Lõi AI 3D" : "Thu nhỏ Lõi AI 3D"} aria-pressed={!coreMinimized} onClick={() => onCoreMinimizedChange(!coreMinimized)}>
+        <button className="os-start active always-lit" type="button" aria-label="J-CORE OS" aria-pressed="true" onClick={onResetView}>
           <span>J</span><b>J-CORE OS</b>
         </button>
         <div className="os-app-strip">
           <button className={hubOpen ? "active" : ""} type="button" aria-label="Mở giám sát hệ thống" onClick={toggleHub}><Icon name="hub" /><span>Hệ thống</span></button>
           <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở trò chuyện" onClick={toggleHistory}><Icon name="chat" /><span>Trò chuyện</span></button>
           <button className={terminalOpen ? "active" : ""} type="button" aria-label="Mở Terminal" onClick={() => openOsWindow("terminal")}><Icon name="terminal" /><span>Terminal</span></button>
-          <button className={agentsOpen ? "active" : ""} type="button" aria-label="Mở ma trận tác nhân" onClick={() => openOsWindow("agents")}><Icon name="agents" /><span>Tác nhân</span></button>
+          <button className={agentsOpen ? "active" : ""} type="button" aria-label="Mở OpenClaw" onClick={() => openOsWindow("agents")}><Icon name="agents" /><span>OpenClaw</span></button>
           <button
             className={routerOpen ? "active" : ""}
             type="button"
@@ -1932,8 +1966,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           >
             <Icon name="hub" /><span>Javis Hub</span>
           </button>
-          <button className={intelOpen ? "active" : ""} type="button" aria-label="Mở thư viện tình báo" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Thư viện</span></button>
-          <button className={workspaceOpen ? "active" : ""} type="button" aria-label="Mở không gian làm việc" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Không gian</span></button>
+          <button className={intelOpen ? "active" : ""} type="button" aria-label="Mở thư viện Second Brain" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Thư viện</span></button>
+          <button className={workspaceOpen ? "active" : ""} type="button" aria-label="Mở không gian ma trận" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Không gian</span></button>
           <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở cài đặt J-Core" onClick={toggleSettings}><Icon name="settings" /><span>Cài đặt</span></button>
         </div>
         <div className="os-tray">
@@ -2119,8 +2153,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
       {workspaceOpen && (
         <OsWindow
-          title="Không gian làm việc đa năng"
-          code="JARVIS://HUB-RUNTIME"
+          title="Không gian Ma Trận Nodes"
+          code="JARVIS://MATRIX-GRAPH"
           drag={workspaceDrag}
           minimized={workspaceMinimized}
           active={activeWindow === "workspace"}
@@ -2129,13 +2163,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setWorkspaceOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setWorkspaceMinimized(true)}
         >
-          <DynamicHub
-            artifacts={hubArtifacts}
-            activeId={activeHubId}
-            onSelect={setActiveHubId}
-            onCreateDemo={createTemplateHub}
-            onRemove={removeHubArtifact}
-          />
+          <MatrixNetworkDiagram />
         </OsWindow>
       )}
 
