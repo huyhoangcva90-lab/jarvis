@@ -8749,6 +8749,28 @@ pre, code, p, span, textarea, input, .brain-hub-window {
   box-shadow: 0 0 8px var(--accent);
 }
 
+.os-world-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: rgba(0, 229, 255, 0.12);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  color: #00e5ff;
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: all 150ms ease;
+}
+
+.os-world-btn:hover {
+  background: rgba(0, 229, 255, 0.28);
+  border-color: #00e5ff;
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+}
+
 .stone-active-tag {
   display: inline-flex;
   align-items: center;
