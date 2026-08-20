@@ -1900,27 +1900,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           <div className="dashboard-local-session"><i /><span>LOCAL SESSION</span><time>{currentTime}</time></div>
         </header>
       )}
-      {/* Dynamic Tactical Topbar Header per Stone Mode */}
-      <header className={`stone-tactical-topbar realm-${palette}`} style={{ borderColor: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).borderTone, boxShadow: `0 0 16px ${(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).glowColor}` }}>
-        <div className="stone-realm-info">
-          <span className="stone-realm-icon">{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).stoneIcon}</span>
-          <span className="stone-realm-code" style={{ color: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor }}>{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).realmCode}</span>
-          <b className="stone-realm-name">{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).realmName}</b>
-        </div>
-        <div className="stone-realm-telemetry">
-          <span className="stone-badge" style={{ borderColor: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor, color: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor }}>{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).badgeLabel}</span>
-          <span className="stone-tel-left">{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).telemetryLeft}</span>
-          <span className="stone-tel-sep">|</span>
-          <span className="stone-tel-right">{(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).telemetryRight}</span>
-        </div>
-        <div className="stone-realm-time">
-          <span className="stone-live-dot" style={{ background: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor, boxShadow: `0 0 8px ${(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor}` }} />
-          <time>{currentTime}</time>
-        </div>
-      </header>
-
       <div className={`system-signal ${activity}`} aria-hidden="true"><i /><i /><i /></div>
-      <nav className="os-taskbar" aria-label="J-Core OS taskbar">
+      <nav className={`os-taskbar realm-${palette}`} aria-label="J-Core OS taskbar">
         <button className="os-start active always-lit" type="button" aria-label="J-CORE OS" aria-pressed="true" onClick={onResetView}>
           <span>J</span><b>J-CORE OS</b>
         </button>
@@ -1946,14 +1927,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             <Icon name="hermes" /><span>Hermes</span>
           </button>
           <button
-            className={claudeOpen ? "active" : ""}
-            type="button"
-            aria-label="Mở bảng điều khiển Claude"
-            onClick={() => openServicePanel("claude")}
-          >
-            <Icon name="claude" /><span>Claude</span>
-          </button>
-          <button
             className={brainHubOpen ? "active" : ""}
             type="button"
             aria-label="Mở Trung Tâm Javis OS"
@@ -1971,6 +1944,9 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           <button className={settingsOpen ? "active" : ""} type="button" aria-label="Mở cài đặt J-Core" onClick={toggleSettings}><Icon name="settings" /><span>Cài đặt</span></button>
         </div>
         <div className="os-tray">
+          <span className="stone-active-tag" style={{ color: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor }}>
+            {(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).stoneIcon} {(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).badgeLabel}
+          </span>
           <button type="button" aria-label="Reset góc nhìn lõi" onClick={onResetView}><Icon name="reset" /></button>
           <span className="online">LOCAL SESSION</span>
           <time>{currentTime}</time>
