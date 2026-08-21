@@ -78,9 +78,9 @@ try {
   const dashboards = await fetch(`${base}/api/native-dashboards`, { headers: { cookie: authCookie } });
   const dashboardBody = await dashboards.json();
   assert(dashboards.ok, `Native dashboard metadata failed: ${JSON.stringify(dashboardBody)}`);
-  assert(Object.values(dashboardBody.dashboards || {}).every((url) => String(url).startsWith("http://127.0.0.1:")), "Native dashboard proxy URLs must stay loopback-only by default");
+  assert(Object.values(dashboardBody.dashboards || {}).every((url) => String(url).startsWith("/api/proxy/")), "Native dashboard URLs must remain behind authenticated same-origin proxy routes");
 
-  console.log("Production serving check passed: dist assets, auth session, /health, and loopback dashboard metadata.");
+  console.log("Production serving check passed: dist assets, auth session, /health, and same-origin dashboard metadata.");
 } finally {
   gateway.kill();
   await Promise.race([

@@ -306,9 +306,6 @@ function serveWebAsset(req, res, pathname) {
 function authorized(req) {
   if (TOKEN && req.headers.authorization === `Bearer ${TOKEN}`) return true;
   if (authSession(req)) return true;
-  const remote = req.socket?.remoteAddress || "";
-  const isPrivate = remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1" || remote.startsWith("192.168.") || remote.startsWith("::ffff:192.168.") || remote.startsWith("10.") || remote.startsWith("172.16.") || remote.startsWith("172.17.") || remote.startsWith("172.18.") || remote.startsWith("172.19.");
-  if (isPrivate) return true;
   return !TOKEN && !AUTH_PASSWORD;
 }
 
@@ -1882,6 +1879,13 @@ const server = createServer(async (req, res) => {
         proxied = await proxyHermesChat(body, body.profile || HERMES_DEFAULT_PROFILE);
       }
 
+      if (proxied?.configError) {
+        return sendJson(req, res, proxied.status || 400, {
+          error: proxied.configError,
+          profile: proxied.profile || String(body.profile || ""),
+        });
+      }
+
       // If Hermes returned a valid response, return it
       if (proxied?.result?.ok) {
         const { result, profile } = proxied;
@@ -1938,13 +1942,6 @@ const server = createServer(async (req, res) => {
             "server-timing": `openclaw;dur=${fallbackResult.latencyMs}`,
           });
         }
-      }
-
-      if (proxied?.configError) {
-        return sendJson(req, res, proxied.status || 400, {
-          error: proxied.configError,
-          profile: proxied.profile || String(body.profile || ""),
-        });
       }
 
       if (!services.hermes.chat && !services.nineRouter.chat && !services.openclaw.chat) {

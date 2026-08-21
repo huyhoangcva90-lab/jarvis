@@ -161,8 +161,8 @@ try {
 
   const nativeDashboards = await fetch(`${base}/api/native-dashboards`, { headers: { cookie: authCookie } });
   const nativeDashboardsBody = await nativeDashboards.json();
-  if (!nativeDashboards.ok || nativeDashboardsBody.dashboards?.openclaw !== "http://127.0.0.1:19790/") {
-    throw new Error(`LAN native dashboard URL failed: ${JSON.stringify(nativeDashboardsBody)}`);
+  if (!nativeDashboards.ok || nativeDashboardsBody.dashboards?.openclaw !== "/api/proxy/openclaw/") {
+    throw new Error(`Same-origin native dashboard URL failed: ${JSON.stringify(nativeDashboardsBody)}`);
   }
 
   const configRead = await fetch(`${base}/api/apps/config?service=openclaw`, { headers: { cookie: authCookie } });

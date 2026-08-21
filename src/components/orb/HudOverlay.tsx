@@ -2480,7 +2480,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       {brainHubOpen && !brainHubMinimized && (
         <OsWindow
           drag={brainHubDrag}
-          isActive={activeWindow === "brainHub"}
+          active={activeWindow === "brainHub"}
+          minimized={brainHubMinimized}
           title="JAVIS OS // TRUNG TÂM QUẢN TRỊ TOÀN NĂNG"
           code="J-HUB"
           className="brain-hub-window"

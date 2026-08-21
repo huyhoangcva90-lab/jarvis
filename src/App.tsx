@@ -17,8 +17,8 @@ export default function App() {
   const [booting, setBooting] = useState(false);
   const [data, setData] = useState(() => loadData());
   const [now, setNow] = useState(() => new Date());
-  const [authenticated, setAuthenticated] = useState(true);
-  const [authChecking, setAuthChecking] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
   const [activity, setActivity] = useState<AiActivity>("idle");
   const [energyPalette, setEnergyPalette] = useState<EnergyPalette>(loadStoredEnergyPalette);
   const [resetViewSignal, setResetViewSignal] = useState(0);
@@ -47,21 +47,11 @@ export default function App() {
         if (!(response.headers.get("content-type") || "").includes("application/json")) return null;
         return response.json();
       })
-      .then(async (session) => {
-        if (!active) return;
-        if (!session?.authenticated) {
-          try {
-            await fetch("/api/auth/login", {
-              method: "POST",
-              credentials: "include",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ username: "admin", password: "123456" }),
-            });
-          } catch {}
-        }
+      .then((session) => {
+        if (!active || !session?.authenticated) return;
         setData((current: any) => ({
           ...current,
-          auth: { ...current.auth, username: session?.user?.username || current.auth?.username, sessionMode: "same-origin" },
+          auth: { ...current.auth, username: session.user?.username || current.auth?.username, sessionMode: "same-origin" },
         }));
         setAuthenticated(true);
       })

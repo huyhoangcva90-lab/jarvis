@@ -51,7 +51,7 @@ export const defaultData = {
     hermesProfile: 'jarvis',
   },
   auth: {
-    loginEnabled: false,
+    loginEnabled: true,
     username: 'admin',
     password: '123456',
   },
@@ -95,7 +95,7 @@ function mergeData(base, saved) {
     toolUrls: { ...base.toolUrls, ...(saved.toolUrls || {}) },
     endpoints: { ...base.endpoints, ...endpoints },
     ai: { ...base.ai, ...(saved.ai || {}) },
-    auth: { ...base.auth, ...(saved.auth || {}), loginEnabled: false },
+    auth: { ...base.auth, ...(saved.auth || {}), loginEnabled: true },
     activeDeck: saved.activeDeck || base.activeDeck,
     sectors: Array.isArray(saved.sectors) ? saved.sectors : base.sectors,
     sideQuests: Array.isArray(saved.sideQuests) ? saved.sideQuests.slice(0, 3) : base.sideQuests,
