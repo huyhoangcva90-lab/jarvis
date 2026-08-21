@@ -58,6 +58,11 @@ const upstream = createServer(async (req, res) => {
     if (req.headers["x-openclaw-agent-id"]) {
       openClawRequests.push({ url: req.url, headers: req.headers, body });
     }
+    if (req.headers["x-openclaw-agent-id"] === "reality") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end("<!doctype html><title>Control UI, not an AI response</title>");
+      return;
+    }
     res.writeHead(200, {
       "content-type": "application/json",
       ...(req.headers["x-hermes-session-id"] ? {
@@ -405,6 +410,15 @@ try {
   if (invalidStoneAgent.status !== 400) {
     throw new Error(`OpenClaw agent allowlist failed: ${invalidStoneAgent.status} ${await invalidStoneAgent.text()}`);
   }
+  const htmlUpstream = await fetch(`${base}/api/ai/chat`, {
+    method: "POST",
+    headers: { ...authHeaders, "content-type": "application/json" },
+    body: JSON.stringify({ openclawAgent: "reality", message: "reject html upstream" }),
+  });
+  const htmlUpstreamBody = await htmlUpstream.json();
+  if (!htmlUpstream.ok || htmlUpstreamBody.source !== "hermes" || htmlUpstreamBody.attempts?.[0]?.error !== "unexpected_html_response") {
+    throw new Error(`HTML upstream response must fall back safely: ${JSON.stringify(htmlUpstreamBody)}`);
+  }
 
   const secondaryProfile = await fetch(`${base}/api/hermes/chat`, {
     method: "POST",
@@ -423,7 +437,7 @@ try {
     throw new Error(`Hermes profile allowlist failed: ${invalidProfile.status} ${await invalidProfile.text()}`);
   }
   if (
-    hermesRequests.length !== 2 ||
+    hermesRequests.length !== 3 ||
     hermesRequests[0].url !== "/v1/chat/completions" ||
     hermesRequests[1].url !== "/v1/chat/completions" ||
     hermesRequests.some((request) => request.headers["x-hermes-session-id"] !== "jarvis-web-primary") ||
@@ -432,14 +446,14 @@ try {
   ) {
     throw new Error(`Hermes upstream contract failed: ${JSON.stringify(hermesRequests)}`);
   }
+  const mindOpenClawRequests = openClawRequests.filter((request) => request.headers["x-openclaw-agent-id"] === "mind");
   if (
-    openClawRequests.length !== 2 ||
-    openClawRequests.some((request) => request.url !== "/v1/chat/completions") ||
-    openClawRequests.some((request) => request.headers["x-openclaw-agent-id"] !== "mind") ||
-    openClawRequests.some((request) => request.headers["x-openclaw-session-key"] !== "jcore:web:smoke-admin:mind") ||
-    openClawRequests.some((request) => request.headers["x-openclaw-message-channel"] !== "web") ||
-    openClawRequests.some((request) => request.body.model !== "openclaw/mind") ||
-    openClawRequests.some((request) => request.body.messages?.length !== 1 || request.body.messages[0]?.content === "older browser context")
+    mindOpenClawRequests.length !== 2 ||
+    mindOpenClawRequests.some((request) => request.url !== "/v1/chat/completions") ||
+    mindOpenClawRequests.some((request) => request.headers["x-openclaw-session-key"] !== "jcore:web:smoke-admin:mind") ||
+    mindOpenClawRequests.some((request) => request.headers["x-openclaw-message-channel"] !== "web") ||
+    mindOpenClawRequests.some((request) => request.body.model !== "openclaw/mind") ||
+    mindOpenClawRequests.some((request) => request.body.messages?.length !== 1 || request.body.messages[0]?.content === "older browser context")
   ) {
     throw new Error(`OpenClaw Stone session contract failed: ${JSON.stringify(openClawRequests)}`);
   }

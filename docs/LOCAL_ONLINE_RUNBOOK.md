@@ -90,6 +90,20 @@ CLAUDE_BASE_URL=http://127.0.0.1:3001
 
 Store all service API keys in the server environment only.
 
+OpenClaw's OpenAI-compatible endpoint is disabled by default. Enable it once on
+the workstation, validate the config, then restart only the OpenClaw gateway:
+
+```bash
+openclaw config set gateway.http.endpoints.chatCompletions.enabled true --strict-json
+openclaw config validate
+sudo systemctl restart openclaw-gateway.service
+```
+
+Set `OPENCLAW_API_KEY` in JARVIS to the same server-side secret configured at
+`gateway.auth.token` (or `gateway.auth.password`) in OpenClaw. Never send this
+secret to the browser. Stone chat targets `openclaw/<agentId>` and uses a stable,
+server-owned session key per authenticated JARVIS user and Stone agent.
+
 ## 5. Cloudflare Tunnel
 
 Use `deploy/ubuntu/cloudflared-j-core.yml.example` as the starting point:

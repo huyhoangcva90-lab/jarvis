@@ -1448,6 +1448,8 @@ async function proxyJson(url, payload, apiKey = "", extraHeaders = {}) {
       signal: controller.signal,
     });
     const text = await response.text();
+    const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+    const unexpectedHtml = contentType.includes("text/html") || /^\s*<!doctype\s+html/i.test(text);
     let data = text;
     try {
       data = text ? JSON.parse(text) : {};
@@ -1455,11 +1457,13 @@ async function proxyJson(url, payload, apiKey = "", extraHeaders = {}) {
       // keep raw text
     }
     return {
-      ok: response.ok,
+      ok: response.ok && !unexpectedHtml,
       status: response.status,
       data,
       latencyMs: Date.now() - started,
-      error: response.ok ? null : normalizeReply(data) || data?.error || `upstream_${response.status}`,
+      error: unexpectedHtml
+        ? "unexpected_html_response"
+        : response.ok ? null : normalizeReply(data) || data?.error || `upstream_${response.status}`,
       upstreamHeaders: {
         sessionId: response.headers.get("x-hermes-session-id") || "",
         sessionKey: response.headers.get("x-hermes-session-key") || "",
