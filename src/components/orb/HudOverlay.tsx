@@ -213,6 +213,15 @@ const HERMES_PROFILE_PALETTES: Record<HermesProfileId, EnergyPalette> = {
   "security-auditor": "red",
 };
 
+const OPENCLAW_STONE_AGENTS: Partial<Record<EnergyPalette, string>> = {
+  gold: "mind",
+  blue: "space",
+  red: "reality",
+  violet: "power",
+  green: "time",
+  orange: "soul",
+};
+
 const activityLabels: Record<AiActivity, string> = {
   idle: "Sẵn sàng",
   listening: "Đang lắng nghe",
@@ -1114,6 +1123,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           signal: controller.signal,
           body: JSON.stringify({
             profile: selectedHermesProfileId,
+            openclawAgent: OPENCLAW_STONE_AGENTS[palette],
             message: messageText,
             messages: requestMessages.map((message) => ({ role: message.role, content: message.text })),
             operator: data?.username || "Operator",

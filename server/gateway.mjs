@@ -64,6 +64,12 @@ const HERMES_TTS_URL = process.env.HERMES_TTS_URL || "";
 const HERMES_TTS_API_KEY = process.env.HERMES_TTS_API_KEY || "";
 const HERMES_TTS_MODEL = process.env.HERMES_TTS_MODEL || "tts-1";
 const HERMES_TTS_VOICE = process.env.HERMES_TTS_VOICE || "alloy";
+const OPENCLAW_WEB_AGENTS = new Set(
+  (process.env.OPENCLAW_WEB_AGENTS || "main,soul,mind,power,reality,time,space")
+    .split(",")
+    .map((agentId) => agentId.trim().toLowerCase())
+    .filter((agentId) => /^[a-z0-9][a-z0-9_-]{0,63}$/.test(agentId)),
+);
 const WORKSPACE_ROOT = resolve(process.env.JCORE_WORKSPACE_ROOT || process.cwd());
 const OBSIDIAN_ROOT = process.env.JCORE_OBSIDIAN_ROOT ? resolve(process.env.JCORE_OBSIDIAN_ROOT) : "";
 const WORKSPACE_WRITE_ENABLED = /^(1|true|yes|on)$/i.test(process.env.JCORE_WORKSPACE_WRITE_ENABLED || "false");
@@ -1612,6 +1618,46 @@ async function proxyHermesChat(body, requestedProfile) {
   return { result, profile };
 }
 
+function normalizeOpenClawAgent(value) {
+  const agentId = String(value || "").trim().toLowerCase();
+  return OPENCLAW_WEB_AGENTS.has(agentId) ? agentId : "";
+}
+
+function openClawWebSession(req, agentId) {
+  const username = String(authSession(req)?.username || AUTH_USERNAME || "operator")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64) || "operator";
+  const sessionKey = `jcore:web:${username}:${agentId}`;
+  return {
+    headers: {
+      "x-openclaw-agent-id": agentId,
+      "x-openclaw-session-key": sessionKey,
+      "x-openclaw-message-channel": "web",
+    },
+    public: {
+      mode: "openclaw-persistent",
+      continuity: true,
+      agent: agentId,
+      input: "text-or-voice",
+    },
+  };
+}
+
+function toOpenClawPayload(payload, agentId) {
+  const message = String(payload.message || "").trim();
+  const latest = message
+    ? { role: "user", content: message }
+    : [...(Array.isArray(payload.messages) ? payload.messages : [])].reverse().find((item) => item?.role === "user");
+  return {
+    model: `openclaw/${agentId}`,
+    messages: latest ? [{ role: "user", content: String(latest.content || "") }] : [],
+    stream: false,
+  };
+}
+
 function toOpenAiPayload(payload, model) {
   const messages = Array.isArray(payload.messages)
     ? payload.messages
@@ -1869,6 +1915,45 @@ const server = createServer(async (req, res) => {
       gatewayStats.aiRequests += 1;
       const body = await readJson(req);
       const attempts = [];
+      const requestedOpenClawAgent = normalizeOpenClawAgent(body.openclawAgent);
+
+      if (body.openclawAgent && !requestedOpenClawAgent) {
+        return sendJson(req, res, 400, { error: "openclaw_agent_not_allowed" });
+      }
+
+      if (requestedOpenClawAgent && services.openclaw.chat && getCircuit("openclaw").openUntil <= Date.now()) {
+        const session = openClawWebSession(req, requestedOpenClawAgent);
+        const result = await proxyJson(
+          services.openclaw.chat,
+          toOpenClawPayload(body, requestedOpenClawAgent),
+          services.openclaw.apiKey,
+          session.headers,
+        );
+        recordUpstreamResult("openclaw", result);
+        attempts.push({
+          source: "openclaw",
+          agent: requestedOpenClawAgent,
+          status: result.status,
+          latencyMs: result.latencyMs,
+          error: result.error,
+          circuit: circuitSnapshot("openclaw").state,
+        });
+        if (result.ok) {
+          gatewayStats.successes += 1;
+          return sendJson(req, res, 200, {
+            reply: normalizeReply(result.data),
+            upstreamStatus: result.status,
+            raw: result.data,
+            source: "openclaw",
+            agent: requestedOpenClawAgent,
+            session: session.public,
+            attempts,
+          }, {
+            "x-jcore-upstream": "openclaw",
+            "server-timing": `openclaw;dur=${result.latencyMs}`,
+          });
+        }
+      }
 
       if (services.hermes.chat && getCircuit("hermes").openUntil <= Date.now()) {
         const hermes = await proxyHermesChat(body, HERMES_DEFAULT_PROFILE);
@@ -1905,7 +1990,7 @@ const server = createServer(async (req, res) => {
 
       const configuredCandidates = [
         ["nineRouter", services.nineRouter.chat, services.nineRouter.apiKey, services.nineRouter.model],
-        ["openclaw", services.openclaw.chat, services.openclaw.apiKey, services.openclaw.model],
+        ...(!requestedOpenClawAgent ? [["openclaw", services.openclaw.chat, services.openclaw.apiKey, services.openclaw.model]] : []),
         ["claude", services.claude.chat, services.claude.apiKey, ""],
       ].filter(([, endpoint]) => Boolean(endpoint));
 

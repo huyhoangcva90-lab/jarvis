@@ -9,6 +9,7 @@ import { WebSocket, WebSocketServer } from "ws";
 const gatewayPort = 18787;
 const upstreamPort = 30129;
 const hermesRequests = [];
+const openClawRequests = [];
 const configDirectory = mkdtempSync(join(tmpdir(), "jcore-config-smoke-"));
 const configPath = join(configDirectory, "openclaw.json");
 const webRoot = join(configDirectory, "dist");
@@ -53,6 +54,9 @@ const upstream = createServer(async (req, res) => {
     const body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
     if (req.headers["x-hermes-session-id"]) {
       hermesRequests.push({ url: req.url, headers: req.headers, body });
+    }
+    if (req.headers["x-openclaw-agent-id"]) {
+      openClawRequests.push({ url: req.url, headers: req.headers, body });
     }
     res.writeHead(200, {
       "content-type": "application/json",
@@ -369,6 +373,39 @@ try {
     throw new Error(`Hermes-first routing failed: ${JSON.stringify(routedChatBody)}`);
   }
 
+  const stoneTurns = [];
+  for (const inputMode of ["text", "voice"]) {
+    const response = await fetch(`${base}/api/ai/chat`, {
+      method: "POST",
+      headers: { ...authHeaders, "content-type": "application/json" },
+      body: JSON.stringify({
+        openclawAgent: "mind",
+        inputMode,
+        message: `${inputMode} mind turn`,
+        messages: [
+          { role: "user", content: "older browser context" },
+          { role: "assistant", content: "older reply" },
+          { role: "user", content: `${inputMode} mind turn` },
+        ],
+      }),
+    });
+    stoneTurns.push({ response, body: await response.json() });
+  }
+  if (stoneTurns.some(({ response, body }) => !response.ok || body.source !== "openclaw" || body.agent !== "mind" || !body.session?.continuity)) {
+    throw new Error(`OpenClaw Stone routing failed: ${JSON.stringify(stoneTurns.map(({ response, body }) => ({ status: response.status, body })))}`);
+  }
+  if (JSON.stringify(stoneTurns.map(({ body }) => body)).includes("jcore:web:smoke-admin:mind")) {
+    throw new Error("OpenClaw session key leaked to the browser response");
+  }
+  const invalidStoneAgent = await fetch(`${base}/api/ai/chat`, {
+    method: "POST",
+    headers: { ...authHeaders, "content-type": "application/json" },
+    body: JSON.stringify({ openclawAgent: "../../outside", message: "reject me" }),
+  });
+  if (invalidStoneAgent.status !== 400) {
+    throw new Error(`OpenClaw agent allowlist failed: ${invalidStoneAgent.status} ${await invalidStoneAgent.text()}`);
+  }
+
   const secondaryProfile = await fetch(`${base}/api/hermes/chat`, {
     method: "POST",
     headers: { ...authHeaders, "content-type": "application/json" },
@@ -394,6 +431,17 @@ try {
     hermesRequests.some((request) => "profile" in request.body || "session_id" in request.body)
   ) {
     throw new Error(`Hermes upstream contract failed: ${JSON.stringify(hermesRequests)}`);
+  }
+  if (
+    openClawRequests.length !== 2 ||
+    openClawRequests.some((request) => request.url !== "/v1/chat/completions") ||
+    openClawRequests.some((request) => request.headers["x-openclaw-agent-id"] !== "mind") ||
+    openClawRequests.some((request) => request.headers["x-openclaw-session-key"] !== "jcore:web:smoke-admin:mind") ||
+    openClawRequests.some((request) => request.headers["x-openclaw-message-channel"] !== "web") ||
+    openClawRequests.some((request) => request.body.model !== "openclaw/mind") ||
+    openClawRequests.some((request) => request.body.messages?.length !== 1 || request.body.messages[0]?.content === "older browser context")
+  ) {
+    throw new Error(`OpenClaw Stone session contract failed: ${JSON.stringify(openClawRequests)}`);
   }
 
   const session = await fetch(`${base}/api/session/9router`, {
@@ -427,7 +475,7 @@ try {
     throw new Error(`Native management API proxy failed: ${JSON.stringify(nativeSettingsBody)}`);
   }
 
-  console.log("Gateway smoke test passed: login session, live app config, workspace, terminal guards, Hermes metadata, routing and dashboard proxy.");
+  console.log("Gateway smoke test passed: login, workspace, terminal guards, Hermes fallback, persistent OpenClaw Stone sessions and dashboard proxy.");
 } catch (error) {
   if (gatewayOutput) console.error(gatewayOutput);
   throw error;
