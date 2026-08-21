@@ -143,6 +143,7 @@ if (!AUTH_PASSWORD) {
 const services = {
   hermes: {
     base: HERMES_BASE_URL,
+    dashboard: process.env.HERMES_DASHBOARD_URL || HERMES_BASE_URL,
     health: process.env.HERMES_HEALTH_URL || `${HERMES_BASE_URL.replace(/\/+$/, "")}/v1/models`,
     chat: process.env.HERMES_CHAT_URL || `${HERMES_BASE_URL.replace(/\/+$/, "")}/v1/chat/completions`,
     apiKey: process.env.HERMES_API_KEY || "",
@@ -150,6 +151,7 @@ const services = {
   },
   openclaw: {
     base: process.env.OPENCLAW_BASE_URL || "http://127.0.0.1:18789",
+    dashboard: process.env.OPENCLAW_DASHBOARD_URL || process.env.OPENCLAW_BASE_URL || "http://127.0.0.1:18789",
     health: process.env.OPENCLAW_HEALTH_URL || "http://127.0.0.1:18789/v1/models",
     chat: process.env.OPENCLAW_CHAT_URL || "",
     task: process.env.OPENCLAW_TASK_URL || "",
@@ -158,6 +160,7 @@ const services = {
   },
   nineRouter: {
     base: process.env.NINEROUTER_BASE_URL || "http://127.0.0.1:20128",
+    dashboard: process.env.NINEROUTER_DASHBOARD_URL || process.env.NINEROUTER_BASE_URL || "http://127.0.0.1:20128",
     health: process.env.NINEROUTER_HEALTH_URL || "http://127.0.0.1:20128/v1/models",
     chat: process.env.NINEROUTER_CHAT_URL || "",
     apiKey: process.env.NINEROUTER_API_KEY || "",
@@ -1124,7 +1127,7 @@ function proxyHttpDashboard(req, res, targetPort, stripPrefix = "", rewritePrefi
     }, (upstreamResponse) => {
       const responseHeaders = dashboardResponseHeaders(upstreamResponse.headers, rewritePrefix || stripPrefix);
       const contentType = String(upstreamResponse.headers["content-type"] || "").toLowerCase();
-      const shouldRewrite = Boolean(rewritePrefix) && /(?:text\/|javascript|json|xml|svg|manifest)/i.test(contentType);
+      const shouldRewrite = Boolean(rewritePrefix) && /(?:text\/(?:html|css|javascript|x-component)|javascript|ecmascript|svg|manifest)/i.test(contentType);
       if (!shouldRewrite) {
         res.writeHead(upstreamResponse.statusCode || 200, responseHeaders);
         upstreamResponse.pipe(res);
@@ -1664,7 +1667,7 @@ const server = createServer(async (req, res) => {
       return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.openclaw, "/api/proxy/openclaw");
     }
     if (url.pathname.startsWith("/api/proxy/hermes")) {
-      return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.hermes, "/api/proxy/hermes");
+      return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.hermes, "/api/proxy/hermes", "/api/proxy/hermes");
     }
     if (url.pathname.startsWith("/api/proxy/brain")) {
       return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.brain, "/api/proxy/brain");
@@ -2329,9 +2332,9 @@ server.listen(PORT, HOST, () => {
 });
 
 const nativeDashboardTargets = [
-  ["Hermes", "hermes", NATIVE_DASHBOARD_PORTS.hermes, services.hermes.base],
-  ["OpenClaw", "openclaw", NATIVE_DASHBOARD_PORTS.openclaw, services.openclaw.base],
-  ["9Router", "nineRouter", NATIVE_DASHBOARD_PORTS.nineRouter, services.nineRouter.base],
+  ["Hermes", "hermes", NATIVE_DASHBOARD_PORTS.hermes, services.hermes.dashboard],
+  ["OpenClaw", "openclaw", NATIVE_DASHBOARD_PORTS.openclaw, services.openclaw.dashboard],
+  ["9Router", "nineRouter", NATIVE_DASHBOARD_PORTS.nineRouter, services.nineRouter.dashboard],
 ];
 
 for (const [label, serviceKey, port, upstream] of nativeDashboardTargets) {
