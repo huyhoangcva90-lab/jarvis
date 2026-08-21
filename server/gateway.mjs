@@ -3,7 +3,7 @@ import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { basename, extname, isAbsolute, join, relative, resolve } from "node:path";
-import { WebSocketServer } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
 
 const envPath = resolve(process.cwd(), ".env.local");
 if (existsSync(envPath)) {
@@ -1198,6 +1198,65 @@ function proxyDashboardUpgrade(req, socket, head, targetPort, stripPrefix = "") 
   upstream.end();
 }
 
+function injectOpenClawDashboardAuth(data, isBinary) {
+  if (isBinary || !services.openclaw.apiKey) return data;
+  try {
+    const message = JSON.parse(data.toString("utf8"));
+    if (message?.method !== "connect" || !message.params || typeof message.params !== "object") return data;
+    message.params.auth = { ...(message.params.auth || {}), token: services.openclaw.apiKey };
+    delete message.params.auth.password;
+    return Buffer.from(JSON.stringify(message), "utf8");
+  } catch {
+    return data;
+  }
+}
+
+const openClawDashboardWss = new WebSocketServer({ noServer: true, maxPayload: 2 * 1024 * 1024 });
+
+function closeDashboardSocket(webSocket, code, reason) {
+  if (webSocket.readyState !== WebSocket.OPEN && webSocket.readyState !== WebSocket.CONNECTING) return;
+  const safeCode = Number.isInteger(code) && code >= 1000 && code <= 4999 && code !== 1005 && code !== 1006 ? code : 1000;
+  webSocket.close(safeCode, reason);
+}
+
+function proxyOpenClawDashboardUpgrade(req, socket, head, stripPrefix = "") {
+  if (!authSession(req)) {
+    socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+  openClawDashboardWss.handleUpgrade(req, socket, head, (browserSocket) => {
+    const upstreamBase = new URL(services.openclaw.dashboard);
+    const upstreamPath = req.url.replace(stripPrefix, "") || "/";
+    const upstreamProtocol = upstreamBase.protocol === "https:" ? "wss:" : "ws:";
+    const upstreamUrl = `${upstreamProtocol}//${upstreamBase.host}${upstreamPath}`;
+    const upstreamSocket = new WebSocket(upstreamUrl, {
+      headers: { origin: upstreamBase.origin },
+      maxPayload: 2 * 1024 * 1024,
+    });
+    const pending = [];
+    browserSocket.on("message", (data, isBinary) => {
+      const message = { data: injectOpenClawDashboardAuth(data, isBinary), isBinary };
+      if (upstreamSocket.readyState === WebSocket.OPEN) upstreamSocket.send(message.data, { binary: message.isBinary });
+      else if (upstreamSocket.readyState === WebSocket.CONNECTING && pending.length < 32) pending.push(message);
+    });
+    upstreamSocket.on("open", () => {
+      for (const message of pending.splice(0)) upstreamSocket.send(message.data, { binary: message.isBinary });
+    });
+    upstreamSocket.on("message", (data, isBinary) => {
+      if (browserSocket.readyState === WebSocket.OPEN) browserSocket.send(data, { binary: isBinary });
+    });
+    browserSocket.on("close", (code, reason) => {
+      closeDashboardSocket(upstreamSocket, code, reason);
+    });
+    upstreamSocket.on("close", (code, reason) => {
+      closeDashboardSocket(browserSocket, code, reason);
+    });
+    browserSocket.on("error", () => closeDashboardSocket(upstreamSocket, 1011, "Browser dashboard connection failed"));
+    upstreamSocket.on("error", () => closeDashboardSocket(browserSocket, 1011, "OpenClaw dashboard connection failed"));
+  });
+}
+
 function nativeDashboardUrl(req, port, pathname = "/") {
   const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim();
   const protocol = forwardedProto || (req.socket.encrypted ? "https" : "http");
@@ -2244,6 +2303,10 @@ server.on("upgrade", (req, socket, head) => {
   ].find(([prefix]) => url.pathname.startsWith(prefix));
   if (dashboardUpgrade) {
     const [prefix, port] = dashboardUpgrade;
+    if (prefix === "/api/proxy/openclaw") {
+      proxyOpenClawDashboardUpgrade(req, socket, head, prefix);
+      return;
+    }
     proxyDashboardUpgrade(req, socket, head, port, prefix);
     return;
   }

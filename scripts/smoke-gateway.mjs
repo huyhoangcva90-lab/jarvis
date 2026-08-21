@@ -4,6 +4,7 @@ import { once } from "node:events";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { WebSocket, WebSocketServer } from "ws";
 
 const gatewayPort = 18787;
 const upstreamPort = 30129;
@@ -67,6 +68,17 @@ const upstream = createServer(async (req, res) => {
   res.end(JSON.stringify({ error: "not_found" }));
 });
 
+const upstreamWss = new WebSocketServer({ noServer: true });
+upstream.on("upgrade", (req, socket, head) => {
+  upstreamWss.handleUpgrade(req, socket, head, (webSocket) => upstreamWss.emit("connection", webSocket, req));
+});
+upstreamWss.on("connection", (webSocket) => {
+  webSocket.on("message", (data) => {
+    const message = JSON.parse(data.toString("utf8"));
+    webSocket.send(JSON.stringify({ authenticated: message?.params?.auth?.token === "openclaw-smoke-api-key" }));
+  });
+});
+
 await new Promise((resolve, reject) => {
   upstream.once("error", reject);
   upstream.listen(upstreamPort, "127.0.0.1", resolve);
@@ -104,6 +116,7 @@ const gateway = spawn(process.execPath, ["server/gateway.mjs"], {
     OPENCLAW_DASHBOARD_URL: `http://127.0.0.1:${upstreamPort}`,
     OPENCLAW_HEALTH_URL: `http://127.0.0.1:${upstreamPort}/v1/models`,
     OPENCLAW_CHAT_URL: `http://127.0.0.1:${upstreamPort}/v1/chat/completions`,
+    OPENCLAW_API_KEY: "openclaw-smoke-api-key",
     NINEROUTER_BASE_URL: `http://127.0.0.1:${upstreamPort}`,
     NINEROUTER_DASHBOARD_URL: `http://127.0.0.1:${upstreamPort}`,
     NINEROUTER_HEALTH_URL: `http://127.0.0.1:${upstreamPort}/v1/models`,
@@ -181,6 +194,18 @@ try {
     || proxiedNativeDashboard.headers.get("x-frame-options")
     || !proxiedNativeDashboard.headers.get("content-security-policy")?.includes("frame-ancestors 'self'")) {
     throw new Error(`Native dashboard subpath rewrite failed: ${proxiedNativeDashboard.status} ${proxiedNativeDashboardBody}`);
+  }
+
+  const openClawDashboardSocket = new WebSocket(`ws://127.0.0.1:${gatewayPort}/api/proxy/openclaw`, {
+    headers: { cookie: authCookie },
+  });
+  await once(openClawDashboardSocket, "open");
+  openClawDashboardSocket.send(JSON.stringify({ method: "connect", params: { auth: {} } }));
+  const [openClawReply] = await once(openClawDashboardSocket, "message");
+  const openClawReplyBody = JSON.parse(openClawReply.toString("utf8"));
+  openClawDashboardSocket.close();
+  if (!openClawReplyBody.authenticated) {
+    throw new Error(`OpenClaw dashboard WebSocket did not receive server-side auth: ${JSON.stringify(openClawReplyBody)}`);
   }
 
   const configRead = await fetch(`${base}/api/apps/config?service=openclaw`, { headers: { cookie: authCookie } });
@@ -403,8 +428,12 @@ try {
   }
 
   console.log("Gateway smoke test passed: login session, live app config, workspace, terminal guards, Hermes metadata, routing and dashboard proxy.");
+} catch (error) {
+  if (gatewayOutput) console.error(gatewayOutput);
+  throw error;
 } finally {
   gateway.kill();
+  upstreamWss.close();
   upstream.close();
   await Promise.race([
     once(gateway, "exit"),
