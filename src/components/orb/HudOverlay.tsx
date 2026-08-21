@@ -8,6 +8,7 @@ import AppConfigEditor from "./AppConfigEditor";
 import DynamicHub from "./DynamicHub";
 import ServiceDashboard from "./ServiceDashboard";
 import ObsidianVaultPanel from "./ObsidianVaultPanel";
+import NeuralMapPanel from "./NeuralMapPanel";
 import UbuntuWorkspace from "./UbuntuWorkspace";
 import MatrixNetworkDiagram from "./MatrixNetworkDiagram";
 import {
@@ -624,6 +625,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [hermesOpen, setHermesOpen] = useState(false);
   const [claudeOpen, setClaudeOpen] = useState(false);
   const [intelOpen, setIntelOpen] = useState(false);
+  const [neuralMapOpen, setNeuralMapOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [terminalMinimized, setTerminalMinimized] = useState(false);
   const [agentsMinimized, setAgentsMinimized] = useState(false);
@@ -631,6 +633,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [hermesMinimized, setHermesMinimized] = useState(false);
   const [claudeMinimized, setClaudeMinimized] = useState(false);
   const [intelMinimized, setIntelMinimized] = useState(false);
+  const [neuralMapMinimized, setNeuralMapMinimized] = useState(false);
   const [workspaceMinimized, setWorkspaceMinimized] = useState(false);
   const [brainHubOpen, setBrainHubOpen] = useState(false);
   const [brainHubMinimized, setBrainHubMinimized] = useState(false);
@@ -741,6 +744,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const hermesDrag = usePanelDrag();
   const claudeDrag = usePanelDrag();
   const intelDrag = usePanelDrag();
+  const neuralMapDrag = usePanelDrag();
   const workspaceDrag = usePanelDrag();
   const brainHubDrag = usePanelDrag();
 
@@ -1590,6 +1594,10 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       setIntelOpen(true);
       setIntelMinimized(false);
     }
+    if (windowId === "neuralMap") {
+      setNeuralMapOpen(true);
+      setNeuralMapMinimized(false);
+    }
     if (windowId === "workspace") {
       setWorkspaceOpen(true);
       setWorkspaceMinimized(false);
@@ -1861,6 +1869,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     hermesOpen && hermesMinimized ? { id: "hermes", label: "Hermes Core", code: "HRMS", icon: "hermes" } : null,
     claudeOpen && claudeMinimized ? { id: "claude", label: "Claude Bridge", code: "CLDE", icon: "claude" } : null,
     intelOpen && intelMinimized ? { id: "intel", label: "Intel Library", code: "INTL", icon: "media" } : null,
+    neuralMapOpen && neuralMapMinimized ? { id: "neuralMap", label: "Neural Map", code: "MAP", icon: "media" } : null,
     workspaceOpen && workspaceMinimized ? { id: "workspace", label: "Universal Workspace", code: "HUB", icon: "hub" } : null,
     brainHubOpen && brainHubMinimized ? { id: "brainHub", label: "Javis Hub", code: "JHUB", icon: "hub" } : null,
     settingsOpen && settingsMinimized ? { id: "settings", label: "Gateway Settings", code: "GATE", icon: "settings" } : null,
@@ -1898,6 +1907,14 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           <span>J</span><b>J-CORE OS</b>
         </button>
         <div className="os-app-strip">
+          <button
+            className={neuralMapOpen ? "active" : ""}
+            type="button"
+            aria-label="Mở Đồ thị tri thức"
+            onClick={() => openOsWindow("neuralMap")}
+          >
+            <Icon name="media" /><span>Neural Map</span>
+          </button>
           {/* Dynamic Taskbar Items Configured per Mode */}
           {palette === "gold" && (
             <>
@@ -2485,6 +2502,22 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               <UbuntuWorkspace />
             )}
           </div>
+        </OsWindow>
+      )}
+
+      {neuralMapOpen && (
+        <OsWindow
+          title="NEURAL MAP // ĐỒ THỊ TRI THỨC"
+          code="BRAIN://GRAPH"
+          drag={neuralMapDrag}
+          minimized={neuralMapMinimized}
+          active={activeWindow === "neuralMap"}
+          className="neural-map-window"
+          onActivate={() => setActiveWindow("neuralMap")}
+          onClose={() => setNeuralMapOpen(false)}
+          onToggleMinimize={() => setNeuralMapMinimized(true)}
+        >
+          <NeuralMapPanel data={data} />
         </OsWindow>
       )}
 
