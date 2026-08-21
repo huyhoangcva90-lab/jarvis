@@ -94,6 +94,7 @@ const NATIVE_DASHBOARD_PORTS = {
   brain: Number(process.env.BRAIN_DASHBOARD_PORT || 7777),
 };
 const NATIVE_DASHBOARD_PROXY_HOST = process.env.JCORE_NATIVE_DASHBOARD_PROXY_HOST || "127.0.0.1";
+const DASHBOARD_REWRITE_LIMIT = Math.min(16 * 1024 * 1024, Math.max(1024 * 1024, Number(process.env.JCORE_DASHBOARD_REWRITE_LIMIT || 8 * 1024 * 1024)));
 
 const managedConfigDefaults = {
   hermes: { service: "hermes", enabled: true, profile: HERMES_DEFAULT_PROFILE, model: process.env.HERMES_MODEL || "hermes-agent" },
@@ -1069,10 +1070,46 @@ function proxyNineRouter(req, res) {
   });
 }
 
-function proxyHttpDashboard(req, res, targetPort, stripPrefix = "") {
+function rewriteDashboardLocation(location, routePrefix) {
+  const value = String(location || "");
+  if (!routePrefix || !value) return value;
+  if (value.startsWith(routePrefix)) return value;
+  if (value.startsWith("/")) return `${routePrefix}${value}`;
+  return value.replace(/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?(?=\/|$)/i, routePrefix);
+}
+
+function rewriteDashboardText(text, routePrefix) {
+  if (!routePrefix) return text;
+  const prefix = routePrefix.replace(/\/+$/, "");
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/^\//, "");
+  const quotedRootPath = new RegExp(`(["'\x60])\\/(?!\\/|${escapedPrefix}(?:\\/|["'\\x60]))`, "g");
+  return text
+    .replace(quotedRootPath, `$1${prefix}/`)
+    .replace(/url\(\s*(["']?)\/(?!\/)/gi, `url($1${prefix}/`);
+}
+
+function dashboardResponseHeaders(headers, routePrefix) {
+  const responseHeaders = { ...headers };
+  delete responseHeaders["x-frame-options"];
+  const upstreamCsp = String(responseHeaders["content-security-policy"] || "")
+    .replace(/(?:^|;)\s*frame-ancestors\s+[^;]*/gi, "")
+    .replace(/^;\s*|\s*;$/g, "");
+  responseHeaders["content-security-policy"] = [upstreamCsp, "frame-ancestors 'self'"].filter(Boolean).join("; ");
+  if (responseHeaders.location) responseHeaders.location = rewriteDashboardLocation(responseHeaders.location, routePrefix);
+  const setCookie = responseHeaders["set-cookie"];
+  if (routePrefix && setCookie) {
+    const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+    responseHeaders["set-cookie"] = cookies.map((cookie) => String(cookie).replace(/;\s*Path=\/(?![^;])/i, `; Path=${routePrefix}/`));
+  }
+  responseHeaders["cache-control"] = responseHeaders["cache-control"] || "no-store";
+  return responseHeaders;
+}
+
+function proxyHttpDashboard(req, res, targetPort, stripPrefix = "", rewritePrefix = "") {
   return new Promise((resolve) => {
     const upstreamUrl = req.url.replace(stripPrefix, "") || "/";
     const headers = { ...req.headers, host: `127.0.0.1:${targetPort}` };
+    if (rewritePrefix) delete headers["accept-encoding"];
     delete headers.authorization;
     delete headers["x-forwarded-host"];
     delete headers["x-forwarded-proto"];
@@ -1085,16 +1122,35 @@ function proxyHttpDashboard(req, res, targetPort, stripPrefix = "") {
       path: upstreamUrl,
       headers,
     }, (upstreamResponse) => {
-      const responseHeaders = { ...upstreamResponse.headers };
-      delete responseHeaders["x-frame-options"];
-      delete responseHeaders["content-security-policy"];
-      if (responseHeaders.location) {
-        responseHeaders.location = responseHeaders.location.replace(/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i, stripPrefix);
+      const responseHeaders = dashboardResponseHeaders(upstreamResponse.headers, rewritePrefix || stripPrefix);
+      const contentType = String(upstreamResponse.headers["content-type"] || "").toLowerCase();
+      const shouldRewrite = Boolean(rewritePrefix) && /(?:text\/|javascript|json|xml|svg|manifest)/i.test(contentType);
+      if (!shouldRewrite) {
+        res.writeHead(upstreamResponse.statusCode || 200, responseHeaders);
+        upstreamResponse.pipe(res);
+        upstreamResponse.on("end", resolve);
+        return;
       }
-      responseHeaders["cache-control"] = responseHeaders["cache-control"] || "no-store";
-      res.writeHead(upstreamResponse.statusCode || 200, responseHeaders);
-      upstreamResponse.pipe(res);
-      upstreamResponse.on("end", resolve);
+      const chunks = [];
+      let size = 0;
+      upstreamResponse.on("data", (chunk) => {
+        size += chunk.length;
+        if (size <= DASHBOARD_REWRITE_LIMIT) chunks.push(chunk);
+      });
+      upstreamResponse.on("end", () => {
+        if (size > DASHBOARD_REWRITE_LIMIT) {
+          if (!res.headersSent) sendJson(req, res, 502, { error: "dashboard_response_too_large" });
+          resolve();
+          return;
+        }
+        const body = Buffer.from(rewriteDashboardText(Buffer.concat(chunks).toString("utf8"), rewritePrefix), "utf8");
+        delete responseHeaders["content-encoding"];
+        delete responseHeaders["transfer-encoding"];
+        responseHeaders["content-length"] = String(body.length);
+        res.writeHead(upstreamResponse.statusCode || 200, responseHeaders);
+        res.end(body);
+        resolve();
+      });
     });
 
     upstream.on("error", () => {
@@ -1107,6 +1163,36 @@ function proxyHttpDashboard(req, res, targetPort, stripPrefix = "") {
     });
     req.pipe(upstream);
   });
+}
+
+function proxyDashboardUpgrade(req, socket, head, targetPort, stripPrefix = "") {
+  const upstreamPath = req.url.replace(stripPrefix, "") || "/";
+  const headers = { ...req.headers, host: `127.0.0.1:${targetPort}` };
+  delete headers.authorization;
+  delete headers["x-forwarded-host"];
+  delete headers["x-forwarded-proto"];
+  const upstream = httpRequest({
+    protocol: "http:",
+    hostname: "127.0.0.1",
+    port: targetPort,
+    method: req.method,
+    path: upstreamPath,
+    headers,
+  });
+  upstream.on("upgrade", (upstreamResponse, upstreamSocket, upstreamHead) => {
+    const statusLine = `HTTP/${upstreamResponse.httpVersion} ${upstreamResponse.statusCode} ${upstreamResponse.statusMessage}\r\n`;
+    const headerLines = upstreamResponse.rawHeaders.reduce((result, value, index) => result + (index % 2 ? `${value}\r\n` : `${value}: `), "");
+    socket.write(`${statusLine}${headerLines}\r\n`);
+    if (upstreamHead.length) socket.write(upstreamHead);
+    if (head.length) upstreamSocket.write(head);
+    upstreamSocket.pipe(socket).pipe(upstreamSocket);
+  });
+  upstream.on("response", (response) => {
+    socket.write(`HTTP/1.1 ${response.statusCode || 502} ${response.statusMessage || "Bad Gateway"}\r\nConnection: close\r\n\r\n`);
+    socket.destroy();
+  });
+  upstream.on("error", () => socket.destroy());
+  upstream.end();
 }
 
 function nativeDashboardUrl(req, port, pathname = "/") {
@@ -1572,7 +1658,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (url.pathname.startsWith("/api/proxy/9router")) {
-      return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.nineRouter, "/api/proxy/9router");
+      return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.nineRouter, "/api/proxy/9router", "/api/proxy/9router");
     }
     if (url.pathname.startsWith("/api/proxy/openclaw")) {
       return proxyHttpDashboard(req, res, NATIVE_DASHBOARD_PORTS.openclaw, "/api/proxy/openclaw");
@@ -2148,6 +2234,16 @@ const terminalWss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 
 server.on("upgrade", (req, socket, head) => {
   let url;
   try { url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`); } catch { socket.destroy(); return; }
+  const dashboardUpgrade = [
+    ["/api/proxy/9router", NATIVE_DASHBOARD_PORTS.nineRouter],
+    ["/api/proxy/openclaw", NATIVE_DASHBOARD_PORTS.openclaw],
+    ["/api/proxy/hermes", NATIVE_DASHBOARD_PORTS.hermes],
+  ].find(([prefix]) => url.pathname.startsWith(prefix));
+  if (dashboardUpgrade) {
+    const [prefix, port] = dashboardUpgrade;
+    proxyDashboardUpgrade(req, socket, head, port, prefix);
+    return;
+  }
   if (url.pathname !== "/ws/terminal") { socket.destroy(); return; }
   const requestOrigin = String(req.headers.origin || "").replace(/\/+$/, "");
   if (!CORS_ORIGINS.includes("*") && requestOrigin && !CORS_ORIGINS.includes(requestOrigin)) {

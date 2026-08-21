@@ -36,8 +36,9 @@ const upstream = createServer(async (req, res) => {
     res.writeHead(200, {
       "content-type": "text/html; charset=utf-8",
       "x-frame-options": "SAMEORIGIN",
+      "content-security-policy": "default-src 'self'; frame-ancestors 'none'",
     });
-    res.end("<!doctype html><title>9Router Smoke Dashboard</title><h1>9Router ready</h1>");
+    res.end("<!doctype html><title>9Router Smoke Dashboard</title><link rel=\"stylesheet\" href=\"/_next/app.css\"><script>fetch('/api/settings')</script><h1>9Router ready</h1>");
     return;
   }
   if (req.url === "/api/settings") {
@@ -163,6 +164,20 @@ try {
   const nativeDashboardsBody = await nativeDashboards.json();
   if (!nativeDashboards.ok || nativeDashboardsBody.dashboards?.openclaw !== "/api/proxy/openclaw/") {
     throw new Error(`Same-origin native dashboard URL failed: ${JSON.stringify(nativeDashboardsBody)}`);
+  }
+
+  const unauthorizedNativeDashboard = await fetch(`${base}/api/proxy/9router/dashboard`);
+  if (unauthorizedNativeDashboard.status !== 401) {
+    throw new Error(`Native dashboard proxy must require a J-Core session: ${unauthorizedNativeDashboard.status}`);
+  }
+  const proxiedNativeDashboard = await fetch(`${base}/api/proxy/9router/dashboard`, { headers: { cookie: authCookie } });
+  const proxiedNativeDashboardBody = await proxiedNativeDashboard.text();
+  if (!proxiedNativeDashboard.ok
+    || !proxiedNativeDashboardBody.includes('href="/api/proxy/9router/_next/app.css"')
+    || !proxiedNativeDashboardBody.includes("fetch('/api/proxy/9router/api/settings')")
+    || proxiedNativeDashboard.headers.get("x-frame-options")
+    || !proxiedNativeDashboard.headers.get("content-security-policy")?.includes("frame-ancestors 'self'")) {
+    throw new Error(`Native dashboard subpath rewrite failed: ${proxiedNativeDashboard.status} ${proxiedNativeDashboardBody}`);
   }
 
   const configRead = await fetch(`${base}/api/apps/config?service=openclaw`, { headers: { cookie: authCookie } });

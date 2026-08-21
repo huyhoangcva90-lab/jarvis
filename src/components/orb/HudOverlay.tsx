@@ -420,12 +420,16 @@ function NativeDashboardFrame({
   label,
   url,
   online,
+  service,
 }: {
   label: string;
   url: string;
   online: boolean;
+  service: "hermes" | "openclaw" | "9router";
 }) {
   const [loaded, setLoaded] = useState(false);
+  const expectedPrefix = `/api/proxy/${service}`;
+  const safeUrl = url === expectedPrefix || url.startsWith(`${expectedPrefix}/`) ? url : "";
   return (
     <div className="native-dashboard-stage">
       {!loaded && (
@@ -435,11 +439,12 @@ function NativeDashboardFrame({
           <span>{online ? "Đang nối phiên local được bảo vệ…" : "Kiểm tra dịch vụ Ubuntu rồi thử lại."}</span>
         </div>
       )}
-      {url && (
+      {safeUrl && (
         <iframe
           className="native-dashboard-frame"
-          src={url}
+          src={safeUrl}
           title={`${label} native dashboard`}
+          referrerPolicy="same-origin"
           onLoad={() => setLoaded(true)}
         />
       )}
@@ -1397,6 +1402,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     setActiveWindow(service);
     setFocusedDashboard(service);
     if (service === "hermes") {
+      setHermesTab("service");
       setHermesOpen(true);
       setHermesMinimized(false);
     } else {
@@ -1563,10 +1569,12 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       setTerminalMinimized(false);
     }
     if (windowId === "agents") {
+      setAgentsTab("gui");
       setAgentsOpen(true);
       setAgentsMinimized(false);
     }
     if (windowId === "router") {
+      setRouterTab("gui");
       setRouterOpen(true);
       setRouterMinimized(false);
     }
@@ -2226,6 +2234,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 label="OpenClaw Control UI"
                 url={nativeDashboards?.openclaw || ""}
                 online={connections.openclaw}
+                service="openclaw"
               />
             ) : (
               <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
@@ -2270,6 +2279,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 label="9Router Admin"
                 url={nativeDashboards?.nineRouter || ""}
                 online={connections.nineRouter}
+                service="9router"
               />
             ) : (
               <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
@@ -2321,6 +2331,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 label="Hermes Dashboard"
                 url={nativeDashboards?.hermes || ""}
                 online={connections.hermes}
+                service="hermes"
               />
             ) : hermesTab === "service" ? (
               <ServiceDashboard
