@@ -1,5 +1,15 @@
 # J-Core Console
 
+## Active production workflow
+
+Production hiện deploy duy nhất từ GitHub branch `main` vào
+`/home/huykl/jarvis` trên Ubuntu AI Workstation và chạy bằng system service
+`jarvis.service`. Xem quy trình đồng bộ, build, restart và rollback tại
+[`docs/WORKSTATION_OPERATIONS.md`](docs/WORKSTATION_OPERATIONS.md).
+
+Các installer bên dưới là phương án bootstrap cho cài đặt mới, không phải mô
+tả runtime workstation đang hoạt động.
+
 ## Ubuntu local appliance
 
 Sau khi Windows đã bật WSL và khởi động lại, mở Ubuntu rồi chạy:

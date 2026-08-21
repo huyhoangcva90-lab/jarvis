@@ -1,5 +1,10 @@
 # JARVIS self-hosted runbook
 
+> Runtime workstation hiện tại dùng repository `/home/huykl/jarvis`, branch
+> `main` và system service `jarvis.service`. Quy trình vận hành chuẩn nằm tại
+> [`WORKSTATION_OPERATIONS.md`](WORKSTATION_OPERATIONS.md). Các mục cài đặt bên
+> dưới mô tả lựa chọn bootstrap cho máy mới.
+
 JARVIS is a personal AI OS with two separate machines:
 
 - DEV MACHINE: Codex edits and commits this repository here. Do not assume
