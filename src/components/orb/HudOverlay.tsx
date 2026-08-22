@@ -1912,76 +1912,24 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           <span>J</span><b>J-CORE OS</b>
         </button>
         <div className="os-app-strip">
-          <button
-            className={neuralMapOpen ? "active" : ""}
-            type="button"
-            aria-label="Mở Đồ thị tri thức"
-            onClick={() => openOsWindow("neuralMap")}
-          >
-            <Icon name="media" /><span>Neural Map</span>
-          </button>
-          {/* Dynamic Taskbar Items Configured per Mode */}
-          {palette === "gold" && (
+          {/* Soul owns the complete operating console. Other Stone modes stay
+              deliberately minimal until their dedicated tools are defined. */}
+          {palette !== "orange" && (
             <>
-              <button className={hubOpen ? "active" : ""} type="button" onClick={toggleHub}><Icon name="hub" /><span>Cortex AI</span></button>
+              <button className={hubOpen ? "active" : ""} type="button" onClick={toggleHub}><Icon name="hub" /><span>Hệ thống</span></button>
               <button className={historyOpen ? "active" : ""} type="button" onClick={toggleHistory}><Icon name="chat" /><span>Trò chuyện</span></button>
-              <button className={brainHubOpen ? "active" : ""} type="button" onClick={() => { setBrainHubOpen(!brainHubOpen); setBrainHubMinimized(false); setActiveWindow("brainHub"); if (!brainHubOpen) void refreshBrainHubData(); }}><Icon name="hub" /><span>Neural Brain</span></button>
-              <button className={routerOpen ? "active" : ""} type="button" onClick={() => openOsWindow("router")}><Icon name="router" /><span>9Router</span></button>
-              <button className={intelOpen ? "active" : ""} type="button" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Thư viện</span></button>
-              <button className={settingsOpen ? "active" : ""} type="button" onClick={toggleSettings}><Icon name="settings" /><span>Cài đặt</span></button>
-            </>
-          )}
-          {palette === "blue" && (
-            <>
-              <button className={hubOpen ? "active" : ""} type="button" onClick={toggleHub}><Icon name="hub" /><span>Tesseract</span></button>
-              <button className={terminalOpen ? "active" : ""} type="button" onClick={() => openOsWindow("terminal")}><Icon name="terminal" /><span>Terminal</span></button>
-              <button className={routerOpen ? "active" : ""} type="button" onClick={() => openOsWindow("router")}><Icon name="router" /><span>9Router</span></button>
-              <button className={workspaceOpen ? "active" : ""} type="button" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Không gian Nodes</span></button>
-              <button className={settingsOpen ? "active" : ""} type="button" onClick={toggleSettings}><Icon name="settings" /><span>Cài đặt</span></button>
-            </>
-          )}
-          {palette === "red" && (
-            <>
-              <button className={hubOpen ? "active" : ""} type="button" onClick={toggleHub}><Icon name="hub" /><span>Reality Forge</span></button>
-              <button className={historyOpen ? "active" : ""} type="button" onClick={toggleHistory}><Icon name="chat" /><span>Trò chuyện</span></button>
-              <button className={agentsOpen ? "active" : ""} type="button" onClick={() => openOsWindow("agents")}><Icon name="agents" /><span>OpenClaw</span></button>
-              <button className={terminalOpen ? "active" : ""} type="button" onClick={() => openOsWindow("terminal")}><Icon name="terminal" /><span>Terminal</span></button>
-              <button className={brainHubOpen ? "active" : ""} type="button" onClick={() => { setBrainHubOpen(!brainHubOpen); setBrainHubMinimized(false); setActiveWindow("brainHub"); if (!brainHubOpen) void refreshBrainHubData(); }}><Icon name="hub" /><span>Javis Hub</span></button>
-              <button className={settingsOpen ? "active" : ""} type="button" onClick={toggleSettings}><Icon name="settings" /><span>Cài đặt</span></button>
-            </>
-          )}
-          {palette === "violet" && (
-            <>
-              <button className={hubOpen ? "active" : ""} type="button" onClick={toggleHub}><Icon name="hub" /><span>Power Surge</span></button>
-              <button className={agentsOpen ? "active" : ""} type="button" onClick={() => openOsWindow("agents")}><Icon name="agents" /><span>OpenClaw</span></button>
-              <button className={hermesOpen ? "active" : ""} type="button" onClick={() => openOsWindow("hermes")}><Icon name="hermes" /><span>Hermes</span></button>
-              <button className={routerOpen ? "active" : ""} type="button" onClick={() => openOsWindow("router")}><Icon name="router" /><span>9Router</span></button>
-              <button className={workspaceOpen ? "active" : ""} type="button" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Không gian</span></button>
-              <button className={settingsOpen ? "active" : ""} type="button" onClick={toggleSettings}><Icon name="settings" /><span>Cài đặt</span></button>
-            </>
-          )}
-          {palette === "green" && (
-            <>
-              <button className={hubOpen ? "active" : ""} type="button" onClick={toggleHub}><Icon name="hub" /><span>Time Loops</span></button>
-              <button className={historyOpen ? "active" : ""} type="button" onClick={toggleHistory}><Icon name="chat" /><span>Trò chuyện</span></button>
-              <button className={terminalOpen ? "active" : ""} type="button" onClick={() => openOsWindow("terminal")}><Icon name="terminal" /><span>Terminal</span></button>
-              <button className={brainHubOpen ? "active" : ""} type="button" onClick={() => { setBrainHubOpen(!brainHubOpen); setBrainHubMinimized(false); setActiveWindow("brainHub"); if (!brainHubOpen) void refreshBrainHubData(); }}><Icon name="hub" /><span>Javis Hub</span></button>
-              <button className={intelOpen ? "active" : ""} type="button" onClick={() => openOsWindow("intel")}><Icon name="media" /><span>Thư viện</span></button>
-              <button className={settingsOpen ? "active" : ""} type="button" onClick={toggleSettings}><Icon name="settings" /><span>Cài đặt</span></button>
-            </>
-          )}
-          {palette === "spider" && (
-            <>
-              <button className={hubOpen ? "active" : ""} type="button" onClick={toggleHub}><Icon name="hub" /><span>Spider Net</span></button>
-              <button className={historyOpen ? "active" : ""} type="button" onClick={toggleHistory}><Icon name="chat" /><span>Trò chuyện</span></button>
-              <button className={agentsOpen ? "active" : ""} type="button" onClick={() => openOsWindow("agents")}><Icon name="agents" /><span>OpenClaw</span></button>
-              <button className={terminalOpen ? "active" : ""} type="button" onClick={() => openOsWindow("terminal")}><Icon name="terminal" /><span>Terminal</span></button>
-              <button className={workspaceOpen ? "active" : ""} type="button" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Không gian</span></button>
-              <button className={settingsOpen ? "active" : ""} type="button" onClick={toggleSettings}><Icon name="settings" /><span>Cài đặt</span></button>
             </>
           )}
           {palette === "orange" && (
             <>
+              <button
+                className={neuralMapOpen ? "active" : ""}
+                type="button"
+                aria-label="Mở Đồ thị tri thức"
+                onClick={() => openOsWindow("neuralMap")}
+              >
+                <Icon name="media" /><span>Neural Map</span>
+              </button>
               <button className={hubOpen ? "active" : ""} type="button" aria-label="Mở giám sát hệ thống" onClick={toggleHub}><Icon name="hub" /><span>Hệ thống</span></button>
               <button className={historyOpen ? "active" : ""} type="button" aria-label="Mở trò chuyện" onClick={toggleHistory}><Icon name="chat" /><span>Trò chuyện</span></button>
               <button className={terminalOpen ? "active" : ""} type="button" aria-label="Mở Terminal" onClick={() => openOsWindow("terminal")}><Icon name="terminal" /><span>Terminal</span></button>
