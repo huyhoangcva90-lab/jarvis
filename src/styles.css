@@ -3557,10 +3557,10 @@ body.hud-dragging {
 }
 
 .agents-os-window {
-  left: 9%;
-  top: 22%;
-  width: min(510px, 48vw);
-  height: min(390px, 55dvh);
+  left: 5%;
+  top: 10%;
+  width: min(1180px, 90vw);
+  height: min(780px, 82dvh);
 }
 
 .router-os-window {
@@ -3570,12 +3570,10 @@ body.hud-dragging {
   height: min(780px, 82dvh);
 }
 
-.agents-os-window .os-window-body {
-  padding: 0;
-  overflow: hidden;
-}
-
+.agents-os-window .os-window-body,
 .router-os-window .os-window-body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
   padding: 0;
   overflow: hidden;
 }
@@ -3587,7 +3585,10 @@ body.hud-dragging {
 }
 
 .hermes-os-window {
-  left: 13%;
+  left: 5%;
+  top: 10%;
+  width: min(1180px, 90vw);
+  height: min(780px, 82dvh);
 }
 
 .claude-os-window {
@@ -3599,20 +3600,31 @@ body.hud-dragging {
   overflow: hidden;
 }
 
+.hermes-os-window .os-window-body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+}
+
 .native-dashboard-stage {
   position: relative;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
   width: 100%;
   height: 100%;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
   background: #07090d;
 }
 
 .native-dashboard-frame {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 2;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 100%;
   border: 0;
   background: #07090d;
 }
@@ -9390,12 +9402,6 @@ pre, code, p, span, textarea, input, .brain-hub-window {
 .mindmap-topic-legend span { display: flex; align-items: center; gap: 5px; color: rgba(255, 255, 255, .48); font: 600 8px/1 "JetBrains Mono", monospace; }
 .mindmap-topic-legend i { width: 5px; height: 5px; border-radius: 50%; background: var(--topic-color); box-shadow: 0 0 8px var(--topic-color); }
 .mindmap-topic-legend b { color: rgba(255, 255, 255, .78); }
-
-/* Native tools use the whole focused workspace; their own UI is the toolbar. */
-.router-os-window .os-window-body { position: relative; }
-.router-os-window .native-dashboard-stage { position: absolute; inset: 0; }
-.agents-os-window .os-window-body > .flex,
-.hermes-os-window .os-window-body > .flex { min-height: 0; }
 
 @keyframes mindmap-core-spin { to { transform: rotate(360deg); } }
 @keyframes mindmap-core-breathe { 50% { opacity: .45; transform: scale(.68); } }

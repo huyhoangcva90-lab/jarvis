@@ -4,7 +4,6 @@ import { gatewayBinaryFetch, gatewayFetch, getGatewayConfig, getGatewayReply } f
 import { useStoneState } from "../../utils/stoneState.jsx";
 import { ORB_UI_STORAGE_KEY } from "../../utils/orbPreferences";
 import { DEFAULT_NINEROUTER_MODEL, NINEROUTER_MODELS, getNineRouterModel } from "../../utils/nineRouterModels.js";
-import AppConfigEditor from "./AppConfigEditor";
 import DynamicHub from "./DynamicHub";
 import ServiceDashboard from "./ServiceDashboard";
 import ObsidianVaultPanel from "./ObsidianVaultPanel";
@@ -705,8 +704,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [gatewayTestMessage, setGatewayTestMessage] = useState("");
   const [gatewayHealth, setGatewayHealth] = useState<any>(null);
   const [nativeDashboards, setNativeDashboards] = useState<NativeDashboards | null>(null);
-  const [agentsTab, setAgentsTab] = useState<"gui" | "config">("gui");
-  const [hermesTab, setHermesTab] = useState<"gui" | "service" | "config">("gui");
   const [selectedHermesProfileId, setSelectedHermesProfileId] = useState<HermesProfileId>(() => {
     const configured = data?.ai?.hermesProfile;
     return configured ? configured as HermesProfileId : loadStoredHermesProfileId();
@@ -1413,7 +1410,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     setActiveWindow(service);
     setFocusedDashboard(service);
     if (service === "hermes") {
-      setHermesTab("service");
       setHermesOpen(true);
       setHermesMinimized(false);
     } else {
@@ -1580,7 +1576,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       setTerminalMinimized(false);
     }
     if (windowId === "agents") {
-      setAgentsTab("gui");
       setAgentsOpen(true);
       setAgentsMinimized(false);
     }
@@ -1589,7 +1584,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       setRouterMinimized(false);
     }
     if (windowId === "hermes") {
-      setHermesTab("gui");
       setHermesOpen(true);
       setHermesMinimized(false);
     }
@@ -2164,7 +2158,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
       {agentsOpen && (
         <OsWindow
-          title="OpenClaw Control & Agent Matrix"
+          title="OpenClaw Dashboard"
           code="PWR://OPENCLAW"
           drag={agentsDrag}
           minimized={agentsMinimized}
@@ -2174,36 +2168,12 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setAgentsOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setAgentsMinimized(true)}
         >
-          <div className="flex flex-col h-full">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/90 border-b border-zinc-800 text-xs">
-              <button
-                type="button"
-                onClick={() => setAgentsTab("gui")}
-                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${agentsTab === "gui" ? "bg-purple-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
-              >
-                🖥️ Dashboard Web GUI
-              </button>
-              <button
-                type="button"
-                onClick={() => setAgentsTab("config")}
-                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${agentsTab === "config" ? "bg-purple-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
-              >
-                ⚙️ Cấu hình JSON
-              </button>
-            </div>
-            {agentsTab === "gui" ? (
-              <NativeDashboardFrame
-                label="OpenClaw Control UI"
-                url={nativeDashboards?.openclaw || ""}
-                online={connections.openclaw}
-                service="openclaw"
-              />
-            ) : (
-              <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
-                <AppConfigEditor data={data} service="openclaw" />
-              </div>
-            )}
-          </div>
+          <NativeDashboardFrame
+            label="OpenClaw Dashboard"
+            url={nativeDashboards?.openclaw || ""}
+            online={connections.openclaw}
+            service="openclaw"
+          />
         </OsWindow>
       )}
 
@@ -2230,7 +2200,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
       {hermesOpen && (
         <OsWindow
-          title="Hermes Core & Profiles"
+          title="Hermes Dashboard"
           code="AI://HERMES"
           drag={hermesDrag}
           minimized={hermesMinimized}
@@ -2240,63 +2210,12 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setHermesOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setHermesMinimized(true)}
         >
-          <div className="flex flex-col h-full">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/90 border-b border-zinc-800 text-xs">
-              <button
-                type="button"
-                onClick={() => setHermesTab("gui")}
-                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${hermesTab === "gui" ? "bg-amber-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
-              >
-                🖥️ Dashboard Web GUI
-              </button>
-              <button
-                type="button"
-                onClick={() => setHermesTab("service")}
-                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${hermesTab === "service" ? "bg-amber-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
-              >
-                🎭 Profile & Diagnostics
-              </button>
-              <button
-                type="button"
-                onClick={() => setHermesTab("config")}
-                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${hermesTab === "config" ? "bg-amber-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
-              >
-                ⚙️ Cấu hình JSON
-              </button>
-            </div>
-            {hermesTab === "gui" ? (
-              <NativeDashboardFrame
-                label="Hermes Dashboard"
-                url={nativeDashboards?.hermes || ""}
-                online={connections.hermes}
-                service="hermes"
-              />
-            ) : hermesTab === "service" ? (
-              <ServiceDashboard
-                data={data}
-                label="Hermes"
-                description="Lõi điều phối tác nhân và trí tuệ ngữ cảnh"
-                online={connections.hermes}
-                state={servicePanels.hermes.state}
-                health={connections.services?.hermes}
-                overview={servicePanels.hermes.overview}
-                error={servicePanels.hermes.error}
-                prompt={servicePanels.hermes.prompt}
-                reply={servicePanels.hermes.reply}
-                sending={servicePanels.hermes.sending}
-                selectedProfileId={selectedHermesProfileId}
-                profiles={hermesProfiles}
-                onSelectProfile={selectHermesProfile}
-                onPromptChange={(prompt) => updateServicePanel("hermes", { prompt })}
-                onRefresh={() => void refreshServicePanel("hermes")}
-                onSubmit={() => void testServicePanel("hermes")}
-              />
-            ) : (
-              <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
-                <AppConfigEditor data={data} service="hermes" />
-              </div>
-            )}
-          </div>
+          <NativeDashboardFrame
+            label="Hermes Dashboard"
+            url={nativeDashboards?.hermes || ""}
+            online={connections.hermes}
+            service="hermes"
+          />
         </OsWindow>
       )}
 
