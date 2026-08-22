@@ -9234,4 +9234,189 @@ pre, code, p, span, textarea, input, .brain-hub-window {
   border-color: rgba(var(--accent-rgb), 0.35);
 }
 
+/* Javis-style brain canvas: one calm center, real notes, no permanent inspector. */
+.neural-map-shell {
+  display: block;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(var(--accent-rgb), .12), transparent 34%),
+    #03070d;
+}
+
+.neural-map-shell::before {
+  opacity: .12;
+  background-size: 56px 56px;
+}
+
+.neural-map-floating-status {
+  position: absolute;
+  z-index: 6;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 38px;
+  padding: 6px 8px 6px 12px;
+  border: 1px solid rgba(var(--accent-rgb), .2);
+  border-radius: 999px;
+  background: rgba(2, 7, 13, .72);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .34);
+  backdrop-filter: blur(14px);
+}
+
+.neural-map-floating-status > div:first-child,
+.neural-map-source-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.neural-map-floating-status > div:first-child > i,
+.neural-map-source-state > i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+
+.neural-map-floating-status span,
+.neural-map-floating-status b {
+  color: rgba(255, 255, 255, .52);
+  font: 700 8px/1 "JetBrains Mono", monospace;
+  letter-spacing: .08em;
+}
+
+.neural-map-floating-status b { color: rgba(255, 255, 255, .82); }
+.neural-map-source-state { padding-left: 12px; border-left: 1px solid rgba(var(--accent-rgb), .18); }
+.neural-map-source-state button { width: 26px; min-height: 26px; padding: 0; border-radius: 50%; font-size: 14px; }
+
+.neural-map-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.neural-map-state-card {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.neural-map-metrics {
+  position: absolute;
+  z-index: 6;
+  right: 18px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 11px;
+  border: 1px solid rgba(var(--accent-rgb), .16);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, .42);
+  background: rgba(2, 7, 13, .7);
+  backdrop-filter: blur(12px);
+  font: 700 8px/1 "JetBrains Mono", monospace;
+  letter-spacing: .07em;
+}
+
+.neural-map-metrics b { color: var(--hot); }
+.obsidian-mindmap-container { display: block; position: relative; height: 100%; background: transparent; }
+.mindmap-canvas-wrapper { position: absolute; inset: 0; overflow: hidden; }
+.mindmap-svg { width: 100%; height: 100%; transition: transform 180ms ease; }
+
+.mindmap-controls {
+  position: absolute;
+  z-index: 5;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid rgba(var(--accent-rgb), .18);
+  border-radius: 7px;
+  background: rgba(2, 7, 13, .72);
+  backdrop-filter: blur(14px);
+}
+
+.mindmap-controls input { width: 160px; height: 30px; border-radius: 4px; }
+.mindmap-controls button { min-width: 30px; height: 30px; padding: 0 7px; border-radius: 4px; }
+
+.mindmap-core-orbit {
+  fill: none;
+  stroke: rgba(var(--accent-rgb), .24);
+  stroke-width: 1;
+  stroke-dasharray: 5 9;
+  transform-origin: center;
+  animation: mindmap-core-spin 28s linear infinite;
+}
+
+.mindmap-core-orbit.outer { stroke: rgba(var(--accent-rgb), .1); stroke-dasharray: 2 13; animation-direction: reverse; }
+.mindmap-core-disc { fill: url(#jarvis-core-fill); opacity: .72; filter: url(#jarvis-node-glow); }
+.mindmap-core-pulse { fill: #fff; filter: url(#jarvis-node-glow); animation: mindmap-core-breathe 2.6s ease-in-out infinite; }
+.mindmap-core text { fill: rgba(255, 255, 255, .78); text-anchor: middle; font: 800 9px/1 "JetBrains Mono", monospace; letter-spacing: .18em; }
+.mindmap-core .mindmap-core-subtitle { fill: rgba(255, 255, 255, .34); font-size: 6px; letter-spacing: .13em; }
+.mindmap-core-link { stroke: rgba(var(--accent-rgb), .08); stroke-width: .7; stroke-dasharray: 2 5; }
+.mindmap-edge { stroke: rgba(170, 210, 235, .2); stroke-width: 1; }
+.mindmap-edge.highlighted { stroke: var(--hot); stroke-width: 1.7; }
+.mindmap-node-halo { fill: var(--node-color); opacity: .13; filter: url(#jarvis-node-glow); }
+.mindmap-node-circle { fill: var(--node-color); stroke: rgba(255, 255, 255, .72); stroke-width: .7; filter: url(#jarvis-node-glow); }
+.mindmap-node-group.selected .mindmap-node-circle { fill: #fff; stroke: var(--node-color); stroke-width: 2; }
+.mindmap-node-label { fill: rgba(226, 238, 246, .56); font: 600 7px/1 "JetBrains Mono", monospace; paint-order: stroke; stroke: rgba(2, 7, 13, .94); stroke-width: 3px; }
+.mindmap-node-group:hover .mindmap-node-label,
+.mindmap-node-group:focus-visible .mindmap-node-label,
+.mindmap-node-group.selected .mindmap-node-label { fill: #fff; font-size: 8px; }
+.mindmap-node-group:focus-visible { outline: none; }
+
+.mindmap-topic-legend {
+  position: absolute;
+  z-index: 5;
+  left: 18px;
+  bottom: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  max-width: min(62%, 620px);
+  padding: 8px 10px;
+  border: 1px solid rgba(var(--accent-rgb), .12);
+  border-radius: 8px;
+  background: rgba(2, 7, 13, .6);
+  backdrop-filter: blur(12px);
+}
+
+.mindmap-topic-legend span { display: flex; align-items: center; gap: 5px; color: rgba(255, 255, 255, .48); font: 600 8px/1 "JetBrains Mono", monospace; }
+.mindmap-topic-legend i { width: 5px; height: 5px; border-radius: 50%; background: var(--topic-color); box-shadow: 0 0 8px var(--topic-color); }
+.mindmap-topic-legend b { color: rgba(255, 255, 255, .78); }
+
+/* Native tools use the whole focused workspace; their own UI is the toolbar. */
+.router-os-window .os-window-body { position: relative; }
+.router-os-window .native-dashboard-stage { position: absolute; inset: 0; }
+.agents-os-window .os-window-body > .flex,
+.hermes-os-window .os-window-body > .flex { min-height: 0; }
+
+@keyframes mindmap-core-spin { to { transform: rotate(360deg); } }
+@keyframes mindmap-core-breathe { 50% { opacity: .45; transform: scale(.68); } }
+
+@media (max-width: 760px) {
+  .neural-map-floating-status { top: 8px; left: 8px; }
+  .neural-map-floating-status > div:first-child b,
+  .neural-map-source-state span { display: none; }
+  .mindmap-controls { top: 8px; right: 8px; }
+  .mindmap-controls input { width: 112px; }
+  .mindmap-topic-legend { left: 8px; bottom: 8px; max-width: calc(100% - 116px); }
+  .mindmap-topic-legend span:nth-child(n + 4) { display: none; }
+  .neural-map-metrics { right: 8px; bottom: 8px; }
+  .neural-map-metrics span:nth-child(3) { display: none; }
+  .neural-note-peek { inset: 56px 8px 52px; width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mindmap-core-orbit,
+  .mindmap-core-pulse { animation: none; }
+  .mindmap-svg { transition: none; }
+}
+
 

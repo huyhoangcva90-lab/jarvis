@@ -58,16 +58,12 @@ export default function NeuralMapPanel({ data }: NeuralMapPanelProps) {
 
   return (
     <section className="neural-map-shell" aria-label="Đồ thị tri thức JARVIS">
-      <header className="neural-map-commandbar">
-        <div>
-          <small>JARVIS KNOWLEDGE SYSTEM</small>
-          <strong>NEURAL MAP</strong>
-          <span>{sourceLabel}</span>
-        </div>
+      <header className="neural-map-floating-status">
+        <div><i /><span>JARVIS BRAIN</span><b>{sourceLabel}</b></div>
         <div className="neural-map-source-state" data-state={state}>
           <i />
-          <span>{state === "loading" ? "ĐANG QUÉT" : state === "ready" ? "VAULT TRỰC TUYẾN" : state === "empty" ? "VAULT TRỐNG" : "CHƯA KẾT NỐI"}</span>
-          <button type="button" onClick={() => void refresh()} disabled={state === "loading"}>QUÉT LẠI</button>
+          <span>{state === "loading" ? "ĐANG QUÉT" : state === "ready" ? "ĐÃ ĐỒNG BỘ" : state === "empty" ? "VAULT TRỐNG" : "CHƯA KẾT NỐI"}</span>
+          <button type="button" onClick={() => void refresh()} disabled={state === "loading"} aria-label="Quét lại vault">↻</button>
         </div>
       </header>
 
@@ -112,11 +108,10 @@ export default function NeuralMapPanel({ data }: NeuralMapPanelProps) {
         </div>
       )}
 
-      <footer className="neural-map-capability-strip">
-        <span><i /> NOTES <b>{notes.length}</b></span>
-        <span><i /> LINKS <b>{state === "ready" ? graph.edges.length : "—"}</b></span>
-        <span><i /> SOURCE <b>{payload?.truncated ? "PARTIAL" : state === "ready" ? "SYNCED" : "—"}</b></span>
-        <span><i /> MODE <b>{payload?.readOnly === false ? "READ / WRITE" : "READ ONLY"}</b></span>
+      <footer className="neural-map-metrics">
+        <span>NOTES <b>{notes.length}</b></span>
+        <span>LINKS <b>{state === "ready" ? graph.edges.length : "—"}</b></span>
+        <span>{payload?.readOnly === false ? "READ / WRITE" : "READ ONLY"}</span>
       </footer>
     </section>
   );

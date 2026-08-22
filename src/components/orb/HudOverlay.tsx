@@ -646,21 +646,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [workspaceMinimized, setWorkspaceMinimized] = useState(false);
   const [brainHubOpen, setBrainHubOpen] = useState(false);
   const [brainHubMinimized, setBrainHubMinimized] = useState(false);
-  const [brainHubTab, setBrainHubTab] = useState<"loops" | "mcp" | "providers" | "usage" | "channels" | "vault">("loops");
+  const [brainHubTab, setBrainHubTab] = useState<"loops" | "mcp" | "usage" | "channels" | "vault">("loops");
   const [brainLoopsData, setBrainLoopsData] = useState<any>(null);
   const [brainMcpData, setBrainMcpData] = useState<any>(null);
   const [brainUsageData, setBrainUsageData] = useState<any>(null);
-  const [brainProvidersData, setBrainProvidersData] = useState<any>(null);
   const [brainLoading, setBrainLoading] = useState(false);
-  const [modelSettings, setModelSettings] = useState({
-    openai_key: "",
-    anthropic_key: "",
-    gemini_key: "",
-    groq_key: "",
-    openrouter_key: "",
-    default_model: "claude-3-7-sonnet",
-    system_prompt: "Bạn là JARVIS, trợ lý AI thông minh, đắc lực và trung thành.",
-  });
   const [editingFileSlug, setEditingFileSlug] = useState<string>("CLAUDE.md");
   const [editingFileContent, setEditingFileContent] = useState<string>(
     "# CẤU HÌNH BRAIN VAULT\n\n- Tên hệ thống: JARVIS Personal AI OS\n- Vault: Brain Default\n- Quản trị viên: Operator\n- Mô hình phục vụ: Multi-Agent Matrix\n"
@@ -682,7 +672,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
     "javis-connect": { enabled: true, key: "" },
     "tool-audit": { enabled: true, key: "" },
   });
-  const [savingSettings, setSavingSettings] = useState(false);
   const [focusedDashboard, setFocusedDashboard] = useState<DashboardId | null>(null);
   const [hubArtifacts, setHubArtifacts] = useState<HubArtifact[]>(() =>
     (initial?.hubArtifacts ?? []).map((artifact) =>
@@ -717,7 +706,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const [gatewayHealth, setGatewayHealth] = useState<any>(null);
   const [nativeDashboards, setNativeDashboards] = useState<NativeDashboards | null>(null);
   const [agentsTab, setAgentsTab] = useState<"gui" | "config">("gui");
-  const [routerTab, setRouterTab] = useState<"gui" | "config">("gui");
   const [hermesTab, setHermesTab] = useState<"gui" | "service" | "config">("gui");
   const [selectedHermesProfileId, setSelectedHermesProfileId] = useState<HermesProfileId>(() => {
     const configured = data?.ai?.hermesProfile;
@@ -1136,9 +1124,18 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           }),
         }
       );
+      const expectedOpenClawAgent = OPENCLAW_STONE_AGENTS[palette];
+      if (expectedOpenClawAgent && (
+        response.source !== "openclaw" ||
+        response.agent !== expectedOpenClawAgent ||
+        response.session?.continuity !== true
+      )) {
+        throw new Error(`Phiên OpenClaw ${expectedOpenClawAgent} chưa được xác nhận.`);
+      }
       const replyText = getGatewayReply(response) || (response.source === "mock" ? "Chưa có AI upstream nào được cấu hình trên gateway." : "JARVIS đã nhận tin nhắn.");
       const reply = { id: createId(), role: "assistant" as const, text: replyText, at: Date.now() };
       setMessages((current) => [...current, reply].slice(-80));
+      if (expectedOpenClawAgent) setToast(`OPENCLAW // ${expectedOpenClawAgent.toUpperCase()} // PHIÊN LIÊN TỤC`);
       playJarvisChime();
       sendDesktopNotification("JARVIS AI OS", replyText);
       if (spawnedHub) {
@@ -1588,11 +1585,11 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
       setAgentsMinimized(false);
     }
     if (windowId === "router") {
-      setRouterTab("gui");
       setRouterOpen(true);
       setRouterMinimized(false);
     }
     if (windowId === "hermes") {
+      setHermesTab("gui");
       setHermesOpen(true);
       setHermesMinimized(false);
     }
@@ -1622,16 +1619,14 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
   const refreshBrainHubData = useCallback(async () => {
     setBrainLoading(true);
     try {
-      const [loops, mcp, usage, providers] = await Promise.all([
+      const [loops, mcp, usage] = await Promise.all([
         gatewayFetch(data, "/api/loops", { method: "GET", timeoutMs: 5000 }).catch(() => null),
         gatewayFetch(data, "/api/brain/mcp/list", { method: "GET", timeoutMs: 5000 }).catch(() => null),
         gatewayFetch(data, "/api/brain/usage/tong-quan", { method: "GET", timeoutMs: 5000 }).catch(() => null),
-        gatewayFetch(data, "/api/brain/providers", { method: "GET", timeoutMs: 5000 }).catch(() => null),
       ]);
       if (loops) setBrainLoopsData(loops);
       if (mcp) setBrainMcpData(mcp);
       if (usage) setBrainUsageData(usage);
-      if (providers) setBrainProvidersData(providers);
     } finally {
       setBrainLoading(false);
     }
@@ -1959,7 +1954,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
             <>
               <button className={hubOpen ? "active" : ""} type="button" onClick={toggleHub}><Icon name="hub" /><span>Power Surge</span></button>
               <button className={agentsOpen ? "active" : ""} type="button" onClick={() => openOsWindow("agents")}><Icon name="agents" /><span>OpenClaw</span></button>
-              <button className={hermesOpen ? "active" : ""} type="button" onClick={() => openServicePanel("hermes")}><Icon name="hermes" /><span>Hermes</span></button>
+              <button className={hermesOpen ? "active" : ""} type="button" onClick={() => openOsWindow("hermes")}><Icon name="hermes" /><span>Hermes</span></button>
               <button className={routerOpen ? "active" : ""} type="button" onClick={() => openOsWindow("router")}><Icon name="router" /><span>9Router</span></button>
               <button className={workspaceOpen ? "active" : ""} type="button" onClick={() => openOsWindow("workspace")}><Icon name="hub" /><span>Không gian</span></button>
               <button className={settingsOpen ? "active" : ""} type="button" onClick={toggleSettings}><Icon name="settings" /><span>Cài đặt</span></button>
@@ -2003,7 +1998,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 className={hermesOpen ? "active" : ""}
                 type="button"
                 aria-label="Mở bảng điều khiển Hermes"
-                onClick={() => openServicePanel("hermes")}
+                onClick={() => openOsWindow("hermes")}
               >
                 <Icon name="hermes" /><span>Hermes</span>
               </button>
@@ -2027,14 +2022,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           )}
         </div>
         <div className="os-tray">
-          <button
-            type="button"
-            className="os-world-btn"
-            title="Mở World Hub (world.huykl.id.vn)"
-            onClick={() => window.open("https://world.huykl.id.vn/", "_blank")}
-          >
-            <span>🌐</span><b>World</b>
-          </button>
           <span className="stone-active-tag" style={{ color: (STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).accentColor }}>
             {(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).stoneIcon} {(STONE_HEADER_THEMES[palette] || STONE_HEADER_THEMES.gold).badgeLabel}
           </span>
@@ -2143,8 +2130,8 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
               <button
                 className="world-realm-btn"
                 type="button"
-                onClick={() => window.open("https://world.huykl.id.vn/", "_blank")}
-                title="Mở World 3D (world.huykl.id.vn)"
+                onClick={() => window.location.assign("https://world.huykl.id.vn/")}
+                title="Mở World 3D; dùng nút Back của trình duyệt để quay lại JARVIS"
                 style={{ borderColor: "#00e5ff", background: "rgba(0, 229, 255, 0.12)", color: "#00e5ff", fontWeight: "bold" }}
               >
                 <i style={{ background: "#00e5ff", boxShadow: "0 0 8px #00e5ff" }} />🌐 World 3D (huykl.id.vn) ↗
@@ -2274,7 +2261,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
 
       {routerOpen && (
         <OsWindow
-          title="9Router Model & Provider Control"
+          title="9Router Dashboard"
           code="SPC://9ROUTER-ADMIN"
           drag={routerDrag}
           minimized={routerMinimized}
@@ -2284,36 +2271,12 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           onClose={() => { setRouterOpen(false); setFocusedDashboard(null); }}
           onToggleMinimize={() => setRouterMinimized(true)}
         >
-          <div className="flex flex-col h-full">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-950/90 border-b border-zinc-800 text-xs">
-              <button
-                type="button"
-                onClick={() => setRouterTab("gui")}
-                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${routerTab === "gui" ? "bg-blue-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
-              >
-                🖥️ Dashboard Web GUI
-              </button>
-              <button
-                type="button"
-                onClick={() => setRouterTab("config")}
-                className={`px-3 py-1 rounded text-xs font-bold uppercase transition ${routerTab === "config" ? "bg-blue-600 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
-              >
-                ⚙️ Cấu hình JSON
-              </button>
-            </div>
-            {routerTab === "gui" ? (
-              <NativeDashboardFrame
-                label="9Router Admin"
-                url={nativeDashboards?.nineRouter || ""}
-                online={connections.nineRouter}
-                service="9router"
-              />
-            ) : (
-              <div className="p-4 space-y-4 text-xs font-mono text-zinc-200">
-                <AppConfigEditor data={data} service="9router" />
-              </div>
-            )}
-          </div>
+          <NativeDashboardFrame
+            label="9Router Admin"
+            url={nativeDashboards?.nineRouter || ""}
+            online={connections.nineRouter}
+            service="9router"
+          />
         </OsWindow>
       )}
 
@@ -2562,13 +2525,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 </button>
                 <button
                   type="button"
-                  className={brainHubTab === "providers" ? "active" : ""}
-                  onClick={() => setBrainHubTab("providers")}
-                >
-                  <Icon name="router" /><span>Bộ Não AI & Models</span>
-                </button>
-                <button
-                  type="button"
                   className={brainHubTab === "usage" ? "active" : ""}
                   onClick={() => setBrainHubTab("usage")}
                 >
@@ -2707,108 +2663,6 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                 </div>
               )}
 
-              {/* Tab 3: Providers & API Keys Online Editor */}
-              {brainHubTab === "providers" && (
-                <div className="brain-hub-tab-pane">
-                  <div className="brain-hub-pane-desc">
-                    <b>CẤU HÌNH BỘ NÃO AI & NHẬP API KEYS ONLINE</b>
-                    <p>Nhập và lưu trực tiếp các API Keys của nhà cung cấp AI hoặc chọn Model AI mặc định.</p>
-                  </div>
-                  <form
-                    className="brain-hub-form"
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      setSavingSettings(true);
-                      setTimeout(() => {
-                        setSavingSettings(false);
-                        setToast("Đã lưu cấu hình Model AI & API Keys thành công!");
-                      }, 400);
-                    }}
-                  >
-                    <div className="brain-form-row">
-                      <label htmlFor="cfg-default-model">MÔ HÌNH AI CHÍNH (DEFAULT MODEL)</label>
-                      <select
-                        id="cfg-default-model"
-                        className="brain-form-input"
-                        value={modelSettings.default_model}
-                        onChange={(e) => setModelSettings({ ...modelSettings, default_model: e.target.value })}
-                      >
-                        <option value="claude-3-7-sonnet">Anthropic Claude 3.7 Sonnet (Mặc định - Thông minh nhất)</option>
-                        <option value="claude-3-5-opus">Anthropic Claude 3.5 Opus (Chuyên sâu & Kiến trúc)</option>
-                        <option value="gpt-4o">OpenAI GPT-4o (Đa phương tiện & Xử lý nhanh)</option>
-                        <option value="gemini-2.0-flash">Google Gemini 2.0 Flash (Tìm kiếm & Tốc độ cao)</option>
-                        <option value="deepseek-r1">DeepSeek R1 (Suy luận logic & Code)</option>
-                        <option value="ollama-local">Ollama Local GPU (Offline - Bảo mật tuyệt đối)</option>
-                      </select>
-                    </div>
-
-                    <div className="brain-form-grid">
-                      <div className="brain-form-row">
-                        <label htmlFor="cfg-openai">OPENAI API KEY</label>
-                        <input
-                          id="cfg-openai"
-                          type="password"
-                          className="brain-form-input"
-                          placeholder="sk-proj-..."
-                          value={modelSettings.openai_key}
-                          onChange={(e) => setModelSettings({ ...modelSettings, openai_key: e.target.value })}
-                        />
-                      </div>
-                      <div className="brain-form-row">
-                        <label htmlFor="cfg-anthropic">ANTHROPIC API KEY</label>
-                        <input
-                          id="cfg-anthropic"
-                          type="password"
-                          className="brain-form-input"
-                          placeholder="sk-ant-..."
-                          value={modelSettings.anthropic_key}
-                          onChange={(e) => setModelSettings({ ...modelSettings, anthropic_key: e.target.value })}
-                        />
-                      </div>
-                      <div className="brain-form-row">
-                        <label htmlFor="cfg-gemini">GOOGLE GEMINI API KEY</label>
-                        <input
-                          id="cfg-gemini"
-                          type="password"
-                          className="brain-form-input"
-                          placeholder="AIzaSy..."
-                          value={modelSettings.gemini_key}
-                          onChange={(e) => setModelSettings({ ...modelSettings, gemini_key: e.target.value })}
-                        />
-                      </div>
-                      <div className="brain-form-row">
-                        <label htmlFor="cfg-groq">GROQ API KEY (WHISPER STT)</label>
-                        <input
-                          id="cfg-groq"
-                          type="password"
-                          className="brain-form-input"
-                          placeholder="gsk_..."
-                          value={modelSettings.groq_key}
-                          onChange={(e) => setModelSettings({ ...modelSettings, groq_key: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="brain-form-row">
-                      <label htmlFor="cfg-prompt">SYSTEM PROMPT / TÍNH CÁCH CỦA JARVIS</label>
-                      <textarea
-                        id="cfg-prompt"
-                        rows={3}
-                        className="brain-form-textarea"
-                        value={modelSettings.system_prompt}
-                        onChange={(e) => setModelSettings({ ...modelSettings, system_prompt: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="brain-form-actions">
-                      <button type="submit" className="brain-hub-submit-btn" disabled={savingSettings}>
-                        {savingSettings ? "ĐANG LƯU..." : "💾 LƯU CẤU HÌNH AI & API KEYS"}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              )}
-
               {/* Tab 4: Usage */}
               {brainHubTab === "usage" && (
                 <div className="brain-hub-tab-pane">
@@ -2822,7 +2676,7 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
                         <b>KỲ HIỆN TẠI</b>
                         <span className="brain-hub-badge active">THÁNG NÀY</span>
                       </div>
-                      <p className="brain-hub-card-desc">Engine chính: <b>{modelSettings.default_model}</b><br />Chế độ: Gói thuê bao (Không giới hạn theo lượt)</p>
+                      <p className="brain-hub-card-desc">Engine chính: <b>OpenClaw Stone Agent</b><br />Chế độ: phiên bền vững theo từng agent</p>
                       <div className="brain-hub-card-meta">
                         <span>Tự động tối ưu Cache: <b>BẬT</b></span>
                       </div>
@@ -2996,7 +2850,9 @@ export default function HudOverlay({ currentTime, data, palette, updateData, onA
           <input
             id="jcore-command"
             name="jcore-command"
-            placeholder="Nói hoặc nhập lệnh..."
+            placeholder={OPENCLAW_STONE_AGENTS[palette]
+              ? `Nói hoặc nhập lệnh cho ${OPENCLAW_STONE_AGENTS[palette]}…`
+              : "Nói hoặc nhập lệnh..."}
             value={input}
             autoComplete="off"
             autoCorrect="off"

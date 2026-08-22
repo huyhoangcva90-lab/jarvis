@@ -1634,8 +1634,12 @@ function openClawWebSession(req, agentId) {
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 64) || "operator";
-  const sessionKey = `jcore:web:${username}:${agentId}`;
+  // OpenClaw associates the agent with the canonical `agent:<id>:` prefix.
+  // An opaque key is normalized under `agent:main:` even when an agent header
+  // is present, which would put Stone conversations in the wrong store.
+  const sessionKey = `agent:${agentId}:jcore:web:${username}`;
   return {
+    user: sessionKey,
     headers: {
       "x-openclaw-agent-id": agentId,
       "x-openclaw-session-key": sessionKey,
@@ -1650,7 +1654,7 @@ function openClawWebSession(req, agentId) {
   };
 }
 
-function toOpenClawPayload(payload, agentId) {
+function toOpenClawPayload(payload, agentId, sessionUser = "") {
   const message = String(payload.message || "").trim();
   const latest = message
     ? { role: "user", content: message }
@@ -1659,6 +1663,7 @@ function toOpenClawPayload(payload, agentId) {
     model: `openclaw/${agentId}`,
     messages: latest ? [{ role: "user", content: String(latest.content || "") }] : [],
     stream: false,
+    ...(sessionUser ? { user: sessionUser } : {}),
   };
 }
 
@@ -1925,11 +1930,26 @@ const server = createServer(async (req, res) => {
         return sendJson(req, res, 400, { error: "openclaw_agent_not_allowed" });
       }
 
-      if (requestedOpenClawAgent && services.openclaw.chat && getCircuit("openclaw").openUntil <= Date.now()) {
+      if (requestedOpenClawAgent) {
+        if (!services.openclaw.chat) {
+          gatewayStats.failures += 1;
+          return sendJson(req, res, 503, {
+            error: "openclaw_stone_session_not_configured",
+            agent: requestedOpenClawAgent,
+          });
+        }
+        if (getCircuit("openclaw").openUntil > Date.now()) {
+          gatewayStats.failures += 1;
+          return sendJson(req, res, 503, {
+            error: "openclaw_stone_session_temporarily_unavailable",
+            agent: requestedOpenClawAgent,
+            circuit: circuitSnapshot("openclaw").state,
+          });
+        }
         const session = openClawWebSession(req, requestedOpenClawAgent);
         const result = await proxyJson(
           services.openclaw.chat,
-          toOpenClawPayload(body, requestedOpenClawAgent),
+          toOpenClawPayload(body, requestedOpenClawAgent, session.user),
           services.openclaw.apiKey,
           session.headers,
         );
@@ -1957,6 +1977,15 @@ const server = createServer(async (req, res) => {
             "server-timing": `openclaw;dur=${result.latencyMs}`,
           });
         }
+        gatewayStats.failures += 1;
+        return sendJson(req, res, 502, {
+          error: "openclaw_stone_session_failed",
+          agent: requestedOpenClawAgent,
+          attempts,
+        }, {
+          "x-jcore-upstream": "openclaw",
+          "server-timing": `openclaw;dur=${result.latencyMs}`,
+        });
       }
 
       if (services.hermes.chat && getCircuit("hermes").openUntil <= Date.now()) {
@@ -2054,7 +2083,7 @@ const server = createServer(async (req, res) => {
       gatewayStats.successes += 1;
       const helpfulFallback = `Tôi là **JARVIS**, trợ lý điều hành của bạn. Tôi đã nhận được thông điệp: "${userPrompt}".\n\n` +
         `💡 **Hệ thống lõi J-Core OS đã sẵn sàng 100%:**\n` +
-        `• Bạn có thể nhập API Key (OpenAI, Anthropic Claude, Gemini, Groq) tại mục **9Router** hoặc tab **Bộ Não AI** trong **Javis Hub** trên Taskbar.\n` +
+        `• Chat theo Infinity Stone được giữ trong phiên OpenClaw riêng của từng agent; khóa truy cập chỉ nằm phía server.\n` +
         `• Các lệnh gạch chéo nhanh như \`/loop\`, \`/brain\`, \`/usage\`, \`/mcp\`, \`/backup\` đều đang hoạt động và sẵn sàng phục vụ!`;
 
       return sendJson(req, res, 200, {

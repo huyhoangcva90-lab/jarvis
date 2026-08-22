@@ -399,7 +399,7 @@ try {
   if (stoneTurns.some(({ response, body }) => !response.ok || body.source !== "openclaw" || body.agent !== "mind" || !body.session?.continuity)) {
     throw new Error(`OpenClaw Stone routing failed: ${JSON.stringify(stoneTurns.map(({ response, body }) => ({ status: response.status, body })))}`);
   }
-  if (JSON.stringify(stoneTurns.map(({ body }) => body)).includes("jcore:web:smoke-admin:mind")) {
+  if (JSON.stringify(stoneTurns.map(({ body }) => body)).includes("agent:mind:jcore:web:smoke-admin")) {
     throw new Error("OpenClaw session key leaked to the browser response");
   }
   const invalidStoneAgent = await fetch(`${base}/api/ai/chat`, {
@@ -416,8 +416,8 @@ try {
     body: JSON.stringify({ openclawAgent: "reality", message: "reject html upstream" }),
   });
   const htmlUpstreamBody = await htmlUpstream.json();
-  if (!htmlUpstream.ok || htmlUpstreamBody.source !== "hermes" || htmlUpstreamBody.attempts?.[0]?.error !== "unexpected_html_response") {
-    throw new Error(`HTML upstream response must fall back safely: ${JSON.stringify(htmlUpstreamBody)}`);
+  if (htmlUpstream.status !== 502 || htmlUpstreamBody.error !== "openclaw_stone_session_failed" || htmlUpstreamBody.attempts?.[0]?.error !== "unexpected_html_response") {
+    throw new Error(`Stone chat must fail closed when OpenClaw is unavailable: ${JSON.stringify(htmlUpstreamBody)}`);
   }
 
   const secondaryProfile = await fetch(`${base}/api/hermes/chat`, {
@@ -437,7 +437,7 @@ try {
     throw new Error(`Hermes profile allowlist failed: ${invalidProfile.status} ${await invalidProfile.text()}`);
   }
   if (
-    hermesRequests.length !== 3 ||
+    hermesRequests.length !== 2 ||
     hermesRequests[0].url !== "/v1/chat/completions" ||
     hermesRequests[1].url !== "/v1/chat/completions" ||
     hermesRequests.some((request) => request.headers["x-hermes-session-id"] !== "jarvis-web-primary") ||
@@ -450,9 +450,10 @@ try {
   if (
     mindOpenClawRequests.length !== 2 ||
     mindOpenClawRequests.some((request) => request.url !== "/v1/chat/completions") ||
-    mindOpenClawRequests.some((request) => request.headers["x-openclaw-session-key"] !== "jcore:web:smoke-admin:mind") ||
+    mindOpenClawRequests.some((request) => request.headers["x-openclaw-session-key"] !== "agent:mind:jcore:web:smoke-admin") ||
     mindOpenClawRequests.some((request) => request.headers["x-openclaw-message-channel"] !== "web") ||
     mindOpenClawRequests.some((request) => request.body.model !== "openclaw/mind") ||
+    mindOpenClawRequests.some((request) => request.body.user !== "agent:mind:jcore:web:smoke-admin") ||
     mindOpenClawRequests.some((request) => request.body.messages?.length !== 1 || request.body.messages[0]?.content === "older browser context")
   ) {
     throw new Error(`OpenClaw Stone session contract failed: ${JSON.stringify(openClawRequests)}`);
@@ -489,7 +490,7 @@ try {
     throw new Error(`Native management API proxy failed: ${JSON.stringify(nativeSettingsBody)}`);
   }
 
-  console.log("Gateway smoke test passed: login, workspace, terminal guards, Hermes fallback, persistent OpenClaw Stone sessions and dashboard proxy.");
+  console.log("Gateway smoke test passed: login, workspace, terminal guards, fail-closed OpenClaw Stone sessions and dashboard proxy.");
 } catch (error) {
   if (gatewayOutput) console.error(gatewayOutput);
   throw error;

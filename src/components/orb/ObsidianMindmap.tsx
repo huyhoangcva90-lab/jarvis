@@ -1,215 +1,162 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState, type CSSProperties } from "react";
 import { buildObsidianGraph } from "../../utils/obsidianParser";
-import Icon from "./Icon";
 
 interface ObsidianMindmapProps {
   notes: { path: string; content: string }[];
   onSelectNote?: (path: string) => void;
 }
 
+const TOPIC_COLORS = ["#62e6ff", "#8b93ff", "#3fdc9a", "#f0a24a", "#e779ff", "#ff6e87"];
+
+function shortLabel(value: string) {
+  return value.length > 22 ? `${value.slice(0, 20)}…` : value;
+}
+
 export default function ObsidianMindmap({ notes, onSelectNote }: ObsidianMindmapProps) {
   const graph = useMemo(() => buildObsidianGraph(notes), [notes]);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() => graph.nodes[0]?.id || null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTopic, setActiveTopic] = useState("all");
   const [zoom, setZoom] = useState(1);
 
+  const topicColors = useMemo(
+    () => new Map(graph.topics.map((topic, index) => [topic.id, TOPIC_COLORS[index % TOPIC_COLORS.length]])),
+    [graph.topics],
+  );
   const filteredNodes = useMemo(() => {
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return graph.nodes;
     return graph.nodes.filter(
-      (n) => (activeTopic === "all" || n.topic === activeTopic)
-        && (!term || n.title.toLowerCase().includes(term) || n.folder.toLowerCase().includes(term) || n.tags.some((t) => t.toLowerCase().includes(term)))
+      (node) =>
+        node.title.toLowerCase().includes(term) ||
+        node.folder.toLowerCase().includes(term) ||
+        node.tags.some((tag) => tag.toLowerCase().includes(term)),
     );
-  }, [activeTopic, graph.nodes, searchTerm]);
-
+  }, [graph.nodes, searchTerm]);
   const visibleNodeIds = useMemo(() => new Set(filteredNodes.map((node) => node.id)), [filteredNodes]);
-
-  const selectedNode = useMemo(
-    () => graph.nodes.find((n) => n.id === selectedNodeId) || graph.nodes[0] || null,
-    [graph.nodes, selectedNodeId]
+  const linkedNodeIds = useMemo(
+    () => new Set(graph.edges.flatMap((edge) => [edge.source, edge.target])),
+    [graph.edges],
   );
 
   return (
     <div className="obsidian-mindmap-container">
-      <header className="obsidian-mindmap-toolbar">
-        <div className="mindmap-title">
-          <Icon name="document" />
-          <span>OBSIDIAN VAULT MINDMAP</span>
-          <small>{graph.nodes.length} Notes · {graph.edges.length} Links</small>
-        </div>
-        <div className="mindmap-controls">
-          <input
-            type="text"
-            placeholder="Tìm ghi chú / #tag..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <button type="button" onClick={() => setZoom((z) => Math.min(1.8, z + 0.15))} title="Phóng to">
-            +
-          </button>
-          <button type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.15))} title="Thu nhỏ">
-            -
-          </button>
-          <button type="button" onClick={() => setZoom(1)} title="Đặt lại zoom">
-            1:1
-          </button>
-        </div>
-      </header>
+      <div className="mindmap-canvas-wrapper">
+        <svg
+          className="mindmap-svg"
+          viewBox="-420 -300 840 600"
+          style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
+          aria-label="Mạng tri thức JARVIS"
+        >
+          <defs>
+            <radialGradient id="jarvis-core-fill">
+              <stop offset="0%" stopColor="rgba(255,255,255,.96)" />
+              <stop offset="34%" stopColor="var(--accent)" />
+              <stop offset="100%" stopColor="rgba(var(--accent-rgb),.06)" />
+            </radialGradient>
+            <filter id="jarvis-node-glow" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur stdDeviation="5" result="blur" />
+              <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+            </filter>
+            <pattern id="jarvis-grid-dots" width="28" height="28" patternUnits="userSpaceOnUse">
+              <circle cx="1" cy="1" r=".7" fill="rgba(var(--accent-rgb),.18)" />
+            </pattern>
+          </defs>
 
-      <nav className="obsidian-topic-lane" aria-label="Chủ đề trong Obsidian vault">
-        <button type="button" className={activeTopic === "all" ? "active" : ""} onClick={() => setActiveTopic("all")}><b>Tất cả</b><small>{graph.nodes.length}</small></button>
-        {graph.topics.map((topic) => (
-          <button type="button" key={topic.id} className={activeTopic === topic.id ? "active" : ""} onClick={() => setActiveTopic(topic.id)}>
-            <b>{topic.label}</b><small>{topic.count}</small>
-          </button>
-        ))}
-      </nav>
+          <rect x="-420" y="-300" width="840" height="600" fill="url(#jarvis-grid-dots)" />
 
-      <div className="obsidian-mindmap-body">
-        <div className="mindmap-canvas-wrapper">
-          <svg
-            className="mindmap-svg"
-            viewBox="-400 -300 800 600"
-            style={{ transform: `scale(${zoom})`, transformOrigin: "center center" }}
-          >
-            <defs>
-              <marker
-                id="arrow"
-                viewBox="0 0 10 10"
-                refX="22"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(var(--accent-rgb), 0.4)" />
-              </marker>
-            </defs>
+          <g className="mindmap-core" aria-hidden="true">
+            <circle r="92" className="mindmap-core-orbit outer" />
+            <circle r="61" className="mindmap-core-orbit" />
+            <circle r="34" className="mindmap-core-disc" />
+            <circle r="8" className="mindmap-core-pulse" />
+            <text y="54">JARVIS</text>
+            <text y="68" className="mindmap-core-subtitle">SECOND BRAIN</text>
+          </g>
 
-            {/* Edges */}
-            <g className="mindmap-edges">
-              {graph.edges.map((edge, idx) => {
-                if (!visibleNodeIds.has(edge.source) || !visibleNodeIds.has(edge.target)) return null;
-                const sourceNode = graph.nodes.find((n) => n.id === edge.source);
-                const targetNode = graph.nodes.find((n) => n.id === edge.target);
-                if (!sourceNode || !targetNode) return null;
-                const isHighlighted =
-                  selectedNode && (selectedNode.id === sourceNode.id || selectedNode.id === targetNode.id);
-                return (
-                  <line
-                    key={`${edge.source}-${edge.target}-${idx}`}
-                    x1={sourceNode.x || 0}
-                    y1={sourceNode.y || 0}
-                    x2={targetNode.x || 0}
-                    y2={targetNode.y || 0}
-                    className={`mindmap-edge ${isHighlighted ? "highlighted" : ""}`}
-                    markerEnd="url(#arrow)"
-                  />
-                );
-              })}
-            </g>
-
-            {/* Nodes */}
-            <g className="mindmap-nodes">
-              {filteredNodes.map((node) => {
-                const isSelected = selectedNode?.id === node.id;
-                const nodeRadius = isSelected ? 24 : 18;
-                return (
-                  <g
-                    key={node.id}
-                    className={`mindmap-node-group ${isSelected ? "selected" : ""}`}
-                    transform={`translate(${node.x || 0}, ${node.y || 0})`}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Mở ghi chú ${node.title}`}
-                    onClick={() => {
-                      setSelectedNodeId(node.id);
-                      if (onSelectNote) onSelectNote(node.path);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter" && event.key !== " ") return;
-                      event.preventDefault();
-                      setSelectedNodeId(node.id);
-                      if (onSelectNote) onSelectNote(node.path);
-                    }}
-                  >
-                    <circle r={nodeRadius} className="mindmap-node-circle" />
-                    <text y={nodeRadius + 14} className="mindmap-node-label">
-                      {node.title}
-                    </text>
-                  </g>
-                );
-              })}
-            </g>
-          </svg>
-        </div>
-
-        {/* Selected Note Inspector Panel */}
-        {selectedNode && (
-          <aside className="mindmap-inspector">
-            <header>
-              <small>NOTE INSPECTOR</small>
-              <h4>{selectedNode.title}</h4>
-              <span className="node-path">{selectedNode.path}</span>
-            </header>
-            <div className="inspector-content">
-              <p className="summary-text">{selectedNode.summary}</p>
-
-              <div className="note-context-grid">
-                <span><small>TOPIC</small><b>{selectedNode.topic}</b></span>
-                <span><small>FOLDER</small><b>{selectedNode.folder}</b></span>
-                <span><small>LINKS</small><b>{selectedNode.linkIds.length}</b></span>
-                <span><small>BACKLINKS</small><b>{selectedNode.backlinks.length}</b></span>
-              </div>
-
-              {selectedNode.tags.length > 0 && (
-                <div className="tags-section">
-                  <span>TAGS:</span>
-                  <div className="tag-badges">
-                    {selectedNode.tags.map((tag) => (
-                      <span key={tag} className="tag-badge">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {selectedNode.links.length > 0 && (
-                <div className="links-section">
-                  <span>OUTGOING LINKS ({selectedNode.links.length}):</span>
-                  <ul>
-                    {selectedNode.links.map((link, index) => (
-                      <li key={`${link}-${index}`} onClick={() => setSelectedNodeId(selectedNode.linkIds[index] || selectedNode.id)}>
-                        <Icon name="external" />
-                        <span>{link}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {selectedNode.backlinks.length > 0 && (
-                <div className="links-section backlinks-section">
-                  <span>BACKLINKS ({selectedNode.backlinks.length}):</span>
-                  <ul>{selectedNode.backlinks.map((sourceId) => {
-                    const source = graph.nodes.find((node) => node.id === sourceId);
-                    return source ? <li key={sourceId} onClick={() => setSelectedNodeId(sourceId)}><Icon name="external" /><span>{source.title}</span></li> : null;
-                  })}</ul>
-                </div>
-              )}
-            </div>
-            {onSelectNote && (
-              <button
-                type="button"
-                className="view-full-note-btn"
-                onClick={() => onSelectNote(selectedNode.path)}
-              >
-                Mở đọc tài liệu
-              </button>
+          <g className="mindmap-edges">
+            {filteredNodes.map((node) =>
+              linkedNodeIds.has(node.id) ? null : (
+                <line
+                  key={`core-${node.id}`}
+                  x1="0"
+                  y1="0"
+                  x2={node.x || 0}
+                  y2={node.y || 0}
+                  className="mindmap-core-link"
+                />
+              ),
             )}
-          </aside>
-        )}
+            {graph.edges.map((edge) => {
+              if (!visibleNodeIds.has(edge.source) || !visibleNodeIds.has(edge.target)) return null;
+              const sourceNode = graph.nodes.find((node) => node.id === edge.source);
+              const targetNode = graph.nodes.find((node) => node.id === edge.target);
+              if (!sourceNode || !targetNode) return null;
+              const highlighted = selectedNodeId === sourceNode.id || selectedNodeId === targetNode.id;
+              return (
+                <line
+                  key={`${edge.source}-${edge.target}`}
+                  x1={sourceNode.x || 0}
+                  y1={sourceNode.y || 0}
+                  x2={targetNode.x || 0}
+                  y2={targetNode.y || 0}
+                  className={`mindmap-edge ${highlighted ? "highlighted" : ""}`}
+                />
+              );
+            })}
+          </g>
+
+          <g className="mindmap-nodes">
+            {filteredNodes.map((node) => {
+              const selected = selectedNodeId === node.id;
+              const color = topicColors.get(node.topic) || TOPIC_COLORS[0];
+              return (
+                <g
+                  key={node.id}
+                  className={`mindmap-node-group ${selected ? "selected" : ""}`}
+                  style={{ "--node-color": color } as CSSProperties}
+                  transform={`translate(${node.x || 0}, ${node.y || 0})`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Mở ghi chú ${node.title}`}
+                  onClick={() => {
+                    setSelectedNodeId(node.id);
+                    onSelectNote?.(node.path);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    setSelectedNodeId(node.id);
+                    onSelectNote?.(node.path);
+                  }}
+                >
+                  <circle r={selected ? 10 : 6} className="mindmap-node-halo" />
+                  <circle r={selected ? 5 : 3.5} className="mindmap-node-circle" />
+                  <text y={selected ? 22 : 17} className="mindmap-node-label">{shortLabel(node.title)}</text>
+                </g>
+              );
+            })}
+          </g>
+        </svg>
+
+        <div className="mindmap-controls" aria-label="Điều khiển đồ thị">
+          <input
+            type="search"
+            placeholder="Tìm trong não…"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+          <button type="button" onClick={() => setZoom((value) => Math.max(.65, value - .12))} aria-label="Thu nhỏ">−</button>
+          <button type="button" onClick={() => setZoom(1)} aria-label="Đặt lại tỷ lệ">1:1</button>
+          <button type="button" onClick={() => setZoom((value) => Math.min(1.65, value + .12))} aria-label="Phóng to">+</button>
+        </div>
+
+        <div className="mindmap-topic-legend" aria-label="Nhóm tri thức">
+          {graph.topics.slice(0, 6).map((topic, index) => (
+            <span key={topic.id} style={{ "--topic-color": TOPIC_COLORS[index % TOPIC_COLORS.length] } as CSSProperties}>
+              <i />{topic.label}<b>{topic.count}</b>
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );
